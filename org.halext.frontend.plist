@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>org.halext.frontend</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/env</string>
+        <string>npm</string>
+        <string>run</string>
+        <string>dev</string>
+        <string>--</string>
+        <string>--host</string>
+        <string>127.0.0.1</string>
+        <string>--port</string>
+        <string>4173</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/scawful/Code/halext-org-project/frontend</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>VITE_API_BASE_URL</key>
+        <string>http://127.0.0.1:8000</string>
+        <key>NODE_OPTIONS</key>
+        <string>--max_old_space_size=4096</string>
+        <key>PATH</key>
+        <string>/usr/local/opt/node@20/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/Users/scawful/Code/halext-org-project/frontend.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/scawful/Code/halext-org-project/frontend.err.log</string>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>WatchPaths</key>
+    <array>
+        <string>/Users/scawful/Code/halext-org-project/frontend/</string>
+    </array>
+
+</dict>
+</plist>

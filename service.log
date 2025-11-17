@@ -1,6 +1,0 @@
-INFO:     127.0.0.1:62276 - "GET /docs HTTP/1.1" 200 OK
-INFO:     127.0.0.1:62276 - "GET /openapi.json HTTP/1.1" 200 OK
-INFO:     127.0.0.1:62315 - "GET /docs HTTP/1.1" 200 OK
-INFO:     127.0.0.1:62315 - "GET /openapi.json HTTP/1.1" 200 OK
-INFO:     127.0.0.1:62315 - "GET / HTTP/1.1" 404 Not Found
-INFO:     127.0.0.1:62320 - "GET /favicon.ico HTTP/1.1" 404 Not Found

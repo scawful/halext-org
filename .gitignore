@@ -18,3 +18,14 @@ __pycache__/
 # DB
 *.db
 *.sqlite3
+
+# Logs
+service.log
+service.err.log
+frontend.log
+frontend-dev.log
+frontend.err.log
+
+# Frontend build artifacts
+frontend/node_modules/
+frontend/dist/
