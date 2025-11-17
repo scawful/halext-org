@@ -2,6 +2,32 @@
 
 This document walks through running the Halext stack on an Ubuntu 22.04 (or newer) server with Nginx and a subdomain such as `app.halext.org`. The goal is to keep development flowing locally while the shared instance stays online for Chris.
 
+## 0. Quick Start (org.halext.org)
+
+For the production org.halext.org host there is a single bootstrapper that wires up Postgres, systemd, the FastAPI virtualenv, the SPA build, and Nginx:
+
+```bash
+cd /srv/halext/halext-org
+sudo ./scripts/setup-org.sh
+```
+
+The script will:
+
+- verify required tooling (`psql`, `node`, `npm`, `rsync`, `nginx`, `systemctl`, `curl`, `sudo`).
+- install and start PostgreSQL if it does not already exist, then ensure the service is active.
+- prompt before overwriting `backend/.env`, generate secrets if needed, and create/alter the Postgres role/database via `runuser -u postgres`.
+- create/update the Python 3.11 (or fallback python3) virtualenv and backend dependencies.
+- build the frontend, rsync it to `/var/www/halext`, and chown the directory to `www-data`.
+- install/enable the `halext-api` systemd unit and stop if it fails to start (check `journalctl -u halext-api`).
+- copy/enable the Nginx site for `org.halext.org`, include `/etc/nginx/ssl/org.halext.org.conf` when present, and run a host-header curl test.
+
+After the script finishes, point DNS for `org.halext.org` at the server and run `sudo certbot --nginx -d org.halext.org` so the SSL snippet is created. The rest of this guide covers the manual steps in more detail if you need to debug a specific stage or customize the deployment.
+
+If you create a dedicated `halext` user for Git/SSH access:
+
+- run `sudo ./scripts/sync-halext-perms.sh` so the repo tree is group-writable for that account and Git no longer complains about dubious ownership.
+- if the `justin` account already owns the SSH key you want to reuse, copy it with `sudo ./scripts/copy-ssh-key-to-halext.sh /path/to/justin/key` (optionally add a custom username/key name).
+
 ## 1. Prerequisites
 
 - Ubuntu server with SSH access and sudo privileges.
