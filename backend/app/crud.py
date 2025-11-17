@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 from sqlalchemy.sql import func
+from typing import Optional
 from . import models, schemas
 from passlib.context import CryptContext
 from .presets import DEFAULT_LAYOUT_PRESETS
@@ -187,7 +188,7 @@ def apply_layout_preset(db: Session, page: models.Page, preset: models.LayoutPre
     return page
 
 def seed_layout_presets(db: Session):
-    existing = {preset.name for preset in db.query(models.LayoutPreset).all()}
+    existing = {preset.name for preset in db.query(models.LayoutPreset).filter(models.LayoutPreset.is_system == True).all()}
     created = False
     for entry in DEFAULT_LAYOUT_PRESETS:
         if entry["name"] in existing:
@@ -196,11 +197,40 @@ def seed_layout_presets(db: Session):
             name=entry["name"],
             description=entry.get("description"),
             layout=entry["layout"],
+            is_system=True,
+            owner_id=None,
         )
         db.add(db_preset)
         created = True
     if created:
         db.commit()
+
+def create_layout_preset(db: Session, preset: schemas.LayoutPresetCreate, owner_id: int):
+    layout_payload = [column.dict() for column in preset.layout]
+    db_preset = models.LayoutPreset(
+        name=preset.name,
+        description=preset.description,
+        layout=layout_payload,
+        is_system=False,
+        owner_id=owner_id,
+    )
+    db.add(db_preset)
+    db.commit()
+    db.refresh(db_preset)
+    return db_preset
+
+def update_layout_preset(db: Session, db_preset: models.LayoutPreset, preset: schemas.LayoutPresetBase):
+    db_preset.name = preset.name
+    db_preset.description = preset.description
+    db_preset.layout = [column.dict() for column in preset.layout]
+    db.add(db_preset)
+    db.commit()
+    db.refresh(db_preset)
+    return db_preset
+
+def delete_layout_preset(db: Session, preset_id: int):
+    db.query(models.LayoutPreset).filter(models.LayoutPreset.id == preset_id).delete()
+    db.commit()
 
 def create_conversation(db: Session, owner_id: int, payload: schemas.ConversationCreate, participant_ids: list[int]):
     conversation = models.Conversation(
@@ -251,10 +281,10 @@ def add_message_to_conversation(
     db: Session,
     conversation_id: int,
     content: str,
-    author_id: int | None,
+    author_id: Optional[int],
     author_type: str = "user",
-    model_used: str | None = None,
-    extras: dict | None = None,
+    model_used: Optional[str] = None,
+    extras: Optional[dict] = None,
 ):
     db_message = models.ChatMessage(
         conversation_id=conversation_id,

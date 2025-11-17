@@ -90,6 +90,45 @@ struct WorkspaceView: View {
                     }
                 }
             }
+
+            Section("Layout Presets") {
+                if appState.layoutPresets.isEmpty {
+                    Text("No presets available")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                } else {
+                    ForEach(appState.layoutPresets) { preset in
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Text(preset.name).font(.headline)
+                                if preset.is_system {
+                                    Text("System")
+                                        .font(.caption)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(Color.blue.opacity(0.15))
+                                        .clipShape(Capsule())
+                                } else {
+                                    Text("Custom")
+                                        .font(.caption)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(Color.green.opacity(0.15))
+                                        .clipShape(Capsule())
+                                }
+                            }
+                            if let description = preset.description, !description.isEmpty {
+                                Text(description)
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                            }
+                            Text("\(preset.layout.count) column\(preset.layout.count == 1 ? "" : "s")")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+            }
         }
         .listStyle(.insetGrouped)
         .navigationTitle("Workspace")

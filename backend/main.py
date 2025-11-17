@@ -3,6 +3,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from datetime import timedelta
+from typing import Optional
 import os
 
 from app import crud, models, schemas, auth
@@ -27,7 +28,7 @@ app.add_middleware(
 
 ACCESS_CODE = os.getenv("ACCESS_CODE", "").strip()
 
-def verify_access_code(x_halext_code: str | None = Header(default=None)):
+def verify_access_code(x_halext_code: Optional[str] = Header(default=None)):
     if ACCESS_CODE and x_halext_code != ACCESS_CODE:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Access code required")
 
@@ -216,17 +217,74 @@ def list_layout_presets(
     current_user: models.User = Depends(auth.get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    # current_user is unused but ensures auth
     presets = crud.get_layout_presets(db)
-    return [
-        schemas.LayoutPresetInfo(
-            id=preset.id,
-            name=preset.name,
-            description=preset.description,
-            layout=preset.layout,
-        )
-        for preset in presets
-    ]
+    return [schemas.LayoutPresetInfo.from_orm(preset) for preset in presets]
+
+@app.post("/layout-presets/", response_model=schemas.LayoutPresetInfo)
+def create_layout_preset(
+    preset: schemas.LayoutPresetCreate,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    db_preset = crud.create_layout_preset(db=db, preset=preset, owner_id=current_user.id)
+    return schemas.LayoutPresetInfo.from_orm(db_preset)
+
+@app.post("/layout-presets/from-page/{page_id}", response_model=schemas.LayoutPresetInfo)
+def create_preset_from_page(
+    page_id: int,
+    name: str,
+    description: Optional[str] = None,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    db_page = crud.get_page(db, page_id=page_id)
+    if not db_page:
+        raise HTTPException(status_code=404, detail="Page not found")
+    if db_page.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the owner can create presets from this page")
+
+    preset_data = schemas.LayoutPresetCreate(
+        name=name,
+        description=description,
+        layout=[schemas.LayoutColumn(**col) for col in db_page.layout]
+    )
+    db_preset = crud.create_layout_preset(db=db, preset=preset_data, owner_id=current_user.id)
+    return schemas.LayoutPresetInfo.from_orm(db_preset)
+
+@app.put("/layout-presets/{preset_id}", response_model=schemas.LayoutPresetInfo)
+def update_layout_preset(
+    preset_id: int,
+    preset: schemas.LayoutPresetBase,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    db_preset = crud.get_layout_preset(db, preset_id=preset_id)
+    if not db_preset:
+        raise HTTPException(status_code=404, detail="Preset not found")
+    if db_preset.is_system:
+        raise HTTPException(status_code=403, detail="Cannot modify system presets")
+    if db_preset.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the owner can modify this preset")
+
+    updated_preset = crud.update_layout_preset(db=db, db_preset=db_preset, preset=preset)
+    return schemas.LayoutPresetInfo.from_orm(updated_preset)
+
+@app.delete("/layout-presets/{preset_id}", status_code=204)
+def delete_layout_preset(
+    preset_id: int,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    db_preset = crud.get_layout_preset(db, preset_id=preset_id)
+    if not db_preset:
+        raise HTTPException(status_code=404, detail="Preset not found")
+    if db_preset.is_system:
+        raise HTTPException(status_code=403, detail="Cannot delete system presets")
+    if db_preset.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the owner can delete this preset")
+
+    crud.delete_layout_preset(db, preset_id=preset_id)
+    return
 
 @app.post("/pages/{page_id}/apply-preset/{preset_id}", response_model=schemas.PageDetail)
 def apply_layout_preset_to_page(

@@ -1,5 +1,5 @@
 import os
-from typing import Sequence
+from typing import Sequence, Optional
 
 try:
     import httpx
@@ -18,7 +18,7 @@ class AiGateway:
         self.openwebui_url = os.getenv("OPENWEBUI_URL")
         self.ollama_url = os.getenv("OLLAMA_URL", "http://localhost:11434")
 
-    async def generate_reply(self, prompt: str, history: Sequence[dict] | None = None):
+    async def generate_reply(self, prompt: str, history: Optional[Sequence[dict]] = None):
         if httpx is None:
             return self._mock_response(prompt, history or [])
         if self.provider == "openwebui" and self.openwebui_url:

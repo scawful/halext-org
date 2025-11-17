@@ -17,6 +17,7 @@ final class AppState: ObservableObject {
     @Published var token: String?
     @Published var tasks: [TaskSummary] = []
     @Published var events: [EventSummary] = []
+    @Published var layoutPresets: [LayoutPreset] = []
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
 
@@ -50,10 +51,12 @@ final class AppState: ObservableObject {
         do {
             async let tasksResponse = api.fetchTasks(token: token, accessCode: accessCode)
             async let eventsResponse = api.fetchEvents(token: token, accessCode: accessCode)
-            let (tasks, events) = try await (tasksResponse, eventsResponse)
+            async let presetsResponse = api.fetchLayoutPresets(token: token, accessCode: accessCode)
+            let (tasks, events, presets) = try await (tasksResponse, eventsResponse, presetsResponse)
             DispatchQueue.main.async {
                 self.tasks = tasks
                 self.events = events
+                self.layoutPresets = presets
             }
         } catch {
             DispatchQueue.main.async {

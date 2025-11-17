@@ -78,10 +78,14 @@ class LayoutPreset(Base):
     __tablename__ = "layout_presets"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=False, unique=True)
+    name = Column(String, nullable=False)
     description = Column(String, nullable=True)
     layout = Column(JSON, nullable=False)
+    is_system = Column(Boolean, default=False)
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    owner = relationship("User")
 
 class Page(Base):
     __tablename__ = "pages"

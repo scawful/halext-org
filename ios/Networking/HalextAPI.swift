@@ -32,6 +32,22 @@ struct HalextAPI {
         try await request(path: "/events/", token: token, accessCode: accessCode)
     }
 
+    func fetchLayoutPresets(token: String, accessCode: String) async throws -> [LayoutPreset] {
+        try await request(path: "/layout-presets/", token: token, accessCode: accessCode)
+    }
+
+    func applyPresetToPage(pageId: Int, presetId: Int, token: String, accessCode: String) async throws {
+        var request = URLRequest(url: baseURL.appending(path: "/pages/\(pageId)/apply-preset/\(presetId)"))
+        request.httpMethod = "POST"
+        request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.addValue(accessCode, forHTTPHeaderField: "X-Halext-Code")
+
+        let (_, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse, 200..<300 ~= http.statusCode else {
+            throw URLError(.badServerResponse)
+        }
+    }
+
     private func request<T: Decodable>(path: String, token: String, accessCode: String) async throws -> T {
         var request = URLRequest(url: baseURL.appending(path: path))
         request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")

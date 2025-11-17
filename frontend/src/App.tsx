@@ -53,6 +53,8 @@ type LayoutPreset = {
   name: string
   description?: string | null
   layout: LayoutColumn[]
+  is_system: boolean
+  owner_id?: number | null
 }
 
 type PageShareInfo = {
@@ -327,6 +329,8 @@ function App() {
   const [openwebui, setOpenwebui] = useState<OpenWebUiStatus | null>(null)
   const [availableLabels, setAvailableLabels] = useState<Label[]>([])
   const [layoutPresets, setLayoutPresets] = useState<LayoutPreset[]>([])
+  const [savePresetForm, setSavePresetForm] = useState({ name: '', description: '' })
+  const [showSavePresetForm, setShowSavePresetForm] = useState(false)
 
   const logout = useCallback(() => {
     localStorage.removeItem('halext_token')
@@ -780,6 +784,43 @@ function App() {
     }
   }
 
+  const handleSaveAsPreset = async (event: FormEvent) => {
+    event.preventDefault()
+    if (!pageDraft || !savePresetForm.name.trim()) return
+    try {
+      const params = new URLSearchParams()
+      params.set('name', savePresetForm.name.trim())
+      if (savePresetForm.description) {
+        params.set('description', savePresetForm.description)
+      }
+      const preset = await authorizedFetch<LayoutPreset>(
+        `/layout-presets/from-page/${pageDraft.id}?${params.toString()}`,
+        {
+          method: 'POST',
+        }
+      )
+      setLayoutPresets((prev) => [...prev, preset])
+      setSavePresetForm({ name: '', description: '' })
+      setShowSavePresetForm(false)
+      setAppMessage(`Saved "${preset.name}" as a preset.`)
+    } catch (error) {
+      setAppMessage((error as Error).message)
+    }
+  }
+
+  const handleDeletePreset = async (presetId: number) => {
+    if (!window.confirm('Are you sure you want to delete this preset?')) return
+    try {
+      await authorizedFetch(`/layout-presets/${presetId}`, {
+        method: 'DELETE',
+      })
+      setLayoutPresets((prev) => prev.filter((preset) => preset.id !== presetId))
+      setAppMessage('Preset deleted.')
+    } catch (error) {
+      setAppMessage((error as Error).message)
+    }
+  }
+
   if (!token) {
     return (
       <div className="auth-shell">
@@ -1128,17 +1169,49 @@ function App() {
                   </ul>
                 </div>
                 <div className="preset-panel">
-                  <h4>Layout presets</h4>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                    <h4 style={{ margin: 0 }}>Layout presets</h4>
+                    <button type="button" onClick={() => setShowSavePresetForm(!showSavePresetForm)}>
+                      {showSavePresetForm ? 'Cancel' : 'Save Current Layout as Preset'}
+                    </button>
+                  </div>
+                  {showSavePresetForm && (
+                    <form onSubmit={handleSaveAsPreset} className="stack" style={{ marginBottom: '1rem', padding: '1rem', border: '1px solid #ccc', borderRadius: '4px' }}>
+                      <input
+                        value={savePresetForm.name}
+                        onChange={(event) => setSavePresetForm((prev) => ({ ...prev, name: event.target.value }))}
+                        placeholder="Preset name"
+                        required
+                      />
+                      <textarea
+                        value={savePresetForm.description}
+                        onChange={(event) => setSavePresetForm((prev) => ({ ...prev, description: event.target.value }))}
+                        placeholder="Description (optional)"
+                      />
+                      <button type="submit">Save Preset</button>
+                    </form>
+                  )}
                   <div className="preset-grid">
                     {layoutPresets.map((preset) => (
                       <div key={preset.id} className="preset-card">
                         <div>
-                          <strong>{preset.name}</strong>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <strong>{preset.name}</strong>
+                            {preset.is_system && <span className="pill">System</span>}
+                            {!preset.is_system && user && preset.owner_id === user.id && <span className="pill">Custom</span>}
+                          </div>
                           {preset.description && <p className="muted">{preset.description}</p>}
                         </div>
-                        <button type="button" onClick={() => handleApplyPreset(preset.id)}>
-                          Apply
-                        </button>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <button type="button" onClick={() => handleApplyPreset(preset.id)}>
+                            Apply
+                          </button>
+                          {!preset.is_system && user && preset.owner_id === user.id && (
+                            <button type="button" className="link-button" onClick={() => handleDeletePreset(preset.id)}>
+                              Delete
+                            </button>
+                          )}
+                        </div>
                       </div>
                     ))}
                     {layoutPresets.length === 0 && <p className="muted">No presets yet.</p>}

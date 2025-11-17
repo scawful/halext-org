@@ -1,11 +1,11 @@
 from pydantic import BaseModel, Field
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional
 
 class TaskBase(BaseModel):
     title: str
-    description: str | None = None
-    due_date: datetime | None = None
+    description: Optional[str] = None
+    due_date: Optional[datetime] = None
     labels: list[str] = Field(default_factory=list)
 
 class TaskCreate(TaskBase):
@@ -23,13 +23,13 @@ class Task(TaskBase):
 
 class EventBase(BaseModel):
     title: str
-    description: str | None = None
+    description: Optional[str] = None
     start_time: datetime
     end_time: datetime
-    location: str | None = None
+    location: Optional[str] = None
     recurrence_type: str = "none"
     recurrence_interval: int = 1
-    recurrence_end_date: datetime | None = None
+    recurrence_end_date: Optional[datetime] = None
 
 class EventCreate(EventBase):
     pass
@@ -43,7 +43,7 @@ class Event(EventBase):
 
 class LabelBase(BaseModel):
     name: str
-    color: str | None = None
+    color: Optional[str] = None
 
 class LabelCreate(LabelBase):
     pass
@@ -58,7 +58,7 @@ class LayoutWidget(BaseModel):
     id: str
     type: str
     title: str
-    config: dict[str, Any] | None = None
+    config: Optional[dict[str, Any]] = None
 
 class LayoutColumn(BaseModel):
     id: str
@@ -66,18 +66,25 @@ class LayoutColumn(BaseModel):
     width: int = 1
     widgets: list[LayoutWidget] = Field(default_factory=list)
 
-class LayoutPresetInfo(BaseModel):
-    id: int
+class LayoutPresetBase(BaseModel):
     name: str
-    description: str | None = None
+    description: Optional[str] = None
     layout: list[LayoutColumn] = Field(default_factory=list)
+
+class LayoutPresetCreate(LayoutPresetBase):
+    pass
+
+class LayoutPresetInfo(LayoutPresetBase):
+    id: int
+    is_system: bool = False
+    owner_id: Optional[int] = None
 
     class Config:
         from_attributes = True
 
 class PageBase(BaseModel):
     title: str
-    description: str | None = None
+    description: Optional[str] = None
     visibility: str = "private"
     layout: list[LayoutColumn] = Field(default_factory=list)
 
@@ -134,9 +141,9 @@ class ChatMessageCreate(ChatMessageBase):
 class ChatMessage(ChatMessageBase):
     id: int
     conversation_id: int
-    author_id: int | None = None
+    author_id: Optional[int] = None
     author_type: str
-    model_used: str | None = None
+    model_used: Optional[str] = None
     created_at: datetime
 
     class Config:
@@ -145,7 +152,7 @@ class ChatMessage(ChatMessageBase):
 class UserBase(BaseModel):
     username: str
     email: str
-    full_name: str | None = None
+    full_name: Optional[str] = None
 
 class UserCreate(UserBase):
     password: str
@@ -166,8 +173,8 @@ class Token(BaseModel):
     token_type: str
 
 class TokenData(BaseModel):
-    username: str | None = None
+    username: Optional[str] = None
 
 class OpenWebUiStatus(BaseModel):
     enabled: bool
-    url: str | None = None
+    url: Optional[str] = None
