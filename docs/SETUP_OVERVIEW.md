@@ -31,8 +31,8 @@ This is the high-level guide you can share with anyone helping run Halext (inclu
 sudo mkdir -p /srv/halext
 cd /srv/halext
 sudo chown "$USER" /srv/halext
-git clone https://github.com/<you>/halext-org-project.git
-cd halext-org-project
+git clone https://github.com/<you>/halext-org.git
+cd halext-org
 sudo ./scripts/server-init.sh
 ```
 
@@ -48,7 +48,7 @@ Then:
 
 ```bash
 ssh user@server
-cd /srv/halext/halext-org-project
+cd /srv/halext/halext-org
 git pull
 ./scripts/server-deploy.sh           # or --backend-only / --frontend-only
 ```

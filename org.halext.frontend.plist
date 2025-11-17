@@ -19,7 +19,7 @@
     </array>
 
     <key>WorkingDirectory</key>
-    <string>/Users/scawful/Code/halext-org-project/frontend</string>
+    <string>/Users/scawful/Code/halext-org/frontend</string>
 
     <key>EnvironmentVariables</key>
     <dict>
@@ -32,10 +32,10 @@
     </dict>
 
     <key>StandardOutPath</key>
-    <string>/Users/scawful/Code/halext-org-project/frontend.log</string>
+    <string>/Users/scawful/Code/halext-org/frontend.log</string>
 
     <key>StandardErrorPath</key>
-    <string>/Users/scawful/Code/halext-org-project/frontend.err.log</string>
+    <string>/Users/scawful/Code/halext-org/frontend.err.log</string>
 
     <key>RunAtLoad</key>
     <true/>
@@ -45,7 +45,7 @@
 
     <key>WatchPaths</key>
     <array>
-        <string>/Users/scawful/Code/halext-org-project/frontend/</string>
+        <string>/Users/scawful/Code/halext-org/frontend/</string>
     </array>
 
 </dict>

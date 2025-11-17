@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Bootstrap a fresh Ubuntu host after cloning the repo.
-# Usage: cd /srv/halext/halext-org-project && ./scripts/server-init.sh
+# Usage: cd /srv/halext/halext-org && ./scripts/server-init.sh
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BACKEND_DIR="$ROOT_DIR/backend"
@@ -46,7 +46,7 @@ cp "$ROOT_DIR/infra/ubuntu/halext-api.service" /etc/systemd/system/halext-api.se
 cp "$ROOT_DIR/infra/ubuntu/halext.nginx.conf" /etc/nginx/sites-available/halext
 
 echo "Server bootstrap complete. Next steps:"
-echo " 1. Edit /srv/halext/halext-org-project/backend/.env (see infra/ubuntu/.env.example)."
+echo " 1. Edit /srv/halext/halext-org/backend/.env (see infra/ubuntu/.env.example)."
 echo " 2. sudo systemctl daemon-reload && sudo systemctl enable --now halext-api"
 echo " 3. sudo ln -s /etc/nginx/sites-available/halext /etc/nginx/sites-enabled/"
 echo " 4. sudo nginx -t && sudo systemctl reload nginx"

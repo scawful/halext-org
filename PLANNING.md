@@ -129,12 +129,12 @@ Two launch agents make it easy to run the stack on macOS:
 
 ```bash
 mkdir -p ~/Library/LaunchAgents
-cp /Users/scawful/Code/halext-org-project/org.halext.api.plist ~/Library/LaunchAgents/
-cp /Users/scawful/Code/halext-org-project/org.halext.frontend.plist ~/Library/LaunchAgents/
+cp /Users/scawful/Code/halext-org/org.halext.api.plist ~/Library/LaunchAgents/
+cp /Users/scawful/Code/halext-org/org.halext.frontend.plist ~/Library/LaunchAgents/
 launchctl load -w ~/Library/LaunchAgents/org.halext.api.plist
 launchctl load -w ~/Library/LaunchAgents/org.halext.frontend.plist
 ```
 
-The frontend agent logs to `halext-org-project/frontend.log` and the backend continues to log to `service.log`. Stop services with `launchctl unload -w <plist>`.
+The frontend agent logs to `halext-org/frontend.log` and the backend continues to log to `service.log`. Stop services with `launchctl unload -w <plist>`.
 
 > **Heads-up:** Vite 7 requires Node.js 20.19+ (or 22.12+). Upgrade Node on macOS (e.g., via `fnm` or `nvm`) if you plan to run the frontend build locally outside of launchd.

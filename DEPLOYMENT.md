@@ -35,8 +35,8 @@ sudo -u postgres createdb halext_org --owner=halext_user
 sudo mkdir -p /srv/halext
 cd /srv/halext
 sudo chown "$USER" /srv/halext
-git clone https://github.com/yourname/halext-org-project.git
-cd halext-org-project
+git clone https://github.com/yourname/halext-org.git
+cd halext-org
 ```
 
 3. Run `sudo ./scripts/server-init.sh`. This installs packages, creates the Python venv, builds the frontend, and drops template service/nginx files under `infra/ubuntu`.
@@ -48,7 +48,7 @@ cd halext-org-project
 ### Virtualenv Setup
 
 ```bash
-cd /srv/halext/halext-org-project/backend
+cd /srv/halext/halext-org/backend
 python3.11 -m venv env
 source env/bin/activate
 pip install --upgrade pip
@@ -57,7 +57,7 @@ pip install -r requirements.txt
 
 ### Environment Variables
 
-Create `/srv/halext/halext-org-project/backend/.env` (or export in systemd):
+Create `/srv/halext/halext-org/backend/.env` (or export in systemd):
 
 ```
 DATABASE_URL=postgresql://halext_user:your_password@127.0.0.1/halext_org
@@ -67,7 +67,7 @@ SECRET_KEY=change_me
 
 ### systemd Service
 
-Edit `/srv/halext/halext-org-project/infra/ubuntu/halext-api.service` if needed, then install it:
+Edit `/srv/halext/halext-org/infra/ubuntu/halext-api.service` if needed, then install it:
 
 ```bash
 sudo cp infra/ubuntu/halext-api.service /etc/systemd/system/halext-api.service
@@ -87,7 +87,7 @@ sudo systemctl enable --now halext-api
 The production frontend is a static bundle served by Nginx.
 
 ```bash
-cd /srv/halext/halext-org-project/frontend
+cd /srv/halext/halext-org/frontend
 npm install
 npm run build
 sudo mkdir -p /var/www/halext
@@ -125,7 +125,7 @@ sudo certbot --nginx -d app.halext.org
 ## 7. Updating the Server
 
 1. `ssh` into Ubuntu.
-2. `cd /srv/halext/halext-org-project && git pull`.
+2. `cd /srv/halext/halext-org && git pull`.
 3. Run `./scripts/server-deploy.sh` (optionally `--backend-only` or `--frontend-only`) to reinstall deps, build the SPA, and restart services.
 4. Monitor with `journalctl -u halext-api -f` for backend logs and `/var/log/nginx/error.log` for Nginx.
 

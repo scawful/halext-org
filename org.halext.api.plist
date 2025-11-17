@@ -7,7 +7,7 @@
 
     <key>ProgramArguments</key>
     <array>
-        <string>/Users/scawful/Code/halext-org-project/backend/env/bin/uvicorn</string>
+        <string>/Users/scawful/Code/halext-org/backend/env/bin/uvicorn</string>
         <string>main:app</string>
         <string>--host</string>
         <string>127.0.0.1</string>
@@ -16,7 +16,7 @@
     </array>
 
     <key>WorkingDirectory</key>
-    <string>/Users/scawful/Code/halext-org-project/backend</string>
+    <string>/Users/scawful/Code/halext-org/backend</string>
 
     <key>EnvironmentVariables</key>
     <dict>
@@ -25,10 +25,10 @@
     </dict>
 
     <key>StandardOutPath</key>
-    <string>/Users/scawful/Code/halext-org-project/service.log</string>
+    <string>/Users/scawful/Code/halext-org/service.log</string>
 
     <key>StandardErrorPath</key>
-    <string>/Users/scawful/Code/halext-org-project/service.err.log</string>
+    <string>/Users/scawful/Code/halext-org/service.err.log</string>
 
     <key>RunAtLoad</key>
     <true/>
@@ -38,7 +38,7 @@
 
     <key>WatchPaths</key>
     <array>
-        <string>/Users/scawful/Code/halext-org-project/backend/</string>
+        <string>/Users/scawful/Code/halext-org/backend/</string>
     </array>
 
 </dict>

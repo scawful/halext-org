@@ -6,7 +6,7 @@ BACKEND_DIR="$ROOT_DIR/backend"
 UVICORN_BIN="$BACKEND_DIR/env/bin/uvicorn"
 PYTHON_BIN="$BACKEND_DIR/env/bin/python"
 DEFAULT_DB_URL="${DATABASE_URL:-postgresql://halext_user:REDACTED_PASSWORD@localhost/halext_org}"
-SQLITE_FALLBACK_URL="sqlite:////Users/scawful/Code/halext-org-project/halext_dev.db"
+SQLITE_FALLBACK_URL="sqlite:////Users/scawful/Code/halext-org/halext_dev.db"
 HOST="${HALTEXT_API_HOST:-127.0.0.1}"
 PORT="${HALTEXT_API_PORT:-8000}"
 
