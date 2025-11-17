@@ -109,3 +109,32 @@ This is a large project that must be built incrementally.
 ---
 
 This phased approach ensures that we build a solid foundation first and deliver value at each stage of development.
+
+## 4. Latest Implementation Notes
+
+- **Dynamic layouts:** Users can now create configurable pages that store column/widget layouts for todos, events, notes, gift lists (kept private unless explicitly shared), and OpenWebUI embeds.
+- **Sharing controls:** Each page has a `visibility` flag and a share table so private lists (such as gift planning) remain hidden unless a partner is added with view or edit rights.
+- **AI conversations:** The backend exposes `/conversations` APIs that manage solo/group chats with optional AI participation. An extensible `AiGateway` currently supports OpenWebUI, Ollama, or a mock responder.
+- **OpenWebUI discovery:** `/integrations/openwebui` advertises whether a local OpenWebUI endpoint is running so the web/iOS apps can embed the interface inline.
+- **Task labels & presets:** Tasks support multi-label chips, events can repeat, and layout presets inspired by Apple widgets can be applied from the web UI or mobile clients.
+
+## 5. Local Automation with launchd
+
+Two launch agents make it easy to run the stack on macOS:
+
+1. **Backend:** `org.halext.api.plist` (already configured) runs Uvicorn inside `backend/env`.
+2. **Frontend:** `org.halext.frontend.plist` starts `npm run dev -- --host 127.0.0.1 --port 4173` from the `frontend` directory with `VITE_API_BASE_URL` pointing to the FastAPI server.
+
+### Installation
+
+```bash
+mkdir -p ~/Library/LaunchAgents
+cp /Users/scawful/Code/halext-org-project/org.halext.api.plist ~/Library/LaunchAgents/
+cp /Users/scawful/Code/halext-org-project/org.halext.frontend.plist ~/Library/LaunchAgents/
+launchctl load -w ~/Library/LaunchAgents/org.halext.api.plist
+launchctl load -w ~/Library/LaunchAgents/org.halext.frontend.plist
+```
+
+The frontend agent logs to `halext-org-project/frontend.log` and the backend continues to log to `service.log`. Stop services with `launchctl unload -w <plist>`.
+
+> **Heads-up:** Vite 7 requires Node.js 20.19+ (or 22.12+). Upgrade Node on macOS (e.g., via `fnm` or `nvm`) if you plan to run the frontend build locally outside of launchd.
