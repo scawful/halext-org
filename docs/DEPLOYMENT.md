@@ -129,6 +129,20 @@ sudo certbot --nginx -d app.halext.org
 3. Run `./scripts/server-deploy.sh` (optionally `--backend-only` or `--frontend-only`) to reinstall deps, build the SPA, and restart services.
 4. Monitor with `journalctl -u halext-api -f` for backend logs and `/var/log/nginx/error.log` for Nginx.
 
+## 8. Building the Frontend Locally
+
+If your Ubuntu VM is resource-constrained, build the SPA on macOS and push just the static files:
+
+```bash
+cd /Users/scawful/Code/halext-org
+HALX_REMOTE="user@server" \
+HALX_REMOTE_DIR="/var/www/halext" \
+HALX_POST_DEPLOY="sudo systemctl reload nginx" \
+./scripts/deploy-frontend-local.sh
+```
+
+This runs `npm install && npm run build` locally, rsyncs `frontend/dist/` to the server’s docroot, and optionally executes a post-deploy SSH command (e.g., reloading Nginx). Update `HALX_REMOTE_DIR` to match your actual root (such as `/www/halext.org/app`).
+
 ## 9. Local Development vs. Production
 
 - Continue developing on macOS (launchd workflows). Once happy, `git commit/push`.
