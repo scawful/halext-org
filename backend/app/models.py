@@ -14,6 +14,7 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     tasks = relationship("Task", back_populates="owner")
+    events = relationship("Event", back_populates="owner")
 
     def __repr__(self):
         return f"<User(username='{self.username}', email='{self.email}')>"
@@ -30,3 +31,16 @@ class Task(Base):
     owner_id = Column(Integer, ForeignKey("users.id"))
 
     owner = relationship("User", back_populates="tasks")
+
+class Event(Base):
+    __tablename__ = "events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, index=True, nullable=False)
+    description = Column(String, nullable=True)
+    start_time = Column(DateTime(timezone=True), nullable=False)
+    end_time = Column(DateTime(timezone=True), nullable=False)
+    location = Column(String, nullable=True)
+    owner_id = Column(Integer, ForeignKey("users.id"))
+
+    owner = relationship("User", back_populates="events")

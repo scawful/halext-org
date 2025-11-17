@@ -38,3 +38,13 @@ def create_user_task(db: Session, task: schemas.TaskCreate, user_id: int):
     db.commit()
     db.refresh(db_task)
     return db_task
+
+def get_events_by_user(db: Session, user_id: int, skip: int = 0, limit: int = 100):
+    return db.query(models.Event).filter(models.Event.owner_id == user_id).offset(skip).limit(limit).all()
+
+def create_user_event(db: Session, event: schemas.EventCreate, user_id: int):
+    db_event = models.Event(**event.dict(), owner_id=user_id)
+    db.add(db_event)
+    db.commit()
+    db.refresh(db_event)
+    return db_event

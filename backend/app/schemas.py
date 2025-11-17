@@ -18,6 +18,23 @@ class Task(TaskBase):
     class Config:
         from_attributes = True
 
+class EventBase(BaseModel):
+    title: str
+    description: str | None = None
+    start_time: datetime
+    end_time: datetime
+    location: str | None = None
+
+class EventCreate(EventBase):
+    pass
+
+class Event(EventBase):
+    id: int
+    owner_id: int
+
+    class Config:
+        from_attributes = True
+
 class UserBase(BaseModel):
     username: str
     email: str
@@ -30,6 +47,7 @@ class User(UserBase):
     id: int
     created_at: datetime
     tasks: list[Task] = []
+    events: list[Event] = []
 
     class Config:
         from_attributes = True
