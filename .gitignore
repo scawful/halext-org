@@ -1,0 +1,20 @@
+# macOS
+.DS_Store
+
+# Python
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# IDEs and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# DB
+*.db
+*.sqlite3
