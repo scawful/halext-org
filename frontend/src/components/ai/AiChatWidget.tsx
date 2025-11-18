@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { sendChatMessage, streamChatMessage } from '../../utils/aiApi'
+import { streamChatMessage } from '../../utils/aiApi'
 import type { AiChatMessage } from '../../utils/aiApi'
 
 interface AiChatWidgetProps {

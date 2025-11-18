@@ -5,7 +5,8 @@ Handles user account provisioning and session sync between Halext Org and OpenWe
 import os
 from typing import Optional, Dict, Any
 from datetime import datetime, timedelta
-import jwt
+from jose import jwt
+from jose.exceptions import ExpiredSignatureError, JWTError
 
 try:
     import httpx
@@ -185,9 +186,9 @@ class OpenWebUISync:
         try:
             payload = jwt.decode(token, self.jwt_secret, algorithms=[self.jwt_algorithm])
             return payload
-        except jwt.ExpiredSignatureError:
+        except ExpiredSignatureError:
             return None
-        except jwt.JWTError:
+        except JWTError:
             return None
 
     async def get_openwebui_login_url(

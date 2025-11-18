@@ -30,3 +30,8 @@ backend-dev.log
 # Frontend build artifacts
 frontend/node_modules/
 frontend/dist/
+
+# Deployment caches
+backend/.requirements.sha256
+frontend/.package-lock.sha256
+frontend/.npm-cache/

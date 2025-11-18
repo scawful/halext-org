@@ -11,7 +11,6 @@ type OpenWebUIWidgetProps = {
 export const OpenWebUIWidget = ({ openwebui, token }: OpenWebUIWidgetProps) => {
   const [syncStatus, setSyncStatus] = useState<any>(null)
   const [syncing, setSyncing] = useState(false)
-  const [ssoUrl, setSsoUrl] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {

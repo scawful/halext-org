@@ -229,49 +229,40 @@ def create_demo_content(user_id: int, db):
     for label_data in get_demo_labels():
         label = crud.create_label(
             db,
+            user_id,
             schemas.LabelCreate(**label_data),
-            user_id
         )
         created_labels[label_data["name"]] = label
 
     # Create demo tasks
     print(f"Creating demo tasks for user {user_id}...")
     for task_data in get_demo_tasks():
-        label_names = task_data.pop("labels", [])
-        task = crud.create_task(
+        crud.create_user_task(
             db,
             schemas.TaskCreate(**task_data),
-            user_id
+            user_id,
         )
-
-        # Associate labels
-        for label_name in label_names:
-            if label_name in created_labels:
-                # Add label association
-                task.labels.append(created_labels[label_name])
-
-        db.commit()
 
     # Create demo events
     print(f"Creating demo events for user {user_id}...")
     for event_data in get_demo_events():
-        crud.create_event(
+        crud.create_user_event(
             db,
             schemas.EventCreate(**event_data),
-            user_id
+            user_id,
         )
 
     # Create demo page with layout
     print(f"Creating demo page for user {user_id}...")
     demo_page = crud.create_page(
         db,
+        user_id,
         schemas.PageCreate(
             title="Welcome Dashboard",
             description="Your personalized dashboard with example widgets",
             visibility="private",
             layout=get_demo_page_layout()
         ),
-        user_id
     )
 
     print(f"✅ Demo content created successfully for user {user_id}")
