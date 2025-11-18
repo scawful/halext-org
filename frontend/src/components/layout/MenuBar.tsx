@@ -9,6 +9,7 @@ import {
   MdImage,
 } from 'react-icons/md'
 import { FaRobot } from 'react-icons/fa'
+import { ThemeSwitcher } from '../ThemeSwitcher'
 import './MenuBar.css'
 
 type MenuSection = 'dashboard' | 'tasks' | 'chat' | 'calendar' | 'iot' | 'settings' | 'image-gen' | 'anime'
@@ -36,7 +37,8 @@ export const MenuBar = ({ activeSection, onSectionChange, onLogout, username }: 
   return (
     <nav className="menu-bar">
       <div className="menu-brand">
-        <h1>Halext Org</h1>
+        <span className="menu-logo">☕</span>
+        <h1>Cafe</h1>
       </div>
 
       <div className="menu-items">
@@ -66,6 +68,7 @@ export const MenuBar = ({ activeSection, onSectionChange, onLogout, username }: 
               <div className="settings-header">
                 <strong>{username}</strong>
               </div>
+              <ThemeSwitcher />
               <button onClick={onLogout} className="logout-button">
                 Logout
               </button>

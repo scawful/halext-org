@@ -129,7 +129,7 @@ function App() {
       if (pagesResponse.length > 0) {
         setSelectedPageId((current) => current ?? pagesResponse[0].id)
       }
-      setAppMessage('Synced with Halext Org servers.')
+      setAppMessage('Synced with Cafe servers.')
     } catch (error) {
       setAppMessage((error as Error).message)
     } finally {
@@ -386,8 +386,9 @@ function App() {
   if (!token) {
     return (
       <div className="auth-shell">
-        <h1>Halext Org</h1>
-        <p className="muted">Sign in to coordinate calendars, todos, layouts, and AI chats.</p>
+        <div className="auth-logo">☕</div>
+        <h1>Cafe</h1>
+        <p className="muted">Your productivity companion for tasks, calendar, and AI assistance.</p>
         <div className="auth-card">
           <div className="stack">
             <label>

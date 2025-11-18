@@ -1,0 +1,124 @@
+/* Theme System for Cafe */
+
+/* Default Theme - Purple Twilight */
+:root,
+[data-theme="purple"] {
+  --bg-primary: #05050a;
+  --bg-secondary: #0e0e19;
+  --bg-tertiary: #17172b;
+  --bg-elevated: rgba(26, 26, 46, 0.8);
+
+  --accent-primary: #5d72ff;
+  --accent-secondary: #4a5fd9;
+  --accent-hover: #7a8cff;
+  --accent-muted: #9eb1ff;
+
+  --text-primary: #f5f5ff;
+  --text-secondary: rgba(245, 245, 255, 0.8);
+  --text-muted: rgba(245, 245, 255, 0.5);
+
+  --border-color: rgba(255, 255, 255, 0.15);
+  --border-subtle: rgba(255, 255, 255, 0.08);
+
+  --shadow-sm: 0 4px 12px rgba(93, 114, 255, 0.3);
+  --shadow-lg: 0 15px 60px rgba(0, 0, 0, 0.6);
+
+  --gradient-primary: linear-gradient(135deg, #5d72ff 0%, #8b9cff 100%);
+  --gradient-bg: radial-gradient(circle at top, #17172b 0%, #0e0e19 45%, #07070b 100%);
+  --gradient-surface: linear-gradient(135deg, rgba(5, 5, 10, 0.3) 0%, rgba(15, 15, 30, 0.5) 100%);
+}
+
+/* Mocha Theme - Coffee Shop Vibes */
+[data-theme="mocha"] {
+  --bg-primary: #1a1410;
+  --bg-secondary: #2a1f1a;
+  --bg-tertiary: #3d2b20;
+  --bg-elevated: rgba(61, 43, 32, 0.9);
+
+  --accent-primary: #d4a574;
+  --accent-secondary: #b8905f;
+  --accent-hover: #e6c19a;
+  --accent-muted: #c9ad88;
+
+  --text-primary: #f5e6d3;
+  --text-secondary: rgba(245, 230, 211, 0.9);
+  --text-muted: rgba(245, 230, 211, 0.6);
+
+  --border-color: rgba(212, 165, 116, 0.2);
+  --border-subtle: rgba(212, 165, 116, 0.1);
+
+  --shadow-sm: 0 4px 12px rgba(212, 165, 116, 0.3);
+  --shadow-lg: 0 15px 60px rgba(0, 0, 0, 0.7);
+
+  --gradient-primary: linear-gradient(135deg, #d4a574 0%, #b8905f 100%);
+  --gradient-bg: radial-gradient(circle at top, #3d2b20 0%, #2a1f1a 45%, #1a1410 100%);
+  --gradient-surface: linear-gradient(135deg, rgba(26, 20, 16, 0.4) 0%, rgba(42, 31, 26, 0.6) 100%);
+}
+
+/* Catppuccin Theme - Soft Pastels */
+[data-theme="catppuccin"] {
+  --bg-primary: #1e1e2e;
+  --bg-secondary: #181825;
+  --bg-tertiary: #313244;
+  --bg-elevated: rgba(49, 50, 68, 0.9);
+
+  --accent-primary: #cba6f7;
+  --accent-secondary: #b4a0e5;
+  --accent-hover: #dcc3ff;
+  --accent-muted: #c9b8f0;
+
+  --text-primary: #cdd6f4;
+  --text-secondary: rgba(205, 214, 244, 0.9);
+  --text-muted: rgba(205, 214, 244, 0.6);
+
+  --border-color: rgba(203, 166, 247, 0.2);
+  --border-subtle: rgba(203, 166, 247, 0.1);
+
+  --shadow-sm: 0 4px 12px rgba(203, 166, 247, 0.3);
+  --shadow-lg: 0 15px 60px rgba(0, 0, 0, 0.6);
+
+  --gradient-primary: linear-gradient(135deg, #cba6f7 0%, #b4a0e5 100%);
+  --gradient-bg: radial-gradient(circle at top, #313244 0%, #181825 45%, #11111b 100%);
+  --gradient-surface: linear-gradient(135deg, rgba(30, 30, 46, 0.4) 0%, rgba(49, 50, 68, 0.6) 100%);
+}
+
+/* Strawberry Matcha Theme - Pink & Green */
+[data-theme="strawberry-matcha"] {
+  --bg-primary: #1a1218;
+  --bg-secondary: #221a20;
+  --bg-tertiary: #2d2228;
+  --bg-elevated: rgba(45, 34, 40, 0.9);
+
+  --accent-primary: #ff6b9d;
+  --accent-secondary: #7fb069;
+  --accent-hover: #ff8fb3;
+  --accent-muted: #ff9fbb;
+
+  --text-primary: #f5e6ed;
+  --text-secondary: rgba(245, 230, 237, 0.9);
+  --text-muted: rgba(245, 230, 237, 0.6);
+
+  --border-color: rgba(255, 107, 157, 0.2);
+  --border-subtle: rgba(255, 107, 157, 0.1);
+
+  --shadow-sm: 0 4px 12px rgba(255, 107, 157, 0.3);
+  --shadow-lg: 0 15px 60px rgba(0, 0, 0, 0.6);
+
+  --gradient-primary: linear-gradient(135deg, #ff6b9d 0%, #7fb069 100%);
+  --gradient-bg: radial-gradient(circle at top, #2d2228 0%, #221a20 45%, #1a1218 100%);
+  --gradient-surface: linear-gradient(135deg, rgba(26, 18, 24, 0.4) 0%, rgba(45, 34, 40, 0.6) 100%);
+}
+
+/* Matcha accent for buttons in strawberry-matcha theme */
+[data-theme="strawberry-matcha"] button:not(.ghost):not(.link-button) {
+  background: linear-gradient(135deg, #7fb069 0%, #6a9b58 100%);
+}
+
+[data-theme="strawberry-matcha"] .auth-toggle button.active {
+  background: linear-gradient(135deg, #7fb069 0%, #6a9b58 100%);
+}
+
+/* Smooth theme transitions */
+* {
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+}
