@@ -236,7 +236,7 @@ struct TaskRowView: View {
 }
 
 struct LabelBadge: View {
-    let label: Label
+    let label: TaskLabel
 
     var body: some View {
         Text(label.name)
