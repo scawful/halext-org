@@ -1,0 +1,123 @@
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+  padding: 1.5rem;
+  align-items: start;
+}
+
+.dashboard-column {
+  background: rgba(15, 15, 30, 0.4);
+  border: 1px solid rgba(93, 114, 255, 0.2);
+  border-radius: 12px;
+  padding: 1rem;
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.column-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(93, 114, 255, 0.2);
+}
+
+.column-title-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: #f5f5ff;
+  font-size: 1.125rem;
+  font-weight: 600;
+  padding: 0.25rem;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.column-title-input:hover {
+  background: rgba(93, 114, 255, 0.05);
+}
+
+.column-title-input:focus {
+  outline: none;
+  background: rgba(93, 114, 255, 0.1);
+  box-shadow: 0 0 0 2px rgba(93, 114, 255, 0.3);
+}
+
+.column-remove {
+  padding: 0.25rem 0.5rem;
+  background: transparent;
+  border: 1px solid rgba(255, 59, 48, 0.3);
+  color: rgba(255, 59, 48, 0.8);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  transition: all 0.2s ease;
+}
+
+.column-remove:hover {
+  background: rgba(255, 59, 48, 0.1);
+  color: #ff3b30;
+}
+
+.widgets-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  flex: 1;
+}
+
+.add-widget-section {
+  margin-top: auto;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(93, 114, 255, 0.2);
+}
+
+.add-widget-select {
+  width: 100%;
+  padding: 0.5rem;
+  background: rgba(5, 5, 10, 0.5);
+  border: 1px solid rgba(93, 114, 255, 0.2);
+  border-radius: 6px;
+  color: #f5f5ff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.add-widget-select:hover {
+  border-color: rgba(93, 114, 255, 0.4);
+  background: rgba(5, 5, 10, 0.7);
+}
+
+.add-widget-select:focus {
+  outline: none;
+  border-color: #5d72ff;
+  box-shadow: 0 0 0 3px rgba(93, 114, 255, 0.1);
+}
+
+.add-column-btn {
+  background: rgba(93, 114, 255, 0.1);
+  border: 2px dashed rgba(93, 114, 255, 0.3);
+  border-radius: 12px;
+  color: rgba(93, 114, 255, 0.8);
+  padding: 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.add-column-btn:hover {
+  background: rgba(93, 114, 255, 0.15);
+  border-color: rgba(93, 114, 255, 0.5);
+  color: #5d72ff;
+  transform: translateY(-2px);
+}

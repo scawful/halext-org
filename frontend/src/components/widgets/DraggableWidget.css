@@ -1,0 +1,72 @@
+.draggable-widget {
+  background: rgba(26, 26, 46, 0.6);
+  border: 1px solid rgba(93, 114, 255, 0.2);
+  border-radius: 12px;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.draggable-widget:hover {
+  border-color: rgba(93, 114, 255, 0.4);
+  box-shadow: 0 4px 16px rgba(93, 114, 255, 0.2);
+}
+
+.widget-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: rgba(93, 114, 255, 0.1);
+  border-bottom: 1px solid rgba(93, 114, 255, 0.2);
+}
+
+.widget-drag-handle {
+  display: flex;
+  align-items: center;
+  cursor: grab;
+  color: rgba(245, 245, 255, 0.4);
+  transition: color 0.2s ease;
+}
+
+.widget-drag-handle:hover {
+  color: rgba(245, 245, 255, 0.8);
+}
+
+.widget-drag-handle:active {
+  cursor: grabbing;
+}
+
+.widget-header h4 {
+  margin: 0;
+  flex: 1;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #f5f5ff;
+}
+
+.widget-remove {
+  background: transparent;
+  border: none;
+  color: rgba(255, 59, 48, 0.6);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.widget-remove:hover {
+  background: rgba(255, 59, 48, 0.1);
+  color: #ff3b30;
+}
+
+.widget-content {
+  padding: 1rem;
+}
