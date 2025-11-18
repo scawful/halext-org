@@ -18,7 +18,10 @@
       "Bash(python3:*)",
       "Bash(env/bin/pip install:*)",
       "Bash(env/bin/uvicorn:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(chmod:*)",
+      "Bash(./dev-status.sh)",
+      "Bash(./dev-stop.sh)"
     ],
     "deny": [],
     "ask": []
