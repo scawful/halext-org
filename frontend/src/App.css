@@ -10,6 +10,7 @@
   display: flex;
   flex: 1;
   overflow: hidden;
+  position: relative; /* For backdrop positioning context if needed */
 }
 
 .main-content {
@@ -173,6 +174,31 @@
 .muted {
   color: var(--text-muted);
   font-size: 0.875rem;
+}
+
+/* Sidebar Backdrop for Mobile */
+.sidebar-backdrop {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    top: 60px; /* Below MenuBar */
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999; /* Below Sidebar (1000) */
+    backdrop-filter: blur(4px);
+    animation: fade-in 0.2s ease;
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 /* Responsive */

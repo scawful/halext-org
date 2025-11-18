@@ -125,3 +125,30 @@
   background: rgba(255, 59, 48, 0.2);
   transform: translateY(-1px);
 }
+
+.menu-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.sidebar-toggle {
+  display: none;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  .sidebar-toggle {
+    display: block;
+  }
+  .menu-items {
+    display: none;
+  }
+  .menu-brand h1 {
+    display: none;
+  }
+}
+

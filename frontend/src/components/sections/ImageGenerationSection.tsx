@@ -1,24 +1,42 @@
 import { useState } from 'react'
 import './Section.css'
 
-export const ImageGenerationSection = () => {
+interface ImageGenerationSectionProps {
+  token: string
+}
+
+export const ImageGenerationSection = ({ token }: ImageGenerationSectionProps) => {
   const [prompt, setPrompt] = useState('')
   const [generatedImages, setGeneratedImages] = useState<string[]>([])
   const [isGenerating, setIsGenerating] = useState(false)
 
   const handleGenerate = async () => {
-    if (!prompt.trim()) return
+    if (!prompt.trim() || !token) return
     setIsGenerating(true)
 
-    // TODO: Integrate with actual image generation API
-    setTimeout(() => {
-      setGeneratedImages((prev) => [
-        `https://via.placeholder.com/512x512?text=${encodeURIComponent(prompt)}`,
-        ...prev,
-      ])
-      setIsGenerating(false)
+    try {
+      const response = await fetch(`/api/v1/images/generate?prompt=${encodeURIComponent(prompt)}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error('Image generation failed')
+      }
+
+      const imageBlob = await response.blob()
+      const imageUrl = URL.createObjectURL(imageBlob)
+
+      setGeneratedImages((prev) => [imageUrl, ...prev])
       setPrompt('')
-    }, 2000)
+    } catch (error) {
+      console.error(error)
+      // You might want to show an error message to the user
+    } finally {
+      setIsGenerating(false)
+    }
   }
 
   return (

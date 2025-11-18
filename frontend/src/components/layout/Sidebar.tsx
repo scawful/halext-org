@@ -1,8 +1,26 @@
 import type { FormEvent } from 'react'
+import {
+  MdDashboard,
+  MdTask,
+  MdChat,
+  MdCalendarToday,
+  MdDeviceHub,
+  MdImage,
+  MdAdminPanelSettings,
+} from 'react-icons/md'
+import { FaRobot } from 'react-icons/fa'
 import type { Label } from '../../types/models'
+import type { MenuSection } from './MenuBar'
 import './Sidebar.css'
 
 type SidebarProps = {
+  isOpen: boolean;
+  
+  // Navigation
+  activeSection: MenuSection
+  onSectionChange: (section: MenuSection) => void
+  onCloseSidebar: () => void
+
   // Task form
   taskForm: { title: string; description: string; due_date: string }
   onTaskFormChange: (form: { title: string; description: string; due_date: string }) => void
@@ -39,6 +57,10 @@ type SidebarProps = {
 }
 
 export const Sidebar = ({
+  isOpen,
+  activeSection,
+  onSectionChange,
+  onCloseSidebar,
   taskForm,
   onTaskFormChange,
   onTaskSubmit,
@@ -58,11 +80,44 @@ export const Sidebar = ({
   user,
   onLogout,
 }: SidebarProps) => {
+  const menuItems = [
+    { id: 'dashboard' as MenuSection, icon: MdDashboard, label: 'Dashboard' },
+    { id: 'tasks' as MenuSection, icon: MdTask, label: 'Tasks' },
+    { id: 'calendar' as MenuSection, icon: MdCalendarToday, label: 'Calendar' },
+    { id: 'chat' as MenuSection, icon: MdChat, label: 'AI Chat' },
+    { id: 'image-gen' as MenuSection, icon: MdImage, label: 'Image Generation' },
+    { id: 'anime' as MenuSection, icon: FaRobot, label: 'Anime Girls' },
+    { id: 'iot' as MenuSection, icon: MdDeviceHub, label: 'IoT & Devices' },
+    { id: 'admin' as MenuSection, icon: MdAdminPanelSettings, label: 'Admin Panel' },
+  ]
+
+  const handleNavClick = (section: MenuSection) => {
+    onSectionChange(section)
+    onCloseSidebar()
+  }
+
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
       <div className="profile-section">
         <h2>Welcome back{user?.full_name ? `, ${user.full_name}` : ''}</h2>
         <p className="muted">@{user?.username}</p>
+        
+        <div className="mobile-nav">
+          <h3>Navigation</h3>
+          <div className="mobile-nav-grid">
+            {menuItems.map((item) => (
+              <button
+                key={item.id}
+                className={`mobile-nav-item ${activeSection === item.id ? 'active' : ''}`}
+                onClick={() => handleNavClick(item.id)}
+              >
+                <item.icon size={20} />
+                <span>{item.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
         <button onClick={onLogout} className="logout-btn">
           Logout
         </button>

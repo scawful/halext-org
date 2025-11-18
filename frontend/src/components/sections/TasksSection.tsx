@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { MdAdd, MdClose, MdEdit, MdDelete, MdCheckCircle, MdRadioButtonUnchecked, MdAutoAwesome } from 'react-icons/md'
+import { MdAdd, MdClose, MdEdit, MdDelete, MdCheckCircle, MdRadioButtonUnchecked, MdAutoAwesome, MdSave } from 'react-icons/md'
 import { AiTaskAssistant } from '../ai/AiTaskAssistant'
 import type { Task, Label } from '../../types/models'
 import type { AiTaskSuggestion } from '../../utils/aiApi'
@@ -15,7 +15,7 @@ interface TasksSectionProps {
     due_date?: string
     labels: string[]
   }) => Promise<void>
-  onUpdateTask: (id: number, completed: boolean) => Promise<void>
+  onUpdateTask: (id: number, updates: Partial<Task> & { labels?: string[] }) => Promise<void>
   onDeleteTask: (id: number) => Promise<void>
 }
 
@@ -383,7 +383,8 @@ export const TasksSection = ({
             <TaskItem
               key={task.id}
               task={task}
-              onToggle={() => onUpdateTask(task.id, !task.completed)}
+              availableLabels={availableLabels}
+              onUpdate={onUpdateTask}
               onDelete={() => onDeleteTask(task.id)}
             />
           ))
@@ -395,20 +396,130 @@ export const TasksSection = ({
 
 interface TaskItemProps {
   task: Task
-  onToggle: () => void
+  availableLabels: Label[]
+  onUpdate: (id: number, updates: Partial<Task> & { labels?: string[] }) => Promise<void>
   onDelete: () => void
 }
 
-const TaskItem = ({ task, onToggle, onDelete }: TaskItemProps) => {
+const TaskItem = ({ task, availableLabels, onUpdate, onDelete }: TaskItemProps) => {
+  const [isEditing, setIsEditing] = useState(false)
   const [showDetails, setShowDetails] = useState(false)
+  const [editForm, setEditForm] = useState({
+    title: task.title,
+    description: task.description || '',
+    due_date: task.due_date ? new Date(task.due_date).toISOString().slice(0, 16) : '',
+    labels: task.labels.map(l => l.name),
+  })
 
   const isOverdue =
     task.due_date && !task.completed && new Date(task.due_date) < new Date()
 
+  const handleSave = async () => {
+    await onUpdate(task.id, {
+      title: editForm.title,
+      description: editForm.description || undefined,
+      due_date: editForm.due_date || undefined,
+      labels: editForm.labels,
+    })
+    setIsEditing(false)
+  }
+
+  const addLabel = (labelName: string) => {
+    if (!editForm.labels.includes(labelName)) {
+      setEditForm(prev => ({ ...prev, labels: [...prev.labels, labelName] }))
+    }
+  }
+
+  const removeLabel = (labelName: string) => {
+    setEditForm(prev => ({ ...prev, labels: prev.labels.filter(l => l !== labelName) }))
+  }
+
+  if (isEditing) {
+    return (
+      <div className="task-item editing">
+        <div className="space-y-3">
+          <input
+            value={editForm.title}
+            onChange={(e) => setEditForm(prev => ({ ...prev, title: e.target.value }))}
+            className="w-full px-2 py-1 bg-white/10 border border-white/20 rounded text-white"
+            placeholder="Task title"
+          />
+          <textarea
+            value={editForm.description}
+            onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
+            className="w-full px-2 py-1 bg-white/10 border border-white/20 rounded text-white resize-none text-sm"
+            placeholder="Description"
+            rows={2}
+          />
+          <input
+            type="datetime-local"
+            value={editForm.due_date}
+            onChange={(e) => setEditForm(prev => ({ ...prev, due_date: e.target.value }))}
+            className="w-full px-2 py-1 bg-white/10 border border-white/20 rounded text-white text-sm"
+          />
+          
+          {/* Label Editing */}
+          <div className="flex flex-wrap gap-2">
+            {editForm.labels.map((labelName) => {
+              const label = availableLabels.find((l) => l.name === labelName)
+              return (
+                <span
+                  key={labelName}
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs"
+                  style={{
+                    backgroundColor: label?.color ? `${label.color}20` : '#9333ea20',
+                    borderColor: label?.color || '#9333ea',
+                    borderWidth: '1px',
+                    color: label?.color || '#9333ea',
+                  }}
+                >
+                  {labelName}
+                  <button
+                    type="button"
+                    onClick={() => removeLabel(labelName)}
+                    className="hover:opacity-70"
+                  >
+                    <MdClose size={14} />
+                  </button>
+                </span>
+              )
+            })}
+            {availableLabels
+              .filter((label) => !editForm.labels.includes(label.name))
+              .map((label) => (
+                <button
+                  key={label.id}
+                  type="button"
+                  onClick={() => addLabel(label.name)}
+                  className="px-2 py-1 rounded text-xs opacity-50 hover:opacity-100"
+                  style={{
+                    borderColor: label.color,
+                    borderWidth: '1px',
+                    color: label.color,
+                  }}
+                >
+                  + {label.name}
+                </button>
+              ))}
+          </div>
+
+          <div className="flex gap-2 justify-end mt-2">
+            <button onClick={() => setIsEditing(false)} className="px-3 py-1 text-sm text-gray-400 hover:text-white">
+              Cancel
+            </button>
+            <button onClick={handleSave} className="px-3 py-1 text-sm bg-purple-600 text-white rounded hover:bg-purple-700 flex items-center gap-1">
+              <MdSave size={14} /> Save
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className={`task-item ${task.completed ? 'completed' : ''}`}>
       <div className="task-item-main">
-        <button onClick={onToggle} className="task-checkbox">
+        <button onClick={() => onUpdate(task.id, { completed: !task.completed })} className="task-checkbox">
           {task.completed ? (
             <MdCheckCircle size={24} className="text-green-500" />
           ) : (
@@ -455,10 +566,10 @@ const TaskItem = ({ task, onToggle, onDelete }: TaskItemProps) => {
           <button
             onClick={(e) => {
               e.stopPropagation()
-              setShowDetails(!showDetails)
+              setIsEditing(true)
             }}
             className="task-action-btn"
-            title="View details"
+            title="Edit task"
           >
             <MdEdit size={18} />
           </button>

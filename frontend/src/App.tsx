@@ -9,7 +9,7 @@ import { AnimeSection } from './components/sections/AnimeSection'
 import { CalendarSection } from './components/sections/CalendarSection'
 import { IoTSection } from './components/sections/IoTSection'
 import { ChatSection } from './components/sections/ChatSection'
-import { TasksSection } from './components/sections/TasksSection'
+import { TasksPage } from './components/pages/TasksPage'
 import { AdminSection } from './components/sections/AdminSection'
 import type {
   Task,
@@ -53,6 +53,7 @@ function App() {
   const [openwebui, setOpenwebui] = useState<OpenWebUiStatus | null>(null)
   const [availableLabels, setAvailableLabels] = useState<Label[]>([])
   const [activeSection, setActiveSection] = useState<MenuSection>('dashboard')
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
   const logout = useCallback(() => {
     localStorage.removeItem('halext_token')
@@ -272,12 +273,25 @@ function App() {
     setAvailableLabels(mergedLabels)
   }
 
-  const handleUpdateTask = async (id: number, completed: boolean) => {
+  const handleUpdateTask = async (id: number, updates: Partial<Task> & { labels?: string[] }) => {
+    const payload: any = { ...updates }
+    if (payload.due_date) {
+      payload.due_date = new Date(payload.due_date).toISOString()
+    }
     const task = await authorizedFetch<Task>(`/tasks/${id}`, {
       method: 'PUT',
-      body: JSON.stringify({ completed }),
+      body: JSON.stringify(payload),
     })
     setTasks((prev) => prev.map((t) => (t.id === id ? task : t)))
+    
+    // Update available labels if new ones were created
+    const mergedLabels = [...availableLabels]
+    task.labels.forEach((label) => {
+      if (!mergedLabels.some((existing) => existing.id === label.id)) {
+        mergedLabels.push(label)
+      }
+    })
+    setAvailableLabels(mergedLabels)
   }
 
   const handleDeleteTask = async (id: number) => {
@@ -520,7 +534,7 @@ function App() {
         )
       case 'tasks':
         return token ? (
-          <TasksSection
+          <TasksPage
             token={token}
             tasks={tasks}
             availableLabels={availableLabels}
@@ -536,7 +550,7 @@ function App() {
       case 'chat':
         return token ? <ChatSection token={token} /> : <div className="section-placeholder">Please login to access chat</div>
       case 'image-gen':
-        return <ImageGenerationSection />
+        return token ? <ImageGenerationSection token={token} /> : <div className="section-placeholder">Please login to access image generation</div>
       case 'anime':
         return <AnimeSection />
       case 'iot':
@@ -555,9 +569,15 @@ function App() {
         onSectionChange={setActiveSection}
         onLogout={logout}
         username={user?.username}
+        isSidebarOpen={isSidebarOpen}
+        onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
       />
       <div className="app-main">
         <Sidebar
+          isOpen={isSidebarOpen}
+          activeSection={activeSection}
+          onSectionChange={setActiveSection}
+          onCloseSidebar={() => setIsSidebarOpen(false)}
           user={user}
           onLogout={logout}
           taskForm={taskForm}
@@ -577,6 +597,7 @@ function App() {
           onPageFormChange={setPageForm}
           onPageSubmit={handleCreatePage}
         />
+        {isSidebarOpen && <div className="sidebar-backdrop" onClick={() => setIsSidebarOpen(false)} />}
         <main className="main-content">
           {renderSection()}
         </main>

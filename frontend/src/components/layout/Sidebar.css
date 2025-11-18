@@ -173,3 +173,71 @@
   color: rgba(245, 245, 255, 0.5);
   font-size: 0.875rem;
 }
+
+/* Mobile Navigation in Sidebar */
+.mobile-nav {
+  display: none;
+}
+
+.mobile-nav-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.mobile-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: #aaa;
+  cursor: pointer;
+  font-size: 0.875rem;
+  text-align: left;
+  transition: all 0.2s ease;
+}
+
+.mobile-nav-item:hover {
+  background: rgba(93, 114, 255, 0.1);
+  color: white;
+}
+
+.mobile-nav-item.active {
+  background: rgba(93, 114, 255, 0.2);
+  border-color: #5d72ff;
+  color: white;
+}
+
+.mobile-nav-item span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    top: 60px;
+    left: 0;
+    bottom: 0;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease-in-out;
+    z-index: 1000;
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .mobile-nav {
+    display: block;
+    margin: 1rem 0;
+    border-top: 1px solid rgba(93, 114, 255, 0.2);
+    border-bottom: 1px solid rgba(93, 114, 255, 0.2);
+    padding: 1rem 0;
+  }
+}

@@ -1,0 +1,23 @@
+.theme-switcher {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background-color: var(--background-color-secondary);
+  border-radius: 8px;
+}
+
+.theme-switcher label {
+  font-size: 0.875rem;
+  color: var(--text-color-secondary);
+}
+
+.theme-switcher select {
+  background-color: var(--background-color-tertiary);
+  color: var(--text-color-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+}

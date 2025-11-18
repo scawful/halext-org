@@ -8,9 +8,11 @@ import {
   MdDeviceHub,
   MdImage,
   MdAdminPanelSettings,
+  MdMenu,
+  MdClose,
 } from 'react-icons/md'
 import { FaRobot } from 'react-icons/fa'
-import { ThemeSwitcher } from '../ThemeSwitcher'
+import { ThemeSwitcher } from '../common/ThemeSwitcher'
 import './MenuBar.css'
 
 type MenuSection = 'dashboard' | 'tasks' | 'chat' | 'calendar' | 'iot' | 'settings' | 'image-gen' | 'anime' | 'admin'
@@ -20,14 +22,23 @@ type MenuBarProps = {
   onSectionChange: (section: MenuSection) => void
   onLogout: () => void
   username?: string
+  isSidebarOpen: boolean
+  onToggleSidebar: () => void
 }
 
-export const MenuBar = ({ activeSection, onSectionChange, onLogout, username }: MenuBarProps) => {
+export const MenuBar = ({
+  activeSection,
+  onSectionChange,
+  onLogout,
+  username,
+  isSidebarOpen,
+  onToggleSidebar,
+}: MenuBarProps) => {
   const [showSettings, setShowSettings] = useState(false)
 
   const menuItems = [
     { id: 'dashboard' as MenuSection, icon: MdDashboard, label: 'Dashboard' },
-    { id: 'tasks' as MenuSection, icon: MdTask, label: 'Tasks & Events' },
+    { id: 'tasks' as MenuSection, icon: MdTask, label: 'Tasks' },
     { id: 'calendar' as MenuSection, icon: MdCalendarToday, label: 'Calendar' },
     { id: 'chat' as MenuSection, icon: MdChat, label: 'AI Chat' },
     { id: 'image-gen' as MenuSection, icon: MdImage, label: 'Image Generation' },
@@ -38,9 +49,14 @@ export const MenuBar = ({ activeSection, onSectionChange, onLogout, username }: 
 
   return (
     <nav className="menu-bar">
-      <div className="menu-brand">
-        <span className="menu-logo">☕</span>
-        <h1>Cafe</h1>
+      <div className="menu-left">
+        <button className="sidebar-toggle" onClick={onToggleSidebar}>
+          {isSidebarOpen ? <MdClose size={24} /> : <MdMenu size={24} />}
+        </button>
+        <div className="menu-brand">
+          <span className="menu-logo">☕</span>
+          <h1>Cafe</h1>
+        </div>
       </div>
 
       <div className="menu-items">
