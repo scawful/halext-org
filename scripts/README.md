@@ -2,6 +2,11 @@
 
 This directory contains deployment and setup scripts for the Halext Org production environment.
 
+## Sync Scripts
+
+- `macos-sync.sh` – macOS helper that reinstalls backend/frontend deps when hashes change, then restarts the local dev stack (launchd or dev scripts) and probes the HTTP endpoints. It can also run `server-sync.sh` remotely via SSH when `--server-sync` is supplied; set `HALX_REMOTE_SERVER` (and related settings) in `scripts/macos-sync.env`.
+- `server-sync.sh` – Ubuntu helper that fast-forwards the repo, runs `server-deploy.sh`, restarts halext-api/OpenWebUI/nginx, and performs health checks (API, SPA, OpenWebUI).
+
 ## OpenWebUI Setup Script
 
 The `setup-openwebui.sh` script automates the deployment of OpenWebUI with Ollama on an Ubuntu server.
@@ -65,6 +70,7 @@ After the script completes, you need to:
    ```bash
    AI_PROVIDER=openwebui
    OPENWEBUI_URL=http://localhost:3000
+   OPENWEBUI_PUBLIC_URL=https://org.halext.org/webui/
    ```
 
    Or for Ollama direct:

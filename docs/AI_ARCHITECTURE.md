@@ -119,6 +119,7 @@ AI_MODEL=llama3.1
 ```python
 AI_PROVIDER=openwebui
 OPENWEBUI_URL=http://your-server:3000
+OPENWEBUI_PUBLIC_URL=https://org.halext.org/webui/
 AI_MODEL=llama3.1
 ```
 

@@ -279,6 +279,7 @@ echo -e "${GREEN}║${NC}                                                       
 echo -e "${GREEN}║${NC}  3. Update backend .env with:                            ${GREEN}║${NC}"
 echo -e "${GREEN}║${NC}     ${YELLOW}AI_PROVIDER=openwebui${NC}                            ${GREEN}║${NC}"
 echo -e "${GREEN}║${NC}     ${YELLOW}OPENWEBUI_URL=http://localhost:${OPENWEBUI_PORT}${NC}        ${GREEN}║${NC}"
+echo -e "${GREEN}║${NC}     ${YELLOW}OPENWEBUI_PUBLIC_URL=https://${DOMAIN}/webui/${NC}      ${GREEN}║${NC}"
 echo -e "${GREEN}║${NC}                                                           ${GREEN}║${NC}"
 echo -e "${GREEN}║${NC}  4. Access OpenWebUI at:                                 ${GREEN}║${NC}"
 echo -e "${GREEN}║${NC}     ${BLUE}https://${DOMAIN}/webui/${NC}                        ${GREEN}║${NC}"

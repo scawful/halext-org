@@ -33,7 +33,9 @@ frontend/dist/
 
 # Deployment caches
 backend/.requirements.sha256
+backend/.requirements.local.sha256
 frontend/.package-lock.sha256
+frontend/.package-lock.macos.sha256
 frontend/.npm-cache/
 
 # Network configuration (contains IPs and sensitive data)
@@ -44,3 +46,5 @@ frontend/.npm-cache/
 scripts/deploy-to-ubuntu.sh
 scripts/emergency-ubuntu-cleanup.sh
 scripts/emergency-kill-ollama.sh
+scripts/frontend-deploy.env
+scripts/macos-sync.env

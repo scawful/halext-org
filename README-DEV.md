@@ -22,6 +22,26 @@ Safely stops all running development servers.
 
 ---
 
+## Automated Sync (macOS)
+
+Use the bundled helper to refresh dependencies and restart services with one command:
+
+```bash
+./scripts/macos-sync.sh            # auto-detects launchd vs dev scripts
+./scripts/macos-sync.sh --mode dev # force dev-reload workflow
+./scripts/macos-sync.sh --server-sync --remote-server halext@org.halext.org
+```
+
+The script:
+- verifies Python/Node requirements, reinstalling when hashes change,
+- ensures `backend/env` and `frontend/node_modules` exist,
+- reloads the launchd agents (`org.halext.api` / `org.halext.frontend`) or runs the dev scripts,
+- probes `http://127.0.0.1:8000/docs` and the frontend port (5173 for dev scripts, 4173 for launchd) so you know everything is up.
+
+When `--server-sync` is supplied (or `HALX_REMOTE_SERVER` is set in `scripts/macos-sync.env`), the script will SSH into the Ubuntu host and run `scripts/server-sync.sh`, giving you one command to refresh both sides. Customize SSH options, remote repo path, or env overrides in `scripts/macos-sync.env`.
+
+---
+
 ## Access Points
 
 | Service | URL | Description |
@@ -86,6 +106,19 @@ npm run dev
 
 ---
 
+## Shipping Frontend Builds from macOS
+
+When the Ubuntu box is low on CPU, build locally and push only the static assets:
+
+```bash
+cp scripts/frontend-deploy.env.example scripts/frontend-deploy.env  # first time only
+./scripts/deploy-frontend-local.sh
+```
+
+The helper caches `node_modules` until `package-lock.json` changes, runs `npm run build`, rsyncs `frontend/dist/` to the configured `/var/www` path, and can reload Nginx or other services via the optional `HALX_POST_DEPLOY` command. Use `--dry-run` to preview the rsync changes.
+
+---
+
 ## Environment Setup
 
 ### First Time Setup
@@ -120,7 +153,7 @@ npm run dev
 
 **AI Gateway:**
 - Default: Mock responses
-- OpenWebUI: Set `AI_PROVIDER=openwebui` and `OPENWEBUI_URL`
+- OpenWebUI: Set `AI_PROVIDER=openwebui`, `OPENWEBUI_URL` (internal service), and `OPENWEBUI_PUBLIC_URL` (the public `/webui/` path)
 - Ollama: Set `AI_PROVIDER=ollama` and `OLLAMA_URL`
 - Model: Set `AI_MODEL` (default: `llama3.1`)
 - Full OpenWebUI provisioning, env variables, and SSO details live in [`docs/OPENWEBUI_SETUP.md`](docs/OPENWEBUI_SETUP.md)

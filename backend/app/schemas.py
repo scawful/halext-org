@@ -226,6 +226,7 @@ class AiProviderInfo(BaseModel):
     model: str
     ollama_url: Optional[str] = None
     openwebui_url: Optional[str] = None
+    openwebui_public_url: Optional[str] = None
 
 # AI Task Features
 class AiTaskSuggestionsRequest(BaseModel):

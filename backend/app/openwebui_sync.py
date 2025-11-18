@@ -19,6 +19,7 @@ class OpenWebUISync:
 
     def __init__(self):
         self.openwebui_url = os.getenv("OPENWEBUI_URL")
+        self.openwebui_public_url = os.getenv("OPENWEBUI_PUBLIC_URL", self.openwebui_url)
         self.sync_enabled = os.getenv("OPENWEBUI_SYNC_ENABLED", "false").lower() == "true"
         self.admin_email = os.getenv("OPENWEBUI_ADMIN_EMAIL")
         self.admin_password = os.getenv("OPENWEBUI_ADMIN_PASSWORD")
@@ -199,11 +200,12 @@ class OpenWebUISync:
         redirect_to: Optional[str] = None
     ) -> str:
         """Generate a login URL for OpenWebUI with SSO token"""
-        if not self.openwebui_url:
+        base_url = self.openwebui_public_url or self.openwebui_url
+        if not base_url:
             return ""
 
         token = await self.generate_sso_token(user_id, username, email)
-        base_url = self.openwebui_url.rstrip('/')
+        base_url = base_url.rstrip('/')
 
         # Construct SSO URL
         sso_url = f"{base_url}/sso?token={token}"
@@ -288,7 +290,7 @@ class OpenWebUISync:
             "enabled": self.is_enabled(),
             "configured": bool(self.openwebui_url),
             "admin_configured": bool(self.admin_email and self.admin_password),
-            "openwebui_url": self.openwebui_url if self.openwebui_url else None,
+            "openwebui_url": self.openwebui_public_url if self.openwebui_public_url else self.openwebui_url,
             "features": {
                 "user_provisioning": self.is_enabled(),
                 "sso": bool(self.jwt_secret),

@@ -40,10 +40,13 @@ Edit `backend/.env`:
 ```env
 AI_PROVIDER=openwebui
 OPENWEBUI_URL=http://127.0.0.1:3000
+OPENWEBUI_PUBLIC_URL=https://org.halext.org/webui/
 OPENWEBUI_SYNC_ENABLED=true
 OPENWEBUI_ADMIN_EMAIL=admin@example.com
 OPENWEBUI_ADMIN_PASSWORD=super-secret
 ```
+
+`OPENWEBUI_URL` should always point to the internal service that the FastAPI backend can reach (typically `127.0.0.1:3000`). `OPENWEBUI_PUBLIC_URL` is what browsers and SSO redirects will use, so aim it at the public HTTPS path (for example `https://org.halext.org/webui/`). When both values are identical you can omit the public variable.
 
 Then restart the API:
 

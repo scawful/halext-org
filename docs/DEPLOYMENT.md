@@ -175,19 +175,34 @@ cd /srv/halext/halext-org
 
 This helper fetches/pulls the current branch, reuses `server-deploy.sh` to reinstall Python/Node deps, restarts `halext-api`, reloads Nginx, ensures `/var/www/halext` ownership, and curls `org.halext.org` for a quick smoke test. For partial deployments (e.g., only backend wheels) call `./scripts/server-deploy.sh --backend-only` or `--frontend-only`. Watch `journalctl -u halext-api -f` and `/var/log/nginx/error.log` if you need deeper troubleshooting.
 
+For a deeper refresh (git pull + dependency rebuild + service restarts + health checks), use the all-in-one sync helper:
+
+```bash
+cd /srv/halext/halext-org
+./scripts/server-sync.sh
+```
+
+It wraps `server-deploy.sh`, restarts `halext-api`, `openwebui`, and `nginx`, and then probes the API, Nginx site, and OpenWebUI endpoints so you immediately know if a deploy succeeded.
+
 ## 8. Building the Frontend Locally
 
 If your Ubuntu VM is resource-constrained, build the SPA on macOS and push just the static files:
 
-```bash
-cd /Users/scawful/Code/halext-org
-HALX_REMOTE="user@server" \
-HALX_REMOTE_DIR="/var/www/halext" \
-HALX_POST_DEPLOY="sudo systemctl reload nginx" \
-./scripts/deploy-frontend-local.sh
-```
+1. Copy the sample config and set your SSH destination once:
+   ```bash
+   cd /Users/scawful/Code/halext-org
+   cp scripts/frontend-deploy.env.example scripts/frontend-deploy.env
+   # edit the file with your user@host, /var/www path, and optional post deploy command
+   ```
 
-This runs `npm install && npm run build` locally, rsyncs `frontend/dist/` to the server’s docroot, and optionally executes a post-deploy SSH command (e.g., reloading Nginx). Update `HALX_REMOTE_DIR` to match your actual root (such as `/www/halext.org/app`).
+2. Run the deploy helper any time you need to publish a new build:
+   ```bash
+    ./scripts/deploy-frontend-local.sh
+   ```
+
+   Add `--dry-run` to inspect the rsync plan without uploading, or `--skip-post` to skip the remote reload command defined in the env file.
+
+The script now reuses cached `node_modules` until `package-lock.json` changes, runs `npm ci` only when necessary, builds locally, rsyncs `frontend/dist/` to the server’s docroot, and optionally executes a post-deploy SSH command (e.g., reloading Nginx). Update the env file if your document root differs (such as `/www/halext.org/app`).
 
 ## 9. Local Development vs. Production
 
@@ -202,6 +217,7 @@ This runs `npm install && npm run build` locally, rsyncs `frontend/dist/` to the
 | `scripts/setup-org.sh` | First-time bootstrap on Ubuntu | Creates Postgres role/DB, virtualenv, builds frontend, installs `halext-api` + nginx vhost. Supersedes the older `server-init.sh`. |
 | `scripts/update-halext.sh` | Day-to-day production updates | Runs `git pull`, reuses `server-deploy.sh`, restarts services, and curls `org.halext.org`. Honors `HALX_DOMAIN`/`HALX_WWW_DIR`. |
 | `scripts/server-deploy.sh` | Targeted backend/frontend refresh | Pass `--backend-only` or `--frontend-only` when you don’t want the full update helper. |
+| `scripts/server-sync.sh` | Full production stack reload | git pull + server-deploy + halext/openwebui/nginx restarts with automatic health checks. |
 | `scripts/cloudflare-certbot.sh` | Temporarily disable Cloudflare proxy for certbot | Wraps `certbot` so DNS-only mode is toggled automatically. |
 | `scripts/sync-halext-perms.sh` | Fix repo permissions for the `halext` user | Keeps `/srv/halext/halext-org` group-writeable to avoid Git ownership warnings. |
 | `scripts/copy-ssh-key-to-halext.sh` | Reuse an existing SSH key for the `halext` account | Copies keys from `justin` (or another user) into `/home/halext/.ssh`. |

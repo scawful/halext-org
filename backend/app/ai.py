@@ -17,6 +17,7 @@ class AiGateway:
         self.provider = os.getenv("AI_PROVIDER", "mock").lower()
         self.model = os.getenv("AI_MODEL", "llama3.1")
         self.openwebui_url = os.getenv("OPENWEBUI_URL")
+        self.openwebui_public_url = os.getenv("OPENWEBUI_PUBLIC_URL", self.openwebui_url)
         self.ollama_url = os.getenv("OLLAMA_URL", "http://localhost:11434")
 
     async def generate_reply(self, prompt: str, history: Optional[Sequence[dict]] = None):
@@ -298,9 +299,10 @@ class AiGateway:
     def openwebui_status(self):
         """Get OpenWebUI integration status"""
         enabled = bool(self.openwebui_url)
+        public_url = self.openwebui_public_url if enabled else None
         return {
             "enabled": enabled,
-            "url": self.openwebui_url if enabled else None,
+            "url": public_url if public_url else None,
         }
 
     def get_provider_info(self):
@@ -310,4 +312,5 @@ class AiGateway:
             "model": self.model,
             "ollama_url": self.ollama_url if self.provider == "ollama" else None,
             "openwebui_url": self.openwebui_url if self.provider == "openwebui" else None,
+            "openwebui_public_url": self.openwebui_public_url if self.provider == "openwebui" else None,
         }

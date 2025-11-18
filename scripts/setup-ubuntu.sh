@@ -152,6 +152,7 @@ ACCESS_CODE=your-access-code-change-this
 AI_PROVIDER=mock
 AI_MODEL=llama3.1
 # OPENWEBUI_URL=http://localhost:3000
+# OPENWEBUI_PUBLIC_URL=https://org.halext.org/webui/
 # OLLAMA_URL=http://localhost:11434
 
 # Environment
@@ -358,6 +359,7 @@ if [ "$OPENWEBUI_RUNNING" = false ]; then
     echo ""
     echo "Then update backend/.env:"
     echo "  OPENWEBUI_URL=http://localhost:3000"
+    echo "  OPENWEBUI_PUBLIC_URL=https://org.halext.org/webui/"
     echo "  AI_PROVIDER=openwebui"
 fi
 

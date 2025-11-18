@@ -1,23 +1,32 @@
 #!/bin/bash
 set -euo pipefail
 
-# Build the frontend locally and rsync the dist/ output to a remote server.
-#
-# Usage: ./scripts/deploy-frontend-local.sh [--dry-run] [--skip-post]
-#
-# Configuration is read from scripts/frontend-deploy.env if it exists,
-# or from environment variables:
-#   HALX_REMOTE       SSH destination (e.g., ubuntu@123.45.67.89)
-#   HALX_REMOTE_DIR   Path on the server where static files live (e.g., /var/www/halext)
-#   HALX_POST_DEPLOY  Optional command to run after rsync
+usage() {
+  cat <<'EOF'
+Usage: HALX_REMOTE=user@server HALX_REMOTE_DIR=/var/www/halext ./scripts/deploy-frontend-local.sh [options]
+
+Builds the frontend on macOS (or any fast workstation), syncs dist/ to the remote docroot,
+and optionally runs a post-deploy SSH command (e.g., reload nginx). Defaults can be stored in
+scripts/frontend-deploy.env so you only have to fill in the SSH target once.
+
+Options:
+  --dry-run      Show which files would be synced without uploading anything.
+  --skip-post    Do not run HALX_POST_DEPLOY even if it is set.
+  -h, --help     Show this help text.
+EOF
+}
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 FRONTEND_DIR="$ROOT_DIR/frontend"
-ENV_FILE="$ROOT_DIR/scripts/frontend-deploy.env"
+LOCK_FILE="$FRONTEND_DIR/package-lock.json"
+LOCK_CACHE="$FRONTEND_DIR/.package-lock.local.sha256"
+NPM_CACHE="$FRONTEND_DIR/.npm-cache"
+DIST_DIR="$FRONTEND_DIR/dist"
+CONFIG_FILE="${HALX_FRONTEND_CONFIG:-$ROOT_DIR/scripts/frontend-deploy.env}"
 
-# Load defaults from env file
-if [[ -f "$ENV_FILE" ]]; then
-  source "$ENV_FILE"
+if [[ -f "$CONFIG_FILE" ]]; then
+  # shellcheck disable=SC1090
+  source "$CONFIG_FILE"
 fi
 
 REMOTE="${HALX_REMOTE:-}"
@@ -26,81 +35,95 @@ POST_CMD="${HALX_POST_DEPLOY:-}"
 DRY_RUN=0
 SKIP_POST=0
 
-# Parse args
-for arg in "$@"; do
-  case $arg in
-    --dry-run) DRY_RUN=1 ;;
-    --skip-post) SKIP_POST=1 ;;
-    *) echo "Unknown argument: $arg"; exit 1 ;;
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --dry-run)
+      DRY_RUN=1
+      ;;
+    --skip-post)
+      SKIP_POST=1
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "Unknown option: $1" >&2
+      usage
+      exit 1
+      ;;
   esac
+  shift
 done
 
 if [[ -z "$REMOTE" || -z "$REMOTE_DIR" ]]; then
-  echo "Usage: $0 [--dry-run] [--skip-post]"
-  echo
-  echo "Error: HALX_REMOTE and HALX_REMOTE_DIR must be set."
-  echo "Define them in $ENV_FILE or export them."
+  echo "HALX_REMOTE and HALX_REMOTE_DIR must be set. Export them or use $CONFIG_FILE." >&2
   exit 1
 fi
 
-echo "=== Frontend Deploy: $REMOTE:$REMOTE_DIR ==="
+lock_hash() {
+  sha256sum "$LOCK_FILE" | awk '{print $1}'
+}
+
+install_frontend_deps() {
+  echo "Installing npm dependencies via npm ci..."
+  rm -rf "$FRONTEND_DIR/node_modules"
+  npm ci --prefer-offline --cache "$NPM_CACHE"
+  lock_hash > "$LOCK_CACHE"
+}
+
+maybe_install_deps() {
+  mkdir -p "$NPM_CACHE"
+  if [[ ! -d "$FRONTEND_DIR/node_modules" ]]; then
+    install_frontend_deps
+    return
+  fi
+
+  if [[ ! -f "$LOCK_FILE" ]]; then
+    echo "package-lock.json missing; forcing fresh npm install."
+    install_frontend_deps
+    return
+  fi
+
+  if [[ ! -f "$LOCK_CACHE" ]]; then
+    install_frontend_deps
+    return
+  fi
+
+  if [[ "$(lock_hash)" != "$(cat "$LOCK_CACHE")" ]]; then
+    echo "package-lock.json changed; reinstalling deps."
+    install_frontend_deps
+    return
+  fi
+
+  echo "package-lock.json unchanged; reusing existing node_modules."
+}
 
 cd "$FRONTEND_DIR"
+maybe_install_deps
 
-# Smart install - check if package-lock changed
-LOCK_HASH_FILE="$FRONTEND_DIR/node_modules/.package-lock.sha256"
-CURRENT_HASH=""
-if [[ -f "package-lock.json" ]]; then
-  if [[ "$OSTYPE" == "darwin"* ]]; then
-    CURRENT_HASH=$(shasum -a 256 package-lock.json | cut -d' ' -f1)
-  else
-    CURRENT_HASH=$(sha256sum package-lock.json | cut -d' ' -f1)
-  fi
-fi
-
-NEEDS_INSTALL=1
-if [[ -f "$LOCK_HASH_FILE" && -n "$CURRENT_HASH" ]]; then
-  STORED_HASH=$(cat "$LOCK_HASH_FILE")
-  if [[ "$CURRENT_HASH" == "$STORED_HASH" ]]; then
-    NEEDS_INSTALL=0
-  fi
-fi
-
-if [[ $NEEDS_INSTALL -eq 1 ]]; then
-  echo "Dependencies changed or not installed. Running npm ci..."
-  npm ci
-  if [[ -n "$CURRENT_HASH" ]]; then
-    echo "$CURRENT_HASH" > "$LOCK_HASH_FILE"
-  fi
-else
-  echo "Dependencies up to date (cached)."
-fi
-
-echo "Building frontend..."
+echo "Building frontend bundle..."
 npm run build
 
-if [[ ! -d "$FRONTEND_DIR/dist" ]]; then
-  echo "Error: dist/ directory missing after build." >&2
+if [[ ! -d "$DIST_DIR" ]]; then
+  echo "dist/ missing after build" >&2
   exit 1
 fi
 
-RSYNC_OPTS="-az --delete"
+RSYNC_ARGS=(-az --delete --info=progress2)
 if [[ $DRY_RUN -eq 1 ]]; then
-  RSYNC_OPTS="$RSYNC_OPTS --dry-run -v"
-  echo "[DRY RUN] Would sync to $REMOTE:$REMOTE_DIR"
-else
-  echo "Syncing dist/ to $REMOTE:$REMOTE_DIR ..."
+  RSYNC_ARGS+=(--dry-run)
 fi
 
-rsync $RSYNC_OPTS "$FRONTEND_DIR/dist/" "$REMOTE:$REMOTE_DIR/"
-
+echo "Syncing dist/ to $REMOTE:$REMOTE_DIR ..."
+rsync "${RSYNC_ARGS[@]}" "$DIST_DIR/" "$REMOTE:$REMOTE_DIR/"
 echo "Sync complete."
 
-if [[ -n "$POST_CMD" && $SKIP_POST -eq 0 ]]; then
-  if [[ $DRY_RUN -eq 1 ]]; then
-    echo "[DRY RUN] Would run post-deploy command: $POST_CMD"
-  else
-    echo "Running post-deploy command..."
-    ssh "$REMOTE" "$POST_CMD"
-  fi
+if [[ $DRY_RUN -eq 1 ]]; then
+  echo "Dry run requested; skipping remote post-deploy command."
+elif [[ $SKIP_POST -eq 1 || -z "$POST_CMD" ]]; then
+  :
+else
+  echo "Running post-deploy command: $POST_CMD"
+  ssh "$REMOTE" "$POST_CMD"
 fi

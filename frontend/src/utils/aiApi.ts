@@ -40,6 +40,7 @@ export interface AiProviderInfo {
   model: string
   ollama_url?: string
   openwebui_url?: string
+  openwebui_public_url?: string
 }
 
 export interface OpenWebUISyncStatus {
