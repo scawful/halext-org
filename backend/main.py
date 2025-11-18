@@ -118,6 +118,7 @@ async def login_for_access_token(
 @app.post("/users/", response_model=schemas.User)
 def create_user(
     user: schemas.UserCreate,
+    create_demo_data: bool = True,
     db: Session = Depends(get_db),
     _: str = Depends(verify_access_code)
 ):
@@ -127,7 +128,19 @@ def create_user(
     db_user = crud.get_user_by_username(db, username=user.username)
     if db_user:
         raise HTTPException(status_code=400, detail="Username already registered")
-    return crud.create_user(db=db, user=user)
+
+    new_user = crud.create_user(db=db, user=user)
+
+    # Create demo content for new users to showcase the UI
+    if create_demo_data:
+        try:
+            from app.seed_data import create_demo_content
+            create_demo_content(new_user.id, db)
+        except Exception as e:
+            print(f"Warning: Failed to create demo content: {e}")
+            # Don't fail registration if demo content creation fails
+
+    return new_user
 
 
 @app.get("/users/me/", response_model=schemas.User)
