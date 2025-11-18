@@ -20,8 +20,8 @@
 
     <key>EnvironmentVariables</key>
     <dict>
-        <key>DATABASE_URL</key>
-        <string>postgresql://halext_user:REDACTED_PASSWORD@localhost/halext_org</string>
+        <!-- Removed DATABASE_URL to default to SQLite for development -->
+        <!-- For production PostgreSQL, set: postgresql://halext_user:REDACTED_PASSWORD@localhost/halext_org -->
     </dict>
 
     <key>StandardOutPath</key>
