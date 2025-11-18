@@ -57,11 +57,13 @@ struct NewTaskView: View {
                         TextField("Add label", text: $labelInput)
                             .textInputAutocapitalization(.never)
 
-                        Button("Add") {
+                        Button(action: {
                             if !labelInput.isEmpty {
                                 labels.append(labelInput)
                                 labelInput = ""
                             }
+                        }) {
+                            Text("Add")
                         }
                         .disabled(labelInput.isEmpty)
                     }
@@ -71,9 +73,9 @@ struct NewTaskView: View {
                             HStack {
                                 Text(label)
                                 Spacer()
-                                Button {
+                                Button(action: {
                                     labels.removeAll { $0 == label }
-                                } label: {
+                                }) {
                                     Image(systemName: "xmark.circle.fill")
                                         .foregroundColor(.secondary)
                                 }
@@ -142,12 +144,14 @@ struct NewTaskView: View {
                                     Text("Suggested Labels:")
                                         .fontWeight(.semibold)
                                     Spacer()
-                                    Button("Add All") {
+                                    Button(action: {
                                         for label in suggestions.labels {
                                             if !labels.contains(label) {
                                                 labels.append(label)
                                             }
                                         }
+                                    }) {
+                                        Text("Add All")
                                     }
                                     .font(.caption)
                                 }
@@ -174,14 +178,18 @@ struct NewTaskView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
+                    Button(action: {
                         dismiss()
+                    }) {
+                        Text("Cancel")
                     }
                 }
 
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Create") {
+                    Button(action: {
                         createTask()
+                    }) {
+                        Text("Create")
                     }
                     .disabled(!isValid || isCreating)
                 }

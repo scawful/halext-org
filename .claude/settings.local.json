@@ -29,7 +29,8 @@
       "Bash(open:*)",
       "Bash(defaults read:*)",
       "Bash(./scripts/preflight-check.sh:*)",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(killall:*)"
     ],
     "deny": [],
     "ask": []

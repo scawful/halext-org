@@ -49,10 +49,12 @@ struct TaskListView: View {
                                     Text("\(completedCount) completed")
                                         .foregroundColor(.secondary)
                                     Spacer()
-                                    Button("Hide Completed") {
+                                    Button(action: {
                                         withAnimation {
                                             filterCompleted = true
                                         }
+                                    }) {
+                                        Text("Hide Completed")
                                     }
                                     .font(.caption)
                                 }
@@ -75,19 +77,21 @@ struct TaskListView: View {
             .navigationTitle("Tasks")
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    Button {
+                    Button(action: {
                         showingNewTask = true
-                    } label: {
+                    }) {
                         Image(systemName: "plus")
                     }
                 }
 
                 if filterCompleted {
                     ToolbarItem(placement: .secondaryAction) {
-                        Button("Show All") {
+                        Button(action: {
                             withAnimation {
                                 filterCompleted = false
                             }
+                        }) {
+                            Text("Show All")
                         }
                     }
                 }
