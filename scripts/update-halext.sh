@@ -26,7 +26,7 @@ log "Fast-forwarding $BRANCH…"
 git -C "$ROOT_DIR" pull --ff-only "$REMOTE" "$BRANCH"
 
 log "Running server-deploy refresh…"
-"$ROOT_DIR/scripts/server-deploy.sh"
+bash "$ROOT_DIR/scripts/server-deploy.sh"
 
 if [[ -d "$WWW_DIR" ]]; then
   log "Ensuring $WWW_DIR is owned by www-data…"
