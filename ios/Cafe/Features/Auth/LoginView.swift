@@ -13,6 +13,7 @@ struct LoginView: View {
     @State private var username = ""
     @State private var password = ""
     @State private var showingRegister = false
+    @State private var useProduction = UserDefaults.standard.bool(forKey: "useProductionAPI")
 
     private func performLogin() {
         _Concurrency.Task {
@@ -82,6 +83,39 @@ struct LoginView: View {
                 .padding(.horizontal, 32)
 
                 Spacer()
+
+                // Environment toggle (DEBUG only)
+                #if DEBUG
+                VStack(spacing: 8) {
+                    Toggle(isOn: Binding(
+                        get: { useProduction },
+                        set: { newValue in
+                            useProduction = newValue
+                            UserDefaults.standard.set(newValue, forKey: "useProductionAPI")
+                        }
+                    )) {
+                        HStack {
+                            Image(systemName: useProduction ? "cloud.fill" : "laptopcomputer")
+                                .foregroundColor(useProduction ? .green : .blue)
+                            Text(useProduction ? "Production API" : "Local Dev API")
+                                .font(.caption)
+                        }
+                    }
+                    .tint(.green)
+                    .padding(.horizontal, 32)
+
+                    if !useProduction {
+                        Text("http://127.0.0.1:8000")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    } else {
+                        Text("https://org.halext.org/api")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .padding(.bottom, 16)
+                #endif
 
                 // Register link
                 Button(action: {

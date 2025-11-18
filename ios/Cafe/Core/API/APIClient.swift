@@ -24,11 +24,17 @@ enum APIEnvironment {
 class APIClient {
     static let shared = APIClient()
 
-    #if DEBUG
-    let environment: APIEnvironment = .development
-    #else
-    let environment: APIEnvironment = .production
-    #endif
+    // Allow environment override in DEBUG builds
+    var environment: APIEnvironment {
+        #if DEBUG
+        if UserDefaults.standard.bool(forKey: "useProductionAPI") {
+            return .production
+        }
+        return .development
+        #else
+        return .production
+        #endif
+    }
 
     private var baseURL: String { environment.baseURL }
     private var token: String? { KeychainManager.shared.getToken() }

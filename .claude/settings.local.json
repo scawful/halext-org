@@ -30,7 +30,8 @@
       "Bash(defaults read:*)",
       "Bash(./scripts/preflight-check.sh:*)",
       "Bash(tree:*)",
-      "Bash(killall:*)"
+      "Bash(killall:*)",
+      "Bash(xargs kill:*)"
     ],
     "deny": [],
     "ask": []
