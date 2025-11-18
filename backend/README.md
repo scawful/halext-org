@@ -1,43 +1,62 @@
 # Halext Org Backend
 
-This directory contains the backend server for the Halext Org project, built with FastAPI and PostgreSQL.
+FastAPI-based backend for the Halext Org productivity suite.
 
-## Setup and Installation
+## Quick Start
 
-### Prerequisites
+### Development Setup
 
-- Python 3.8+
-- PostgreSQL
+1. **Create Virtual Environment**
+   ```bash
+   python3 -m venv env
+   source env/bin/activate  # On Windows: env\Scripts\activate
+   ```
 
-### Installation
+2. **Install Dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-1.  **Create a virtual environment:**
+3. **Configure Environment**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your settings
+   ```
 
-    ```bash
-    python3 -m venv env
-    source env/bin/activate
-    ```
+4. **Create Development User**
+   ```bash
+   python create_dev_user.py
+   ```
+   Default credentials:
+   - Username: `dev`
+   - Password: `dev123`
 
-2.  **Install dependencies:**
+5. **Run Server**
+   ```bash
+   uvicorn main:app --host 127.0.0.1 --port 8000 --reload
+   ```
 
-    ```bash
-    pip install -r requirements.txt
-    ```
+### Or Use Root Dev Script
 
-3.  **Configure your database:**
-
-    Make sure you have a PostgreSQL server running and create a new database for this project. You will need to set the database connection URL as an environment variable.
-
-    ```bash
-    export DATABASE_URL="postgresql://user:password@host:port/dbname"
-    ```
-
-## Running the Server
-
-To run the development server, use `uvicorn`:
-
+From the project root:
 ```bash
-uvicorn main:app --reload
+./dev-reload.sh  # Starts both frontend and backend
 ```
 
-The API will be available at `http://127.0.0.1:8000`.
+## API Documentation
+
+Once running, visit:
+- **Swagger UI**: http://127.0.0.1:8000/docs
+- **ReDoc**: http://127.0.0.1:8000/redoc
+
+## Development User
+
+A default development user has been created:
+- **Username**: `dev`
+- **Password**: `dev123`
+- **Email**: `dev@halext.org`
+
+You can create additional users:
+```bash
+python create_dev_user.py --username alice --password secret --email alice@example.com
+```
