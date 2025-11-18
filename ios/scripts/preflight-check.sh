@@ -13,7 +13,7 @@ WARNINGS=0
 
 # Check 1: Xcode project exists
 echo "✓ Checking Xcode project..."
-if [ ! -d "Cafe/Cafe.xcodeproj" ]; then
+if [ ! -d "Cafe.xcodeproj" ]; then
     echo "  ❌ Cafe.xcodeproj not found"
     ERRORS=$((ERRORS + 1))
 else
@@ -27,12 +27,12 @@ SWIFT_COUNT=$(find Cafe -name "*.swift" -type f | wc -l | tr -d ' ')
 echo "  ✅ Found $SWIFT_COUNT Swift files"
 
 REQUIRED_FILES=(
-    "Cafe/Cafe/CafeApp.swift"
-    "Cafe/Cafe/App/AppState.swift"
-    "Cafe/Cafe/App/RootView.swift"
-    "Cafe/Cafe/Core/API/APIClient.swift"
-    "Cafe/Cafe/Core/Auth/KeychainManager.swift"
-    "Cafe/Cafe/Core/Models/Models.swift"
+    "Cafe/CafeApp.swift"
+    "Cafe/App/AppState.swift"
+    "Cafe/App/RootView.swift"
+    "Cafe/Core/API/APIClient.swift"
+    "Cafe/Core/Auth/KeychainManager.swift"
+    "Cafe/Core/Models/Models.swift"
 )
 
 for file in "${REQUIRED_FILES[@]}"; do
@@ -45,7 +45,7 @@ done
 # Check 3: Bundle identifier
 echo ""
 echo "✓ Checking bundle identifier..."
-BUNDLE_ID=$(grep -m 1 "PRODUCT_BUNDLE_IDENTIFIER" Cafe/Cafe.xcodeproj/project.pbxproj | sed 's/.*= \(.*\);/\1/' | tr -d ' ')
+BUNDLE_ID=$(grep -m 1 "PRODUCT_BUNDLE_IDENTIFIER" Cafe.xcodeproj/project.pbxproj | sed 's/.*= \(.*\);/\1/' | tr -d ' ')
 echo "  Bundle ID: $BUNDLE_ID"
 if [ "$BUNDLE_ID" = "org.halext.Cafe" ]; then
     echo "  ✅ Bundle ID is set"
@@ -57,15 +57,15 @@ fi
 # Check 4: Version and build number
 echo ""
 echo "✓ Checking version info..."
-VERSION=$(grep -m 1 "MARKETING_VERSION" Cafe/Cafe.xcodeproj/project.pbxproj | sed 's/.*= \(.*\);/\1/' | tr -d ' ')
-BUILD=$(grep -m 1 "CURRENT_PROJECT_VERSION" Cafe/Cafe.xcodeproj/project.pbxproj | sed 's/.*= \(.*\);/\1/' | tr -d ' ')
+VERSION=$(grep -m 1 "MARKETING_VERSION" Cafe.xcodeproj/project.pbxproj | sed 's/.*= \(.*\);/\1/' | tr -d ' ')
+BUILD=$(grep -m 1 "CURRENT_PROJECT_VERSION" Cafe.xcodeproj/project.pbxproj | sed 's/.*= \(.*\);/\1/' | tr -d ' ')
 echo "  Version: $VERSION"
 echo "  Build: $BUILD"
 
 # Check 5: Backend URL configuration
 echo ""
 echo "✓ Checking API configuration..."
-if grep -q "org.halext.org/api" Cafe/Cafe/Core/API/APIClient.swift; then
+if grep -q "org.halext.org/api" Cafe/Core/API/APIClient.swift; then
     echo "  ✅ Production URL configured"
 else
     echo "  ⚠️  Production URL may not be set in APIClient.swift"
@@ -75,7 +75,7 @@ fi
 # Check 6: Signing capability
 echo ""
 echo "✓ Checking code signing..."
-if grep -q "CODE_SIGN_STYLE = Automatic" Cafe/Cafe.xcodeproj/project.pbxproj; then
+if grep -q "CODE_SIGN_STYLE = Automatic" Cafe.xcodeproj/project.pbxproj; then
     echo "  ✅ Automatic signing enabled"
 else
     echo "  ⚠️  Automatic signing may not be configured"

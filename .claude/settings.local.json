@@ -24,7 +24,12 @@
       "Bash(./dev-stop.sh)",
       "Bash(env/bin/python:*)",
       "Bash(git pull:*)",
-      "Bash(./dev-reload.sh)"
+      "Bash(./dev-reload.sh)",
+      "Bash(xcodebuild:*)",
+      "Bash(open:*)",
+      "Bash(defaults read:*)",
+      "Bash(./scripts/preflight-check.sh:*)",
+      "Bash(tree:*)"
     ],
     "deny": [],
     "ask": []

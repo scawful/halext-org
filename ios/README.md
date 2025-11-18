@@ -12,7 +12,7 @@
 cd /Users/scawful/Code/halext-org/ios
 
 # Open in Xcode
-open Cafe/Cafe.xcodeproj
+open Cafe.xcodeproj
 ```
 
 **Or**: Double-click `Cafe.xcodeproj` in Finder
@@ -21,27 +21,28 @@ open Cafe/Cafe.xcodeproj
 
 ```
 ios/
-├── Cafe/                      # ← Main Xcode project
-│   ├── Cafe.xcodeproj        # Open this!
-│   └── Cafe/
-│       ├── CafeApp.swift     # App entry point
-│       ├── ContentView.swift # Main view
-│       └── Assets.xcassets   # Images, colors
-├── Models/                    # Shared data models
-│   ├── Task.swift
-│   └── LayoutPreset.swift
-├── Networking/                # API client
-│   └── HalextAPI.swift
-└── App/                       # Legacy starter code
-    ├── HalextApp.swift
-    └── ContentView.swift
+├── Cafe.xcodeproj            # ← Open this in Xcode!
+├── Cafe/                      # Source files
+│   ├── CafeApp.swift         # App entry point
+│   ├── App/                  # App state and navigation
+│   ├── Core/                 # API, Auth, Models
+│   ├── Features/             # Auth, Tasks views
+│   └── Assets.xcassets       # Images, colors
+├── scripts/                   # Build and deployment
+│   ├── preflight-check.sh
+│   ├── archive-for-testflight.sh
+│   └── increment-build.sh
+└── Models/                    # Legacy starter code (can delete)
 ```
 
 ## Development Workflow
 
 ### 1. Run the App
 
-1. Open `Cafe.xcodeproj` in Xcode
+1. Open `Cafe.xcodeproj` in Xcode:
+   ```bash
+   open Cafe.xcodeproj
+   ```
 2. Select a simulator (iPhone 15 Pro recommended) or your physical iPhone
 3. Press `Cmd+R` or click ▶️ Play button
 4. App launches!

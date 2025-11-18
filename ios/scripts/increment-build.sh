@@ -5,7 +5,7 @@ set -e
 
 cd "$(dirname "$0")/.."
 
-PROJECT="Cafe/Cafe.xcodeproj/project.pbxproj"
+PROJECT="Cafe.xcodeproj/project.pbxproj"
 
 # Get current build number
 CURRENT_BUILD=$(grep -m 1 "CURRENT_PROJECT_VERSION" "$PROJECT" | sed 's/.*= \(.*\);/\1/' | tr -d ' ')
@@ -25,5 +25,5 @@ sed -i '' "s/CURRENT_PROJECT_VERSION = $CURRENT_BUILD;/CURRENT_PROJECT_VERSION =
 echo "✅ Build number incremented: $CURRENT_BUILD → $NEW_BUILD"
 echo ""
 echo "Don't forget to commit this change:"
-echo "  git add Cafe/Cafe.xcodeproj/project.pbxproj"
+echo "  git add Cafe.xcodeproj/project.pbxproj"
 echo "  git commit -m 'Bump build number to $NEW_BUILD'"

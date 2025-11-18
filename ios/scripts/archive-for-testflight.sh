@@ -5,7 +5,7 @@ set -e
 
 cd "$(dirname "$0")/.."
 
-PROJECT="Cafe/Cafe.xcodeproj"
+PROJECT="Cafe.xcodeproj"
 SCHEME="Cafe"
 ARCHIVE_PATH="./build/Cafe.xcarchive"
 
