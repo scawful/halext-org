@@ -27,8 +27,13 @@ app.add_middleware(
 )
 
 ACCESS_CODE = os.getenv("ACCESS_CODE", "").strip()
+# For development, disable access code requirement
+DEV_MODE = os.getenv("DEV_MODE", "false").lower() == "true"
 
 def verify_access_code(x_halext_code: Optional[str] = Header(default=None)):
+    # Skip access code check in development mode
+    if DEV_MODE:
+        return
     if ACCESS_CODE and x_halext_code != ACCESS_CODE:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Access code required")
 

@@ -21,7 +21,9 @@
       "Bash(curl:*)",
       "Bash(chmod:*)",
       "Bash(./dev-status.sh)",
-      "Bash(./dev-stop.sh)"
+      "Bash(./dev-stop.sh)",
+      "Bash(env/bin/python:*)",
+      "Bash(git pull:*)"
     ],
     "deny": [],
     "ask": []
