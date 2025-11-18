@@ -8,6 +8,7 @@ import { ImageGenerationSection } from './components/sections/ImageGenerationSec
 import { AnimeSection } from './components/sections/AnimeSection'
 import { CalendarSection } from './components/sections/CalendarSection'
 import { IoTSection } from './components/sections/IoTSection'
+import { ChatSection } from './components/sections/ChatSection'
 import type {
   Task,
   EventItem,
@@ -456,12 +457,13 @@ function App() {
   const renderSection = () => {
     switch (activeSection) {
       case 'dashboard':
-        return selectedPage ? (
+        return selectedPage && token ? (
           <DashboardGrid
             columns={selectedPage.layout}
             tasks={tasks}
             events={events}
             openwebui={openwebui}
+            token={token}
             onUpdateColumn={handleUpdateColumn}
             onUpdateWidget={handleUpdateWidget}
             onRemoveWidget={handleRemoveWidget}
@@ -480,7 +482,7 @@ function App() {
       case 'calendar':
         return <CalendarSection events={events} />
       case 'chat':
-        return <div className="section-placeholder">Chat view coming soon...</div>
+        return token ? <ChatSection token={token} /> : <div className="section-placeholder">Please login to access chat</div>
       case 'image-gen':
         return <ImageGenerationSection />
       case 'anime':

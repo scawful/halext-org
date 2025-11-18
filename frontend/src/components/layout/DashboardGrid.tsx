@@ -15,6 +15,7 @@ type DashboardGridProps = {
   tasks: Task[]
   events: EventItem[]
   openwebui: OpenWebUiStatus | null
+  token: string
   onUpdateColumn: (columnId: string, widgets: LayoutWidget[]) => void
   onUpdateWidget: (columnId: string, widget: LayoutWidget) => void
   onRemoveWidget: (columnId: string, widgetId: string) => void
@@ -29,6 +30,7 @@ export const DashboardGrid = ({
   tasks,
   events,
   openwebui,
+  token,
   onUpdateColumn,
   onUpdateWidget,
   onRemoveWidget,
@@ -83,7 +85,7 @@ export const DashboardGrid = ({
           />
         )
       case 'openwebui':
-        return <OpenWebUIWidget openwebui={openwebui} />
+        return <OpenWebUIWidget openwebui={openwebui} token={token} />
       default:
         return <div className="muted">Widget not configured.</div>
     }
