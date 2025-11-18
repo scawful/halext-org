@@ -169,13 +169,13 @@ struct TaskRowView: View {
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             // Completion toggle
-            Button {
-                Task {
+            Button(action: {
+                Task { @MainActor in
                     isToggling = true
                     await onToggle()
                     isToggling = false
                 }
-            } label: {
+            }) {
                 Image(systemName: task.completed ? "checkmark.circle.fill" : "circle")
                     .font(.title3)
                     .foregroundColor(task.completed ? .green : .gray)
@@ -224,12 +224,12 @@ struct TaskRowView: View {
         }
         .padding(.vertical, 4)
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-            Button(role: .destructive) {
-                Task {
+            Button(role: .destructive, action: {
+                Task { @MainActor in
                     await onDelete()
                 }
-            } label: {
-                Label("Delete", systemImage: "trash")
+            }) {
+                SwiftUI.Label("Delete", systemImage: "trash")
             }
         }
     }

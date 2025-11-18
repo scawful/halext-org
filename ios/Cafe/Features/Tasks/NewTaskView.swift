@@ -84,12 +84,12 @@ struct NewTaskView: View {
                 }
 
                 Section {
-                    Button {
+                    Button(action: {
                         showingAISuggestions = true
-                        Task {
+                        Task { @MainActor in
                             await loadAISuggestions()
                         }
-                    } label: {
+                    }) {
                         HStack {
                             Image(systemName: "sparkles")
                             Text("Get AI Suggestions")
@@ -199,7 +199,7 @@ struct NewTaskView: View {
             labels: labels
         )
 
-        Task {
+        Task { @MainActor in
             await onCreate(taskCreate)
             isCreating = false
         }

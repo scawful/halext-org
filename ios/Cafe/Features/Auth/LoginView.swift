@@ -60,7 +60,7 @@ struct LoginView: View {
                     }
 
                     Button(action: {
-                        Task {
+                        Task { @MainActor in
                             await appState.login(username: username, password: password)
                         }
                     }) {

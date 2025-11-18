@@ -93,8 +93,8 @@ struct RegisterView: View {
                             .font(.caption)
                     }
 
-                    Button {
-                        Task {
+                    Button(action: {
+                        Task { @MainActor in
                             // Save access code if provided
                             if !accessCode.isEmpty {
                                 KeychainManager.shared.saveAccessCode(accessCode)
@@ -112,7 +112,7 @@ struct RegisterView: View {
                                 dismiss()
                             }
                         }
-                    } label: {
+                    }) {
                         if appState.isLoading {
                             HStack {
                                 Spacer()
