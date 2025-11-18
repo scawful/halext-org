@@ -15,7 +15,7 @@ struct LoginView: View {
     @State private var showingRegister = false
 
     private func performLogin() {
-        let _ = Task { @MainActor in
+        Task {
             await appState.login(username: username, password: password)
         }
     }

@@ -175,7 +175,7 @@ struct TaskRowView: View {
     @State private var isToggling = false
 
     private func performToggle() {
-        let _ = Task { @MainActor in
+        Task {
             isToggling = true
             await onToggle()
             isToggling = false
@@ -183,7 +183,7 @@ struct TaskRowView: View {
     }
 
     private func performDelete() {
-        let _ = Task { @MainActor in
+        Task {
             await onDelete()
         }
     }

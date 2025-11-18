@@ -41,7 +41,7 @@ struct RegisterView: View {
     }
 
     private func performRegistration() {
-        let _ = Task { @MainActor in
+        Task {
             // Save access code if provided
             if !accessCode.isEmpty {
                 KeychainManager.shared.saveAccessCode(accessCode)

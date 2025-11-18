@@ -29,7 +29,7 @@ struct NewTaskView: View {
 
     private func requestAISuggestions() {
         showingAISuggestions = true
-        let _ = Task { @MainActor in
+        Task {
             await loadAISuggestions()
         }
     }
