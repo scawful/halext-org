@@ -14,21 +14,23 @@ BACKEND_REQ_CACHE="$BACKEND_DIR/.requirements.sha256"
 FRONTEND_LOCK_FILE="$FRONTEND_DIR/package-lock.json"
 FRONTEND_LOCK_CACHE="$FRONTEND_DIR/.package-lock.sha256"
 FRONTEND_NPM_CACHE="$FRONTEND_DIR/.npm-cache"
-declare -a PENDING_SUDO_TASKS=()
 
-if sudo -n true >/dev/null 2>&1; then
-  HAVE_SUDO=1
-else
-  HAVE_SUDO=0
+# Prompt for sudo upfront
+if ! sudo -n true 2>/dev/null; then
+    echo "This script requires sudo privileges to restart services and copy files."
+    sudo -v
 fi
 
-run_sudo() {
-  if [[ $HAVE_SUDO -eq 1 ]]; then
-    sudo "$@"
-  else
-    PENDING_SUDO_TASKS+=("sudo $*")
-    return 1
-  fi
+verify_halext_api() {
+    echo "Verifying halext-api service..."
+    sleep 2
+    if systemctl is-active --quiet halext-api; then
+        echo "Service is active."
+    else
+        echo "ERROR: halext-api failed to start."
+        journalctl -u halext-api -n 20 --no-pager
+        return 1
+    fi
 }
 
 should_update_backend_deps() {
@@ -75,9 +77,10 @@ update_backend() {
   else
     echo "requirements.txt unchanged; skipping pip install."
   fi
-  if ! run_sudo systemctl restart halext-api; then
-    echo "WARNING: Unable to restart halext-api without sudo privileges."
-  fi
+  
+  echo "Restarting halext-api..."
+  sudo systemctl restart halext-api
+  verify_halext_api
 }
 
 update_frontend() {
@@ -93,12 +96,13 @@ update_frontend() {
 
   echo "Building frontend..."
   npm run build
-  if ! run_sudo rsync -a "$FRONTEND_DIR/dist/" "$WWW_DIR/"; then
-    echo "WARNING: Unable to sync dist/ to $WWW_DIR without sudo."
-  fi
-  if ! run_sudo systemctl reload nginx; then
-    echo "WARNING: Unable to reload nginx without sudo."
-  fi
+  
+  echo "Deploying to $WWW_DIR..."
+  sudo rsync -a --delete "$FRONTEND_DIR/dist/" "$WWW_DIR/"
+  sudo chown -R www-data:www-data "$WWW_DIR"
+  
+  echo "Reloading Nginx..."
+  sudo systemctl reload nginx
 }
 
 case "$MODE" in
@@ -114,11 +118,4 @@ case "$MODE" in
     ;;
 esac
 
-echo "Deployment refreshed."
-if [[ ${#PENDING_SUDO_TASKS[@]} -gt 0 ]]; then
-  echo
-  echo "Manual steps required (sudo password needed):"
-  for task in "${PENDING_SUDO_TASKS[@]}"; do
-    echo "  - $task"
-  done
-fi
+echo "Deployment refreshed successfully."

@@ -3,10 +3,13 @@ Description=Halext FastAPI service
 After=network.target
 
 [Service]
-WorkingDirectory=/srv/halext/halext-org/backend
-EnvironmentFile=/srv/halext/halext-org/backend/.env
-ExecStart=/srv/halext/halext-org/backend/env/bin/uvicorn main:app --host 127.0.0.1 --port 8000
+WorkingDirectory=/srv/halext.org/halext-org/backend
+EnvironmentFile=/srv/halext.org/halext-org/backend/.env
+ExecStart=/srv/halext.org/halext-org/backend/env/bin/uvicorn main:app --host 127.0.0.1 --port 8000
 Restart=always
+RestartSec=5
+KillSignal=SIGQUIT
+TimeoutStopSec=10
 User=www-data
 Group=www-data
 

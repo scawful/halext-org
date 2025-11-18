@@ -133,6 +133,19 @@ npm run dev
 
 ---
 
+## Deployment
+
+See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for full server setup and deployment instructions.
+
+**Quick Frontend Deploy (macOS → Server):**
+1. Configure `scripts/frontend-deploy.env` (copy from `.example`)
+2. Run:
+   ```bash
+   ./scripts/deploy-frontend-local.sh
+   ```
+
+---
+
 ## Server Alignment Roadmap
 
 Working across Halext, Zeniea, AlttPHacking, and OpenWebUI? The multi-phase consolidation strategy (inventory, identity, backups, adapters, deployments) is tracked in [`docs/SERVER_ALIGNMENT_PLAN.md`](docs/SERVER_ALIGNMENT_PLAN.md).
@@ -212,6 +225,7 @@ halext-org/
 ├── dev-reload.sh              # Start dev environment
 ├── dev-stop.sh                # Stop all servers
 ├── dev-status.sh              # Check server status
+├── scripts/                   # Deployment & utility scripts
 └── README-DEV.md              # This file
 ```
 
