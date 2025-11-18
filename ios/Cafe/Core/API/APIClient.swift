@@ -179,18 +179,27 @@ class APIClient {
         let (data, response) = try await URLSession.shared.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
+            print("❌ Invalid HTTP response")
             throw APIError.invalidResponse
         }
 
+        print("📡 HTTP Status: \(httpResponse.statusCode)")
+
         guard (200...299).contains(httpResponse.statusCode) else {
+            // Try to decode error message first
+            if let errorResponse = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
+                print("❌ Server error: \(errorResponse.detail)")
+                throw APIError.serverError(errorResponse.detail)
+            }
+
+            // Try to get raw response text
+            if let responseText = String(data: data, encoding: .utf8) {
+                print("❌ Server response (\(httpResponse.statusCode)): \(responseText)")
+            }
+
             // Handle 401 Unauthorized
             if httpResponse.statusCode == 401 {
                 throw APIError.unauthorized
-            }
-
-            // Try to decode error message
-            if let errorResponse = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
-                throw APIError.serverError(errorResponse.detail)
             }
 
             throw APIError.httpError(httpResponse.statusCode)
