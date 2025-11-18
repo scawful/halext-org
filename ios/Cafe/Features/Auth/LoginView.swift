@@ -59,22 +59,23 @@ struct LoginView: View {
                             .padding(.horizontal)
                     }
 
-                    Button(action: {
-                        Task { @MainActor in
-                            await appState.login(username: username, password: password)
-                        }
-                    }) {
-                        if appState.isLoading {
-                            ProgressView()
-                                .frame(maxWidth: .infinity)
-                        } else {
+                    if appState.isLoading {
+                        ProgressView()
+                            .frame(maxWidth: .infinity)
+                            .controlSize(.large)
+                    } else {
+                        Button(action: {
+                            Task { @MainActor in
+                                await appState.login(username: username, password: password)
+                            }
+                        }) {
                             Text("Sign In")
                                 .frame(maxWidth: .infinity)
                         }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.large)
+                        .disabled(username.isEmpty || password.isEmpty)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-                    .disabled(username.isEmpty || password.isEmpty || appState.isLoading)
                 }
                 .padding(.horizontal, 32)
 
