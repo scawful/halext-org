@@ -12,13 +12,16 @@ from app.ai import AiGateway
 from app.ai_features import AiTaskHelper, AiEventHelper, AiNoteHelper
 from app.openwebui_sync import OpenWebUISync
 from app.admin_routes import router as admin_router
+from app.ai_routes import router as ai_router
 
 models.Base.metadata.create_all(bind=engine)
+
+VERSION = "0.1.0"
 
 app = FastAPI(
     title="Halext Org API",
     description="The backend API for the Halext Org productivity suite.",
-    version="0.1.0",
+    version=VERSION,
 )
 
 app.add_middleware(
@@ -31,6 +34,7 @@ app.add_middleware(
 
 # Include admin routes
 app.include_router(admin_router)
+app.include_router(ai_router, prefix="/api/v1", tags=["AI"])
 
 ACCESS_CODE = os.getenv("ACCESS_CODE", "").strip()
 # For development, disable access code requirement
@@ -61,6 +65,58 @@ def startup_seed():
         crud.seed_layout_presets(db)
     finally:
         db.close()
+
+# Health and Info Endpoints
+@app.get("/api/health")
+def health_check(db: Session = Depends(get_db)):
+    """Health check endpoint for monitoring"""
+    import platform
+    from datetime import datetime
+    from sqlalchemy import text
+
+    # Test database connection
+    try:
+        db.execute(text("SELECT 1"))
+        db_status = "healthy"
+    except Exception as e:
+        db_status = f"unhealthy: {str(e)}"
+
+    return {
+        "status": "healthy" if db_status == "healthy" else "degraded",
+        "version": VERSION,
+        "timestamp": datetime.utcnow().isoformat(),
+        "components": {
+            "database": db_status,
+            "ai_provider": ai_gateway.provider,
+            "ai_model": ai_gateway.model,
+        },
+        "system": {
+            "python": platform.python_version(),
+            "platform": platform.platform(),
+        }
+    }
+
+@app.get("/api/version")
+def version_info():
+    """Get API version information"""
+    return {
+        "version": VERSION,
+        "api_name": "Halext Org API",
+        "docs_url": "/docs",
+        "features": [
+            "tasks",
+            "events",
+            "labels",
+            "pages",
+            "conversations",
+            "ai_chat",
+            "ai_task_suggestions",
+            "ai_event_analysis",
+            "ai_note_summary",
+            "admin_panel",
+            "distributed_ai_nodes"
+        ]
+    }
 
 def _serialize_page(db: Session, page: models.Page):
     share_entries = crud.get_page_shares(db, page.id)

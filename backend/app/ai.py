@@ -255,15 +255,45 @@ class AiGateway:
             hash_val = int(hashlib.md5(text.encode()).hexdigest(), 16)
             return [(hash_val >> i) % 100 / 100.0 for i in range(384)]
 
+    async def generate_image(self, prompt: str, model: Optional[str] = None) -> Optional[bytes]:
+        """Generate an image from a prompt."""
+        model = model or self.model
+        if httpx is None:
+            return None  # Or return a placeholder image bytes
+
+        if self.provider == "ollama":
+            return await self._call_ollama_image(prompt, model)
+        
+        # Placeholder for other providers
+        return None
+
+    async def _call_ollama_image(self, prompt: str, model: str) -> Optional[bytes]:
+        """Call Ollama for image generation."""
+        url = f"{self.ollama_url.rstrip('/')}/api/generate"
+        payload = {
+            "model": model,
+            "prompt": prompt,
+            "stream": False,
+        }
+        if httpx is None:
+            return None
+
+        try:
+            async with httpx.AsyncClient(timeout=120) as client:
+                response = await client.post(url, json=payload)
+                response.raise_for_status()
+                data = response.json()
+                if data.get("images"):
+                    import base64
+                    return base64.b64decode(data["images"][0])
+                return None
+        except Exception as e:
+            print(f"Ollama image generation error: {e}")
+            return None
+
     def _mock_response(self, prompt: str, history: Sequence[dict]):
         """Generate mock response"""
-        context = history[-1]["content"] if history else ""
-        return (
-            "I have captured your request. "
-            "Here's a quick summary so it is easy to follow up later:\n\n"
-            f"Latest prompt: {prompt.strip()}\n"
-            f"Last context: {context}"
-        )
+        return "I am a mock AI assistant. Connect me to a real backend to get started!"
 
     def openwebui_status(self):
         """Get OpenWebUI integration status"""
