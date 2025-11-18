@@ -6,8 +6,6 @@ import {
   MdDelete,
   MdCheckCircle,
   MdError,
-  MdCloudDownload,
-  MdDeleteForever,
   MdInfo,
   MdSettingsRemote,
   MdBuild,
@@ -29,18 +27,9 @@ interface AIClient {
     model_count?: number
     last_response_time_ms?: number
   }
-  metadata: Record<string, any>
+  node_metadata: Record<string, any>
   base_url: string
   owner_id: number
-}
-
-interface ConnectionTest {
-  status: string
-  online: boolean
-  message?: string
-  models?: string[]
-  model_count?: number
-  response_time_ms?: number
 }
 
 interface AdminSectionProps {
@@ -53,7 +42,6 @@ export const AdminSection = ({ token }: AdminSectionProps) => {
   const [showAddForm, setShowAddForm] = useState(false)
   const [selectedClient, setSelectedClient] = useState<AIClient | null>(null)
   const [testingClient, setTestingClient] = useState<number | null>(null)
-  const [pullingModel, setPullingModel] = useState<{ clientId: number; model: string } | null>(null)
   const [rebuilding, setRebuilding] = useState(false)
 
   // Form state
@@ -156,29 +144,6 @@ export const AdminSection = ({ token }: AdminSectionProps) => {
       }
     } catch (error) {
       console.error('Error deleting client:', error)
-    }
-  }
-
-  const handlePullModel = async (clientId: number, modelName: string) => {
-    setPullingModel({ clientId, model: modelName })
-    try {
-      const response = await fetch(`${API_BASE}/admin/ai-clients/${clientId}/pull-model`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ model_name: modelName }),
-      })
-
-      if (response.ok) {
-        alert(`Started pulling ${modelName}. This may take several minutes.`)
-        setTimeout(() => fetchClients(), 5000)
-      }
-    } catch (error) {
-      console.error('Error pulling model:', error)
-    } finally {
-      setPullingModel(null)
     }
   }
 

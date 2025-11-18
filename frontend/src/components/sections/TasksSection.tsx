@@ -1,4 +1,4 @@
-import { useState, FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import { MdAdd, MdClose, MdEdit, MdDelete, MdCheckCircle, MdRadioButtonUnchecked, MdAutoAwesome } from 'react-icons/md'
 import { AiTaskAssistant } from '../ai/AiTaskAssistant'
 import type { Task, Label } from '../../types/models'
