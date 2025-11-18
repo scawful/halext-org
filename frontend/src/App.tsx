@@ -9,6 +9,8 @@ import { AnimeSection } from './components/sections/AnimeSection'
 import { CalendarSection } from './components/sections/CalendarSection'
 import { IoTSection } from './components/sections/IoTSection'
 import { ChatSection } from './components/sections/ChatSection'
+import { TasksSection } from './components/sections/TasksSection'
+import { AdminSection } from './components/sections/AdminSection'
 import type {
   Task,
   EventItem,
@@ -247,6 +249,44 @@ function App() {
     setAvailableLabels(mergedLabels)
   }
 
+  const handleCreateTaskDirect = async (payload: {
+    title: string
+    description?: string
+    due_date?: string
+    labels: string[]
+  }) => {
+    const task = await authorizedFetch<Task>('/tasks/', {
+      method: 'POST',
+      body: JSON.stringify({
+        ...payload,
+        due_date: payload.due_date ? new Date(payload.due_date).toISOString() : undefined,
+      }),
+    })
+    setTasks((prev) => [task, ...prev])
+    const mergedLabels = [...availableLabels]
+    task.labels.forEach((label) => {
+      if (!mergedLabels.some((existing) => existing.id === label.id)) {
+        mergedLabels.push(label)
+      }
+    })
+    setAvailableLabels(mergedLabels)
+  }
+
+  const handleUpdateTask = async (id: number, completed: boolean) => {
+    const task = await authorizedFetch<Task>(`/tasks/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ completed }),
+    })
+    setTasks((prev) => prev.map((t) => (t.id === id ? task : t)))
+  }
+
+  const handleDeleteTask = async (id: number) => {
+    await authorizedFetch(`/tasks/${id}`, {
+      method: 'DELETE',
+    })
+    setTasks((prev) => prev.filter((t) => t.id !== id))
+  }
+
   const handleCreateEvent = async (event: FormEvent) => {
     event.preventDefault()
     if (!eventForm.title || !eventForm.start_time || !eventForm.end_time) return
@@ -479,7 +519,18 @@ function App() {
           </div>
         )
       case 'tasks':
-        return <div className="section-placeholder">Tasks view coming soon...</div>
+        return token ? (
+          <TasksSection
+            token={token}
+            tasks={tasks}
+            availableLabels={availableLabels}
+            onCreateTask={handleCreateTaskDirect}
+            onUpdateTask={handleUpdateTask}
+            onDeleteTask={handleDeleteTask}
+          />
+        ) : (
+          <div className="section-placeholder">Please login to access tasks</div>
+        )
       case 'calendar':
         return <CalendarSection events={events} />
       case 'chat':
@@ -490,6 +541,8 @@ function App() {
         return <AnimeSection />
       case 'iot':
         return <IoTSection />
+      case 'admin':
+        return token ? <AdminSection token={token} /> : <div className="section-placeholder">Please login to access admin panel</div>
       default:
         return null
     }

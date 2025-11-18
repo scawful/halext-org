@@ -7,12 +7,13 @@ import {
   MdCalendarToday,
   MdDeviceHub,
   MdImage,
+  MdAdminPanelSettings,
 } from 'react-icons/md'
 import { FaRobot } from 'react-icons/fa'
 import { ThemeSwitcher } from '../ThemeSwitcher'
 import './MenuBar.css'
 
-type MenuSection = 'dashboard' | 'tasks' | 'chat' | 'calendar' | 'iot' | 'settings' | 'image-gen' | 'anime'
+type MenuSection = 'dashboard' | 'tasks' | 'chat' | 'calendar' | 'iot' | 'settings' | 'image-gen' | 'anime' | 'admin'
 
 type MenuBarProps = {
   activeSection: MenuSection
@@ -32,6 +33,7 @@ export const MenuBar = ({ activeSection, onSectionChange, onLogout, username }: 
     { id: 'image-gen' as MenuSection, icon: MdImage, label: 'Image Generation' },
     { id: 'anime' as MenuSection, icon: FaRobot, label: 'Anime Girls' },
     { id: 'iot' as MenuSection, icon: MdDeviceHub, label: 'IoT & Devices' },
+    { id: 'admin' as MenuSection, icon: MdAdminPanelSettings, label: 'Admin Panel' },
   ]
 
   return (

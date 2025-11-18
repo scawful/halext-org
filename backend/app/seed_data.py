@@ -11,7 +11,7 @@ def get_demo_tasks() -> List[Dict[str, Any]]:
 
     return [
         {
-            "title": "Welcome to Halext Org! 👋",
+            "title": "Welcome to Cafe! ☕",
             "description": "This is a sample task to show you around. Click the checkmark to complete it!",
             "completed": False,
             "labels": ["getting-started"],
@@ -77,7 +77,7 @@ def get_demo_events() -> List[Dict[str, Any]]:
     return [
         {
             "title": "Welcome Meeting",
-            "description": "Quick intro to Halext Org features and capabilities",
+            "description": "Quick intro to Cafe features and capabilities",
             "start_time": today + timedelta(hours=14),
             "end_time": today + timedelta(hours=15),
             "location": "Virtual",
@@ -180,7 +180,7 @@ def get_demo_page_layout() -> List[Dict[str, Any]]:
                     "type": "notes",
                     "title": "Quick Notes",
                     "config": {
-                        "content": "# Welcome to Halext Org!\n\n## Getting Started\n- Drag widgets to reorder them\n- Click + to add new widgets\n- Use AI Chat for assistance\n- Try the AI Task Assistant\n\n## Tips\n💡 Use labels to organize tasks\n📅 Set up recurring events\n🤖 Ask AI for help with planning\n"
+                        "content": "# Welcome to Cafe! ☕\n\n## Getting Started\n- Drag widgets to reorder them\n- Click + to add new widgets\n- Use AI Chat for assistance\n- Try the AI Task Assistant\n\n## Tips\n💡 Use labels to organize tasks\n📅 Set up recurring events\n🤖 Ask AI for help with planning\n✨ Customize themes in settings\n"
                     }
                 },
                 {

@@ -35,3 +35,12 @@ frontend/dist/
 backend/.requirements.sha256
 frontend/.package-lock.sha256
 frontend/.npm-cache/
+
+# Network configuration (contains IPs and sensitive data)
+.env.network
+*.local.md
+
+# Deployment scripts with real credentials
+scripts/deploy-to-ubuntu.sh
+scripts/emergency-ubuntu-cleanup.sh
+scripts/emergency-kill-ollama.sh

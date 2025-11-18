@@ -73,6 +73,29 @@ def create_user_task(db: Session, task: schemas.TaskCreate, user_id: int):
     db.refresh(db_task)
     return db_task
 
+
+def get_task(db: Session, task_id: int):
+    return db.query(models.Task).filter(models.Task.id == task_id).first()
+
+
+def update_task(db: Session, db_task: models.Task, task: schemas.TaskUpdate):
+    update_data = task.dict(exclude_unset=True, exclude={"labels"})
+    for field, value in update_data.items():
+        setattr(db_task, field, value)
+    if task.labels is not None:
+        _sync_task_labels(db, db_task, task.labels, owner_id=db_task.owner_id)
+    db.commit()
+    db.refresh(db_task)
+    return db_task
+
+
+def delete_task(db: Session, task_id: int):
+    db_task = db.query(models.Task).filter(models.Task.id == task_id).first()
+    if db_task:
+        db.delete(db_task)
+        db.commit()
+    return db_task
+
 def get_events_by_user(db: Session, user_id: int, skip: int = 0, limit: int = 100):
     return db.query(models.Event).filter(models.Event.owner_id == user_id).offset(skip).limit(limit).all()
 

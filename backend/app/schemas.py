@@ -2,6 +2,8 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 from typing import Any, Optional, List, Dict
 
+# Task schemas for CRUD operations
+
 class TaskBase(BaseModel):
     title: str
     description: Optional[str] = None
@@ -10,6 +12,15 @@ class TaskBase(BaseModel):
 
 class TaskCreate(TaskBase):
     pass
+
+
+class TaskUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    due_date: Optional[datetime] = None
+    completed: Optional[bool] = None
+    labels: Optional[List[str]] = None
+
 
 class Task(TaskBase):
     id: int

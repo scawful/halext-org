@@ -26,9 +26,85 @@ class User(Base):
     shared_pages = relationship("PageShare", back_populates="user")
     conversations = relationship("ConversationParticipant", back_populates="user")
     labels = relationship("Label", back_populates="owner")
+    api_keys = relationship("APIKey", back_populates="owner", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<User(username='{self.username}', email='{self.email}')>"
+
+
+class APIKey(Base):
+    """API keys for external AI providers (OpenAI, Gemini, etc.)"""
+    __tablename__ = "api_keys"
+
+    id = Column(Integer, primary_key=True, index=True)
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    provider = Column(String, nullable=False)  # 'openai', 'gemini', 'ollama'
+    key_name = Column(String, nullable=False)  # User-friendly name
+    encrypted_key = Column(String, nullable=False)  # Encrypted API key
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    last_used_at = Column(DateTime(timezone=True), nullable=True)
+
+    owner = relationship("User", back_populates="api_keys")
+
+    def __repr__(self):
+        return f"<APIKey(provider='{self.provider}', name='{self.key_name}')>"
+
+
+class AIProviderConfig(Base):
+    """User-specific AI provider configurations"""
+    __tablename__ = "ai_provider_configs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    provider_type = Column(String, nullable=False)  # 'openai', 'gemini', 'ollama', 'openwebui'
+    is_default = Column(Boolean, default=False)
+    config = Column(JSON, nullable=False)  # Provider-specific config (model, base_url, etc.)
+    api_key_id = Column(Integer, ForeignKey("api_keys.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    owner = relationship("User")
+    api_key = relationship("APIKey")
+
+    def __repr__(self):
+        return f"<AIProviderConfig(provider='{self.provider_type}', default={self.is_default})>"
+
+
+class AIClientNode(Base):
+    """AI client nodes (Ollama instances, OpenWebUI instances, etc.)"""
+    __tablename__ = "ai_client_nodes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)  # User-friendly name: "Mac Studio", "Windows PC"
+    node_type = Column(String, nullable=False)  # 'ollama', 'openwebui', 'llama-cpp'
+    hostname = Column(String, nullable=False)  # IP or hostname
+    port = Column(Integer, default=11434)
+    is_active = Column(Boolean, default=True)
+    is_public = Column(Boolean, default=False)  # If true, available to all users
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+    # Health tracking
+    last_seen_at = Column(DateTime(timezone=True), nullable=True)
+    status = Column(String, default="unknown")  # 'online', 'offline', 'error', 'unknown'
+
+    # Capabilities
+    capabilities = Column(JSON, default=dict)  # {"models": [...], "gpu": true, "memory_gb": 16}
+
+    # Metadata
+    metadata = Column(JSON, default=dict)  # OS, version, etc.
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    owner = relationship("User")
+
+    def __repr__(self):
+        return f"<AIClientNode(name='{self.name}', type='{self.node_type}', status='{self.status}')>"
+
+    @property
+    def base_url(self):
+        """Get the full base URL for this node"""
+        return f"http://{self.hostname}:{self.port}"
 
 class Task(Base):
     __tablename__ = "tasks"

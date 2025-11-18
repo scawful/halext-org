@@ -230,3 +230,147 @@ sudo rm -rf /usr/share/ollama
 - OpenWebUI Documentation: https://docs.openwebui.com
 - Ollama Models: https://ollama.com/library
 - Ollama Documentation: https://github.com/ollama/ollama
+
+---
+
+## macOS Ollama Server Setup
+
+### macOS Ollama Server Setup Script
+
+**File:** `macos-ollama-server-setup.sh`
+
+**Purpose:** Configure your macOS to serve Ollama models to your Ubuntu org.halext.org server
+
+**Run on:** Your Mac (the machine with Ollama installed)
+
+**Usage:**
+```bash
+./scripts/macos-ollama-server-setup.sh
+```
+
+**What it does:**
+- Detects existing Ollama processes and configuration
+- Shows current network binding status
+- Offers two setup options:
+  1. Configure Ollama.app for network access (recommended)
+  2. Set up Launch Agent for background service
+- Verifies firewall settings
+- Tests local API connectivity
+- Displays next steps for Ubuntu server
+
+**When to use:**
+- First time setup of Mac as Ollama server
+- When you need to reconfigure network settings
+- To verify current configuration status (Option 3)
+- After macOS updates or Ollama updates
+
+### Ubuntu Connectivity Test Script
+
+**File:** `ubuntu-test-mac-ollama.sh`
+
+**Purpose:** Test connectivity from Ubuntu server to macOS Ollama instance
+
+**Run on:** Your Ubuntu server (org.halext.org)
+
+**Usage:**
+```bash
+./scripts/ubuntu-test-mac-ollama.sh <mac-ip-address>
+```
+
+**Example:**
+```bash
+./scripts/ubuntu-test-mac-ollama.sh 192.168.1.204
+```
+
+**What it does:**
+- Tests network connectivity (ping)
+- Checks port 11434 accessibility
+- Queries Ollama API for available models
+- Optionally tests model generation
+- Provides curl commands to add Mac as client
+
+**When to use:**
+- After running macOS setup script
+- Before adding Mac to admin panel
+- When troubleshooting connectivity issues
+- To verify network configuration changes
+
+### Quick Start: Distributed Ollama Setup
+
+1. **On your Mac:**
+   ```bash
+   cd ~/Code/halext-org
+   ./scripts/macos-ollama-server-setup.sh
+   ```
+   - Choose Option 1 (Ollama.app) or Option 2 (Launch Agent)
+   - Note your Mac's IP address (e.g., 192.168.1.204)
+   - Restart Ollama.app if using Option 1
+
+2. **On your Ubuntu server:**
+   ```bash
+   # SSH into server
+   ssh user@org.halext.org
+
+   # Test connectivity
+   ./scripts/ubuntu-test-mac-ollama.sh 192.168.1.204
+   ```
+
+3. **Via Web Admin Panel:**
+   - Go to https://org.halext.org
+   - Login and click Admin Panel icon
+   - Click "Add Client"
+   - Fill in Mac's details (hostname: 192.168.1.204, port: 11434)
+   - Click "Add Client"
+
+### Comprehensive Documentation
+
+See **[docs/DISTRIBUTED_OLLAMA_SETUP.md](../docs/DISTRIBUTED_OLLAMA_SETUP.md)** for:
+- Complete architecture overview
+- Detailed setup instructions
+- Network configuration
+- Security considerations
+- Advanced configuration options
+- Comprehensive troubleshooting guide
+
+### Common Issues with macOS Ollama Server
+
+**Issue: "Ollama is only listening on localhost"**
+
+Solution:
+```bash
+# Run setup script and choose Option 1
+./scripts/macos-ollama-server-setup.sh
+
+# Quit Ollama.app
+# Restart Ollama.app
+# Run script again to verify (Option 3)
+```
+
+**Issue: "Port 11434 is not accessible from Ubuntu"**
+
+Check:
+1. Mac firewall settings
+2. Router firewall
+3. Network connectivity
+
+Solution:
+```bash
+# On Mac - check what's listening
+lsof -i :11434 -P -n
+
+# Should show *:11434 not 127.0.0.1:11434
+```
+
+**Issue: "Multiple Ollama processes running"**
+
+Solution:
+```bash
+# Check what's running
+ps aux | grep ollama
+lsof -i :11434 -P -n
+
+# Kill all Ollama processes
+pkill -f ollama
+
+# Restart using your preferred method
+```

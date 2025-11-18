@@ -11,6 +11,7 @@ from app.database import SessionLocal, engine
 from app.ai import AiGateway
 from app.ai_features import AiTaskHelper, AiEventHelper, AiNoteHelper
 from app.openwebui_sync import OpenWebUISync
+from app.admin_routes import router as admin_router
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -27,6 +28,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include admin routes
+app.include_router(admin_router)
 
 ACCESS_CODE = os.getenv("ACCESS_CODE", "").strip()
 # For development, disable access code requirement
@@ -166,6 +170,36 @@ def read_tasks(
 ):
     tasks = crud.get_tasks_by_user(db, user_id=current_user.id, skip=skip, limit=limit)
     return tasks
+
+
+@app.put("/tasks/{task_id}", response_model=schemas.Task)
+def update_task(
+    task_id: int,
+    task: schemas.TaskUpdate,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    db_task = crud.get_task(db, task_id=task_id)
+    if not db_task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    if db_task.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not allowed to modify this task")
+    return crud.update_task(db=db, db_task=db_task, task=task)
+
+
+@app.delete("/tasks/{task_id}", status_code=204)
+def delete_task(
+    task_id: int,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    db_task = crud.get_task(db, task_id=task_id)
+    if not db_task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    if db_task.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not allowed to delete this task")
+    crud.delete_task(db, task_id=task_id)
+    return
 
 
 @app.post("/events/", response_model=schemas.Event)
