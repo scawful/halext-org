@@ -260,3 +260,32 @@ class AiNoteSummaryResponse(BaseModel):
     summary: str
     tags: List[str]
     extracted_tasks: List[str]
+
+# OpenWebUI Sync Schemas
+class OpenWebUISyncStatus(BaseModel):
+    enabled: bool
+    configured: bool
+    admin_configured: bool
+    openwebui_url: Optional[str] = None
+    features: Dict[str, bool]
+
+class OpenWebUISyncRequest(BaseModel):
+    user_id: int
+    username: str
+    email: str
+    full_name: Optional[str] = None
+
+class OpenWebUISyncResponse(BaseModel):
+    success: bool
+    action: Optional[str] = None
+    user_id: Optional[str] = None
+    message: str
+    error: Optional[str] = None
+
+class OpenWebUISSORequest(BaseModel):
+    redirect_to: Optional[str] = None
+
+class OpenWebUISSOResponse(BaseModel):
+    sso_url: str
+    token: str
+    expires_in: int

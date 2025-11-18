@@ -10,6 +10,7 @@ from app import crud, models, schemas, auth
 from app.database import SessionLocal, engine
 from app.ai import AiGateway
 from app.ai_features import AiTaskHelper, AiEventHelper, AiNoteHelper
+from app.openwebui_sync import OpenWebUISync
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -47,6 +48,7 @@ def get_db():
         db.close()
 
 ai_gateway = AiGateway()
+openwebui_sync = OpenWebUISync()
 
 @app.on_event("startup")
 def startup_seed():
@@ -617,4 +619,61 @@ async def summarize_note(
         summary=summary,
         tags=tags,
         extracted_tasks=tasks
+    )
+
+# OpenWebUI Sync Endpoints
+@app.get("/integrations/openwebui/sync/status", response_model=schemas.OpenWebUISyncStatus)
+def get_openwebui_sync_status(current_user: models.User = Depends(auth.get_current_user)):
+    """Get OpenWebUI sync configuration status"""
+    status = openwebui_sync.get_sync_status()
+    return schemas.OpenWebUISyncStatus(**status)
+
+@app.post("/integrations/openwebui/sync/user", response_model=schemas.OpenWebUISyncResponse)
+async def sync_user_to_openwebui(
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    """Sync current user to OpenWebUI"""
+    result = await openwebui_sync.sync_user_from_halext(
+        current_user.id,
+        current_user.username,
+        current_user.email,
+        current_user.full_name
+    )
+
+    return schemas.OpenWebUISyncResponse(
+        success=result.get("success", False),
+        action=result.get("action"),
+        user_id=result.get("user_id"),
+        message=result.get("message", ""),
+        error=result.get("error")
+    )
+
+@app.post("/integrations/openwebui/sso", response_model=schemas.OpenWebUISSOResponse)
+async def get_openwebui_sso_link(
+    request: schemas.OpenWebUISSORequest,
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    """Generate SSO link for OpenWebUI"""
+    from datetime import timedelta
+
+    # Generate SSO token
+    token = await openwebui_sync.generate_sso_token(
+        current_user.id,
+        current_user.username,
+        current_user.email,
+        expires_delta=timedelta(hours=24)
+    )
+
+    # Generate SSO URL
+    sso_url = await openwebui_sync.get_openwebui_login_url(
+        current_user.id,
+        current_user.username,
+        current_user.email,
+        request.redirect_to
+    )
+
+    return schemas.OpenWebUISSOResponse(
+        sso_url=sso_url,
+        token=token,
+        expires_in=86400  # 24 hours in seconds
     )
