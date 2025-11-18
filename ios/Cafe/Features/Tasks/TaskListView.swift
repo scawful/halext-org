@@ -32,12 +32,14 @@ struct TaskListView: View {
                     ProgressView("Loading tasks...")
                 } else if tasks.isEmpty {
                     ContentUnavailableView {
-                        Label("No Tasks", systemImage: "checkmark.circle")
+                        SwiftUI.Label("No Tasks", systemImage: "checkmark.circle")
                     } description: {
                         Text("Create your first task to get started")
                     } actions: {
-                        Button("New Task") {
+                        Button(action: {
                             showingNewTask = true
+                        }) {
+                            Text("New Task")
                         }
                         .buttonStyle(.borderedProminent)
                     }
@@ -105,8 +107,10 @@ struct TaskListView: View {
                 await loadTasks()
             }
             .alert("Error", isPresented: .constant(errorMessage != nil)) {
-                Button("OK") {
+                Button(action: {
                     errorMessage = nil
+                }) {
+                    Text("OK")
                 }
             } message: {
                 if let error = errorMessage {

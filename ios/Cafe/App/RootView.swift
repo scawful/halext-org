@@ -124,8 +124,10 @@ struct SettingsView: View {
                 }
 
                 Section {
-                    Button("Sign Out", role: .destructive) {
+                    Button(role: .destructive, action: {
                         appState.logout()
+                    }) {
+                        Text("Sign Out")
                     }
                 }
             }
