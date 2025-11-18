@@ -266,6 +266,20 @@ else
     log_info "npm dependencies already installed. Run 'npm install' to update."
 fi
 
+# Clean dist folder if it exists (handle permission issues)
+if [ -d "dist" ]; then
+    log_info "Cleaning existing dist folder..."
+
+    # Try to remove normally first
+    if rm -rf dist 2>/dev/null; then
+        log_success "Removed old dist folder"
+    else
+        log_warning "Permission denied, using sudo to remove dist folder..."
+        sudo rm -rf dist
+        log_success "Removed old dist folder with sudo"
+    fi
+fi
+
 # Build frontend
 log_info "Building frontend for production..."
 npm run build
@@ -281,6 +295,16 @@ if [ -d "dist" ]; then
         log_error "dist/index.html missing!"
         exit 1
     fi
+
+    # Set proper permissions for nginx
+    log_info "Setting permissions for nginx..."
+
+    # Make current user owner, www-data group
+    sudo chown -R $USER:www-data dist/
+    # Give read/execute permissions to all
+    chmod -R 755 dist/
+
+    log_success "Permissions set: $USER:www-data with 755"
 else
     log_error "Frontend build failed - dist/ directory not created"
     exit 1
