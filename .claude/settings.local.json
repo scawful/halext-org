@@ -23,7 +23,8 @@
       "Bash(./dev-status.sh)",
       "Bash(./dev-stop.sh)",
       "Bash(env/bin/python:*)",
-      "Bash(git pull:*)"
+      "Bash(git pull:*)",
+      "Bash(./dev-reload.sh)"
     ],
     "deny": [],
     "ask": []
