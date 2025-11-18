@@ -1,8 +1,12 @@
-# Halext Org iOS App - Development Plan
+# Cafe - Halext Org iOS App - Development Plan
+
+> **App Name**: Cafe ☕
+> **Purpose**: iOS companion for Halext Org productivity suite
+> **Theme**: Pairs perfectly with your Barista desktop setup
 
 ## Overview
 
-This document outlines the complete plan for developing the Halext Org iOS application, including architecture, development workflow, deployment strategy, and timeline.
+This document outlines the complete plan for developing **Cafe**, the iOS application for Halext Org, including architecture, development workflow, deployment strategy, and timeline.
 
 ## 1. iOS App Architecture
 
@@ -32,9 +36,9 @@ This document outlines the complete plan for developing the Halext Org iOS appli
 ### App Structure
 
 ```
-HalextOrg/
+Cafe/
 ├── App/
-│   ├── HalextOrgApp.swift        # Main app entry point
+│   ├── CafeApp.swift             # Main app entry point
 │   └── AppDelegate.swift         # App lifecycle
 ├── Core/
 │   ├── API/
@@ -126,12 +130,11 @@ cd /path/to/HalextOrg
 # - https://github.com/Alamofire/Alamofire (optional)
 # - https://github.com/pointfreeco/swift-composable-architecture (optional)
 
-# 4. Set up Git
-git init
-git remote add origin https://github.com/scawful/halext-org-ios.git
-git add .
-git commit -m "Initial iOS project setup"
-git push -u origin main
+# 4. Add to existing Git repo (monorepo structure)
+cd /Users/scawful/Code/halext-org
+git add ios/
+git commit -m "Add Cafe iOS app - initial Xcode project"
+git push
 ```
 
 ### Development Environment Setup
@@ -636,9 +639,10 @@ class SyncEngine {
    # In Xcode
    File > New > Project
    - iOS App
-   - Name: HalextOrg
+   - Name: Cafe
    - Team: Your Apple ID
    - Organization Identifier: org.halext
+   - Bundle Identifier: org.halext.Cafe
    - Interface: SwiftUI
    - Language: Swift
    ```
