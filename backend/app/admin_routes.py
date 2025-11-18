@@ -49,14 +49,14 @@ class AIClientNodeCreate(BaseModel):
     hostname: str
     port: int = 11434
     is_public: bool = False
-    metadata: dict = {}
+    node_metadata: dict = {}
 
 
 class AIClientNodeUpdate(BaseModel):
     name: Optional[str] = None
     is_active: Optional[bool] = None
     is_public: Optional[bool] = None
-    metadata: Optional[dict] = None
+    node_metadata: Optional[dict] = None
 
 
 class AIClientNodeResponse(BaseModel):
@@ -70,7 +70,7 @@ class AIClientNodeResponse(BaseModel):
     status: str
     last_seen_at: Optional[str]
     capabilities: dict
-    metadata: dict
+    node_metadata: dict
     base_url: str
     owner_id: int
 
