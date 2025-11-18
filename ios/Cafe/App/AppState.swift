@@ -36,15 +36,19 @@ class AppState {
         errorMessage = nil
 
         do {
+            print("📱 AppState: Starting login...")
             let response = try await APIClient.shared.login(username: username, password: password)
             authToken = response.accessToken
             isAuthenticated = true
+            print("📱 AppState: Token saved, loading user...")
 
             // Fetch user info
             await loadCurrentUser()
 
             isLoading = false
+            print("📱 AppState: Login complete")
         } catch {
+            print("❌ AppState: Login failed - \(error.localizedDescription)")
             errorMessage = error.localizedDescription
             isLoading = false
         }
@@ -85,11 +89,15 @@ class AppState {
     @MainActor
     private func loadCurrentUser() async {
         do {
+            print("👤 Loading current user...")
             currentUser = try await APIClient.shared.getCurrentUser()
+            print("✅ Current user loaded: \(currentUser?.username ?? "unknown")")
         } catch {
             print("❌ Failed to load current user:", error)
             // If fetching user fails, token might be invalid
             if let apiError = error as? APIError, apiError == .unauthorized {
+                print("🚨 Unauthorized - logging out")
+                errorMessage = "Session expired. Please sign in again."
                 logout()
             }
         }

@@ -46,13 +46,18 @@ class APIClient {
 
     func login(username: String, password: String) async throws -> TokenResponse {
         let formData = "username=\(username)&password=\(password)"
+        let loginURL = "\(baseURL)/token"
 
-        var request = URLRequest(url: URL(string: "\(baseURL)/token")!)
+        print("🔐 Attempting login to: \(loginURL)")
+        print("🌍 Using environment: \(environment)")
+
+        var request = URLRequest(url: URL(string: loginURL)!)
         request.httpMethod = "POST"
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
         request.httpBody = formData.data(using: .utf8)
 
         let response: TokenResponse = try await performRequest(request)
+        print("✅ Login successful, got token")
 
         // Save token to Keychain
         KeychainManager.shared.saveToken(response.accessToken)
