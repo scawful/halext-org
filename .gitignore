@@ -25,6 +25,7 @@ service.err.log
 frontend.log
 frontend-dev.log
 frontend.err.log
+backend-dev.log
 
 # Frontend build artifacts
 frontend/node_modules/
