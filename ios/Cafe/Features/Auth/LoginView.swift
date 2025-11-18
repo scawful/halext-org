@@ -95,7 +95,7 @@ struct LoginView: View {
 
                 // Environment toggle (DEBUG only)
                 #if DEBUG
-                VStack(spacing: 8) {
+                VStack(spacing: 12) {
                     Toggle(isOn: Binding(
                         get: { useProduction },
                         set: handleEnvironmentChange
@@ -118,6 +118,24 @@ struct LoginView: View {
                         Text("https://org.halext.org/api")
                             .font(.caption2)
                             .foregroundColor(.secondary)
+                    }
+
+                    // Clear Keychain button
+                    Button(action: {
+                        KeychainManager.shared.clearAll()
+                        appState.logout()
+                    }) {
+                        HStack {
+                            Image(systemName: "trash")
+                                .font(.caption)
+                            Text("Clear Keychain")
+                                .font(.caption)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.red.opacity(0.1))
+                        .foregroundColor(.red)
+                        .cornerRadius(6)
                     }
                 }
                 .padding(.bottom, 16)

@@ -19,12 +19,18 @@ class AppState {
     init() {
         // Check if we have a stored token on app launch
         if let token = KeychainManager.shared.getToken() {
+            print("🔑 Found stored token on app launch")
+            print("🌍 Current environment: \(APIClient.shared.environment)")
+
             self.authToken = token
             self.isAuthenticated = true
-            // Fetch current user in background
+
+            // Validate token with current environment
             _Concurrency.Task {
                 await self.loadCurrentUser()
             }
+        } else {
+            print("🔓 No stored token found")
         }
     }
 
