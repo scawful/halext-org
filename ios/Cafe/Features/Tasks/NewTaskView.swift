@@ -206,10 +206,10 @@ struct NewTaskView: View {
         )
 
         isCreating = true
-        _Concurrency.Task { [weak self] in
-            await self?.onCreate(taskCreate)
+        _Concurrency.Task {
+            await onCreate(taskCreate)
             await MainActor.run {
-                self?.isCreating = false
+                isCreating = false
             }
         }
     }
