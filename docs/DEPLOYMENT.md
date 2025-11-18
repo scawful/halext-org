@@ -28,6 +28,22 @@ If you create a dedicated `halext` user for Git/SSH access:
 - run `sudo ./scripts/sync-halext-perms.sh` so the repo tree is group-writable for that account and Git no longer complains about dubious ownership.
 - if the `justin` account already owns the SSH key you want to reuse, copy it with `sudo ./scripts/copy-ssh-key-to-halext.sh /path/to/justin/key` (optionally add a custom username/key name).
 
+For managing Cloudflare’s proxy toggle (use DNS only while running `certbot`, then switch back), run:
+
+```bash
+CF_API_TOKEN=… CF_ZONE_NAME=halext.org ./scripts/cloudflare-certbot.sh certbot
+```
+This disables the proxy for `org.halext.org`, runs the certbot command (`sudo certbot --nginx -d org.halext.org` by default), and then re-enables the proxy.
+
+For ongoing upkeep on the production box, run the bundled updater:
+
+```bash
+cd /srv/halext/halext-org
+./scripts/update-halext.sh
+```
+
+`update-halext.sh` fast-forwards the current Git branch, reuses `server-deploy.sh` to reinstall Python/Node deps, restarts `halext-api`, reloads Nginx, and curls `org.halext.org`. Override the defaults with `HALX_DOMAIN` or `HALX_WWW_DIR` if you host the bundle elsewhere.
+
 ## 1. Prerequisites
 
 - Ubuntu server with SSH access and sudo privileges.
@@ -65,7 +81,7 @@ git clone https://github.com/yourname/halext-org.git
 cd halext-org
 ```
 
-3. Run `sudo ./scripts/server-init.sh`. This installs packages, creates the Python venv, builds the frontend, and drops template service/nginx files under `infra/ubuntu`.
+3. Run `sudo ./scripts/setup-org.sh` to let the bootstrapper install packages, create the Python venv, build the frontend, and drop the service/nginx files under `infra/ubuntu`. (The older `server-init.sh` is kept for historical reference, but `setup-org.sh` is the maintained path.)
 4. Copy `infra/ubuntu/.env.example` to `backend/.env` and fill in your secrets.
 5. Enable the systemd service and Nginx site (see below). Future updates are `git pull && ./scripts/server-deploy.sh`.
 
@@ -150,10 +166,14 @@ sudo certbot --nginx -d app.halext.org
 
 ## 7. Updating the Server
 
-1. `ssh` into Ubuntu.
-2. `cd /srv/halext/halext-org && git pull`.
-3. Run `./scripts/server-deploy.sh` (optionally `--backend-only` or `--frontend-only`) to reinstall deps, build the SPA, and restart services.
-4. Monitor with `journalctl -u halext-api -f` for backend logs and `/var/log/nginx/error.log` for Nginx.
+The recommended flow is a single command:
+
+```bash
+cd /srv/halext/halext-org
+./scripts/update-halext.sh
+```
+
+This helper fetches/pulls the current branch, reuses `server-deploy.sh` to reinstall Python/Node deps, restarts `halext-api`, reloads Nginx, ensures `/var/www/halext` ownership, and curls `org.halext.org` for a quick smoke test. For partial deployments (e.g., only backend wheels) call `./scripts/server-deploy.sh --backend-only` or `--frontend-only`. Watch `journalctl -u halext-api -f` and `/var/log/nginx/error.log` if you need deeper troubleshooting.
 
 ## 8. Building the Frontend Locally
 
@@ -174,3 +194,14 @@ This runs `npm install && npm run build` locally, rsyncs `frontend/dist/` to the
 - Continue developing on macOS (launchd workflows). Once happy, `git commit/push`.
 - On Ubuntu, pull and run the build/deploy steps. Systemd + Nginx keep the app online for Chris.
 - The `ACCESS_CODE` gate lets you share the subdomain safely while the full auth stack evolves.
+
+## 10. Script Reference
+
+| Script | When to use | Notes |
+| --- | --- | --- |
+| `scripts/setup-org.sh` | First-time bootstrap on Ubuntu | Creates Postgres role/DB, virtualenv, builds frontend, installs `halext-api` + nginx vhost. Supersedes the older `server-init.sh`. |
+| `scripts/update-halext.sh` | Day-to-day production updates | Runs `git pull`, reuses `server-deploy.sh`, restarts services, and curls `org.halext.org`. Honors `HALX_DOMAIN`/`HALX_WWW_DIR`. |
+| `scripts/server-deploy.sh` | Targeted backend/frontend refresh | Pass `--backend-only` or `--frontend-only` when you don’t want the full update helper. |
+| `scripts/cloudflare-certbot.sh` | Temporarily disable Cloudflare proxy for certbot | Wraps `certbot` so DNS-only mode is toggled automatically. |
+| `scripts/sync-halext-perms.sh` | Fix repo permissions for the `halext` user | Keeps `/srv/halext/halext-org` group-writeable to avoid Git ownership warnings. |
+| `scripts/copy-ssh-key-to-halext.sh` | Reuse an existing SSH key for the `halext` account | Copies keys from `justin` (or another user) into `/home/halext/.ssh`. |
