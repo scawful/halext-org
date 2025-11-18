@@ -79,6 +79,7 @@ class AppState {
         authToken = nil
         currentUser = nil
         isAuthenticated = false
+        errorMessage = nil
     }
 
     @MainActor

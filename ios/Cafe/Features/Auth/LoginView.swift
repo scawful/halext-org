@@ -22,10 +22,12 @@ struct LoginView: View {
     }
 
     private func handleEnvironmentChange(_ newValue: Bool) {
+        // Clear any existing auth state first
+        appState.logout()
+
+        // Then update the environment setting
         useProduction = newValue
         UserDefaults.standard.set(newValue, forKey: "useProductionAPI")
-        // Clear stored credentials when switching environments
-        KeychainManager.shared.clearAll()
     }
 
     var body: some View {
