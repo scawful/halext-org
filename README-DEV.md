@@ -123,12 +123,19 @@ npm run dev
 - OpenWebUI: Set `AI_PROVIDER=openwebui` and `OPENWEBUI_URL`
 - Ollama: Set `AI_PROVIDER=ollama` and `OLLAMA_URL`
 - Model: Set `AI_MODEL` (default: `llama3.1`)
+- Full OpenWebUI provisioning, env variables, and SSO details live in [`docs/OPENWEBUI_SETUP.md`](docs/OPENWEBUI_SETUP.md)
 
 ### Frontend (Vite)
 
 **API Base URL:**
 - Default: `http://127.0.0.1:8000`
 - Override: Set `VITE_API_BASE_URL` in `.env` file
+
+---
+
+## Server Alignment Roadmap
+
+Working across Halext, Zeniea, AlttPHacking, and OpenWebUI? The multi-phase consolidation strategy (inventory, identity, backups, adapters, deployments) is tracked in [`docs/SERVER_ALIGNMENT_PLAN.md`](docs/SERVER_ALIGNMENT_PLAN.md).
 
 ---
 
