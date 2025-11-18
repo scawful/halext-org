@@ -3,7 +3,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from datetime import timedelta
-from typing import Optional
+from typing import Optional, List
 import os
 
 from app import crud, models, schemas, auth
@@ -136,7 +136,7 @@ def create_task(
     return crud.create_user_task(db=db, task=task, user_id=current_user.id)
 
 
-@app.get("/tasks/", response_model=list[schemas.Task])
+@app.get("/tasks/", response_model=List[schemas.Task])
 def read_tasks(
     skip: int = 0,
     limit: int = 100,
@@ -156,7 +156,7 @@ def create_event(
     return crud.create_user_event(db=db, event=event, user_id=current_user.id)
 
 
-@app.get("/events/", response_model=list[schemas.Event])
+@app.get("/events/", response_model=List[schemas.Event])
 def read_events(
     skip: int = 0,
     limit: int = 100,
@@ -166,7 +166,7 @@ def read_events(
     events = crud.get_events_by_user(db, user_id=current_user.id, skip=skip, limit=limit)
     return events
 
-@app.get("/labels/", response_model=list[schemas.Label])
+@app.get("/labels/", response_model=List[schemas.Label])
 def read_labels(
     current_user: models.User = Depends(auth.get_current_active_user),
     db: Session = Depends(get_db)
@@ -181,7 +181,7 @@ def create_label(
 ):
     return crud.create_label(db, owner_id=current_user.id, payload=label)
 
-@app.get("/pages/", response_model=list[schemas.PageDetail])
+@app.get("/pages/", response_model=List[schemas.PageDetail])
 def read_pages(
     current_user: models.User = Depends(auth.get_current_active_user),
     db: Session = Depends(get_db)
@@ -212,7 +212,7 @@ def update_page(
     updated_page = crud.update_page(db=db, db_page=db_page, page=page)
     return _serialize_page(db, updated_page)
 
-@app.get("/layout-presets/", response_model=list[schemas.LayoutPresetInfo])
+@app.get("/layout-presets/", response_model=List[schemas.LayoutPresetInfo])
 def list_layout_presets(
     current_user: models.User = Depends(auth.get_current_active_user),
     db: Session = Depends(get_db)
@@ -304,7 +304,7 @@ def apply_layout_preset_to_page(
     updated_page = crud.apply_layout_preset(db, db_page, preset)
     return _serialize_page(db, updated_page)
 
-@app.post("/pages/{page_id}/share", response_model=list[schemas.PageShareInfo])
+@app.post("/pages/{page_id}/share", response_model=List[schemas.PageShareInfo])
 def share_page(
     page_id: int,
     share: schemas.PageShareUpdate,
@@ -348,7 +348,7 @@ def revoke_share(
     crud.remove_page_share(db, page_id=page_id, user_id=target_user.id)
     return
 
-@app.get("/conversations/", response_model=list[schemas.ConversationSummary])
+@app.get("/conversations/", response_model=List[schemas.ConversationSummary])
 def list_conversations(
     current_user: models.User = Depends(auth.get_current_active_user),
     db: Session = Depends(get_db)
@@ -362,7 +362,7 @@ def create_conversation(
     current_user: models.User = Depends(auth.get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    participant_ids: list[int] = []
+    participant_ids: List[int] = []
     for username in conversation.participant_usernames:
         target = crud.get_user_by_username(db, username=username)
         if not target:
@@ -376,7 +376,7 @@ def create_conversation(
     )
     return _serialize_conversation(db_conversation)
 
-@app.get("/conversations/{conversation_id}/messages", response_model=list[schemas.ChatMessage])
+@app.get("/conversations/{conversation_id}/messages", response_model=List[schemas.ChatMessage])
 def get_conversation_messages(
     conversation_id: int,
     current_user: models.User = Depends(auth.get_current_active_user),
@@ -388,7 +388,7 @@ def get_conversation_messages(
     messages = crud.get_messages_for_conversation(db=db, conversation_id=conversation_id, limit=200)
     return messages
 
-@app.post("/conversations/{conversation_id}/messages", response_model=list[schemas.ChatMessage])
+@app.post("/conversations/{conversation_id}/messages", response_model=List[schemas.ChatMessage])
 async def send_conversation_message(
     conversation_id: int,
     message: schemas.ChatMessageCreate,

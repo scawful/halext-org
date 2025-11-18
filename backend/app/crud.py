@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 from sqlalchemy.sql import func
-from typing import Optional
+from typing import Optional, List
 from . import models, schemas
 from passlib.context import CryptContext
 from .presets import DEFAULT_LAYOUT_PRESETS
@@ -43,7 +43,7 @@ def get_tasks_by_user(db: Session, user_id: int, skip: int = 0, limit: int = 100
         .all()
     )
 
-def _sync_task_labels(db: Session, task: models.Task, label_names: list[str], owner_id: int):
+def _sync_task_labels(db: Session, task: models.Task, label_names: List[str], owner_id: int):
     normalized = []
     for raw in label_names:
         name = raw.strip()
@@ -232,7 +232,7 @@ def delete_layout_preset(db: Session, preset_id: int):
     db.query(models.LayoutPreset).filter(models.LayoutPreset.id == preset_id).delete()
     db.commit()
 
-def create_conversation(db: Session, owner_id: int, payload: schemas.ConversationCreate, participant_ids: list[int]):
+def create_conversation(db: Session, owner_id: int, payload: schemas.ConversationCreate, participant_ids: List[int]):
     conversation = models.Conversation(
         title=payload.title,
         owner_id=owner_id,

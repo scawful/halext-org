@@ -1,12 +1,12 @@
 from pydantic import BaseModel, Field
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any, Optional, List, Dict
 
 class TaskBase(BaseModel):
     title: str
     description: Optional[str] = None
     due_date: Optional[datetime] = None
-    labels: list[str] = Field(default_factory=list)
+    labels: List[str] = Field(default_factory=list)
 
 class TaskCreate(TaskBase):
     pass
@@ -16,7 +16,7 @@ class Task(TaskBase):
     owner_id: int
     completed: bool
     created_at: datetime
-    labels: list["Label"] = Field(default_factory=list)
+    labels: List["Label"] = Field(default_factory=list)
 
     class Config:
         from_attributes = True
@@ -58,18 +58,18 @@ class LayoutWidget(BaseModel):
     id: str
     type: str
     title: str
-    config: Optional[dict[str, Any]] = None
+    config: Optional[Dict[str, Any]] = None
 
 class LayoutColumn(BaseModel):
     id: str
     title: str
     width: int = 1
-    widgets: list[LayoutWidget] = Field(default_factory=list)
+    widgets: List[LayoutWidget] = Field(default_factory=list)
 
 class LayoutPresetBase(BaseModel):
     name: str
     description: Optional[str] = None
-    layout: list[LayoutColumn] = Field(default_factory=list)
+    layout: List[LayoutColumn] = Field(default_factory=list)
 
 class LayoutPresetCreate(LayoutPresetBase):
     pass
@@ -86,7 +86,7 @@ class PageBase(BaseModel):
     title: str
     description: Optional[str] = None
     visibility: str = "private"
-    layout: list[LayoutColumn] = Field(default_factory=list)
+    layout: List[LayoutColumn] = Field(default_factory=list)
 
 class PageCreate(PageBase):
     pass
@@ -110,7 +110,7 @@ class PageShareInfo(BaseModel):
     can_edit: bool = False
 
 class PageDetail(Page):
-    shared_with: list[PageShareInfo] = Field(default_factory=list)
+    shared_with: List[PageShareInfo] = Field(default_factory=list)
 
 class ConversationBase(BaseModel):
     title: str
@@ -118,7 +118,7 @@ class ConversationBase(BaseModel):
     with_ai: bool = True
 
 class ConversationCreate(ConversationBase):
-    participant_usernames: list[str] = Field(default_factory=list)
+    participant_usernames: List[str] = Field(default_factory=list)
 
 class Conversation(ConversationBase):
     id: int
@@ -130,7 +130,7 @@ class Conversation(ConversationBase):
         from_attributes = True
 
 class ConversationSummary(Conversation):
-    participants: list[str] = Field(default_factory=list)
+    participants: List[str] = Field(default_factory=list)
 
 class ChatMessageBase(BaseModel):
     content: str
@@ -160,10 +160,10 @@ class UserCreate(UserBase):
 class User(UserBase):
     id: int
     created_at: datetime
-    tasks: list[Task] = Field(default_factory=list)
-    events: list[Event] = Field(default_factory=list)
-    pages: list[Page] = Field(default_factory=list)
-    labels: list[Label] = Field(default_factory=list)
+    tasks: List[Task] = Field(default_factory=list)
+    events: List[Event] = Field(default_factory=list)
+    pages: List[Page] = Field(default_factory=list)
+    labels: List[Label] = Field(default_factory=list)
 
     class Config:
         from_attributes = True
