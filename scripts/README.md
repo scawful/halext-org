@@ -374,3 +374,197 @@ pkill -f ollama
 
 # Restart using your preferred method
 ```
+
+---
+
+## Ubuntu Server Diagnostics and Management
+
+### Performance Diagnostics Script
+
+**File:** `ubuntu-diagnose-performance.sh`
+
+**Purpose:** Comprehensive server health check and performance diagnostics
+
+**Run on:** Your Ubuntu server
+
+**Usage:**
+```bash
+./scripts/ubuntu-diagnose-performance.sh
+```
+
+**What it does:**
+- Checks CPU load and provides threshold warnings
+- Monitors memory usage with detailed breakdown
+- Analyzes disk I/O and identifies bottlenecks
+- Shows Docker container resource usage
+- Tests Ollama connectivity and status
+- Verifies Halext backend service status
+- Lists active network connections
+- Displays recent error logs
+- Provides actionable recommendations
+
+**When to use:**
+- Server feels slow or unresponsive
+- Before and after deployments
+- Regular health checks (weekly/monthly)
+- Troubleshooting high resource usage
+- Investigating performance degradation
+
+**Example output:**
+```
+=== CPU Load ===
+⚠ WARNING: Load average (15.4) > CPU cores (2)
+
+=== Memory Usage ===
+💾 Memory: 1.8GB / 2.0GB used (91%)
+⚠ CRITICAL: Less than 200MB available!
+
+=== Recommendations ===
+1. CRITICAL: Out of memory - consider:
+   - Adding swap space
+   - Stopping Ollama on Ubuntu
+   - Using remote Ollama nodes instead
+```
+
+### Emergency Recovery Script
+
+**File:** `emergency-ubuntu-cleanup.sh` *(excluded from git)*
+
+**Purpose:** Emergency recovery when server is too slow to SSH into
+
+**Run from:** Your local machine
+
+**Usage:**
+```bash
+./scripts/emergency-ubuntu-cleanup.sh
+```
+
+**What it does:**
+- Uses aggressive SSH timeouts for unresponsive servers
+- Immediately kills Ollama (common memory hog)
+- Restarts Docker services
+- Clears system caches
+- Offers emergency reboot option
+- Verifies recovery
+
+**When to use:**
+- Server completely unresponsive
+- SSH connection hangs
+- Out of memory situations
+- Critical production issues
+
+**Security note:** This script contains your server IP and requires passwordless SSH
+
+### SSH Key Setup Helper
+
+**File:** `setup-ssh-key.sh`
+
+**Purpose:** Automated SSH key authentication setup
+
+**Run from:** Your local machine
+
+**Usage:**
+```bash
+./scripts/setup-ssh-key.sh
+```
+
+**What it does:**
+- Checks for existing SSH keys
+- Generates new key if needed
+- Attempts automated setup with `sshpass`
+- Provides manual step-by-step instructions
+- Tests connection after setup
+
+**When to use:**
+- First time server access
+- Setting up new deployment machine
+- After changing server credentials
+- Enabling passwordless authentication
+
+---
+
+## Deployment Automation
+
+### Deployment Script
+
+**File:** `deploy-to-ubuntu.sh` *(excluded from git)*
+
+**Purpose:** Automated deployment to Ubuntu server
+
+**Run from:** Your local machine (after committing code)
+
+**Usage:**
+```bash
+./scripts/deploy-to-ubuntu.sh
+```
+
+**What it does:**
+1. Health check before deployment
+2. Disables Ollama on Ubuntu (prevents memory issues)
+3. Pulls latest code from git
+4. Installs backend dependencies
+5. Runs database migrations
+6. Builds frontend (or offers to skip due to slow build)
+7. Restarts backend service
+8. Verifies deployment success
+
+**When to use:**
+- After pushing code to GitHub
+- For regular deployments
+- When updating backend or frontend
+- After database schema changes
+
+**Security note:** Contains server credentials, excluded from git
+
+**Alternative for slow frontend builds:**
+```bash
+# Build locally and rsync instead
+cd frontend
+npm run build
+rsync -avz --delete dist/ halext@YOUR_SERVER:/srv/halext.org/halext-org/frontend/dist/
+```
+
+---
+
+## Script Summary
+
+| Script | Location | Purpose | Run From |
+|--------|----------|---------|----------|
+| `macos-ollama-server-setup.sh` | scripts/ | Configure Mac as AI node | Mac |
+| `ubuntu-test-mac-ollama.sh` | scripts/ | Test Mac connectivity | Ubuntu |
+| `ubuntu-diagnose-performance.sh` | scripts/ | Server health check | Ubuntu |
+| `emergency-ubuntu-cleanup.sh` | scripts/ | Emergency recovery | Local |
+| `setup-ssh-key.sh` | scripts/ | SSH authentication setup | Local |
+| `deploy-to-ubuntu.sh` | scripts/ | Automated deployment | Local |
+
+---
+
+## Best Practices
+
+### Regular Maintenance
+- Run `ubuntu-diagnose-performance.sh` weekly
+- Check for Docker image updates monthly
+- Review logs for errors
+- Test backups quarterly
+
+### Deployment Workflow
+1. Test changes locally
+2. Commit and push to git
+3. Run `deploy-to-ubuntu.sh`
+4. Monitor with `ubuntu-diagnose-performance.sh`
+5. Check logs for errors
+
+### Emergency Procedures
+1. Server unresponsive → `emergency-ubuntu-cleanup.sh`
+2. Out of memory → Disable Ollama, add swap
+3. Deployment failed → Check logs, rollback if needed
+4. Port conflicts → Use diagnostic script to identify process
+
+---
+
+## Additional Resources
+
+- [Architecture Overview](../docs/ARCHITECTURE_OVERVIEW.md)
+- [Quickstart Guide](../docs/QUICKSTART.md)
+- [Troubleshooting Guide](../docs/TROUBLESHOOTING.md)
+- [Deployment Checklist](../DEPLOYMENT_CHECKLIST.md)
