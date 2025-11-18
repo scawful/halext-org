@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct RootView: View {
-    @Environment(AppState.self) private var appState
+    @Environment(AppState.self) var appState
 
     var body: some View {
         Group {
@@ -22,7 +22,7 @@ struct RootView: View {
 }
 
 struct MainTabView: View {
-    @Environment(AppState.self) private var appState
+    @Environment(AppState.self) var appState
 
     var body: some View {
         TabView {
@@ -108,7 +108,7 @@ struct ChatView: View {
 }
 
 struct SettingsView: View {
-    @Environment(AppState.self) private var appState
+    @Environment(AppState.self) var appState
 
     var body: some View {
         NavigationStack {

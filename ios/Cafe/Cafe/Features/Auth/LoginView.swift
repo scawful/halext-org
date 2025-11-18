@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct LoginView: View {
-    @Environment(AppState.self) private var appState
+    @Environment(AppState.self) var appState
 
     @State private var username = ""
     @State private var password = ""
