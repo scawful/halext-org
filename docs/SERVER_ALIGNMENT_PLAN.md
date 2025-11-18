@@ -20,6 +20,7 @@ This roadmap documents how we bring every property on the server onto a common s
 - Build lightweight “adapter” modules so Zeniea/Acmlmboard call the Halext API for posts, notifications, and media uploads instead of raw SQL.
 - Add read-only bridges (e.g., `GET /ai/context/zeniea`) so OpenWebUI/Halext clients can request curated snippets from other sites when crafting AI prompts.
 - Ensure all AI traffic funnels through `AiGateway` so desktop/multi-platform helpers just upload context and receive replies—no per-device model installs.
+- Stand up a “lite” admin surface for **alttphacking.net** that reuses Halext auth but only exposes ALTTP-specific controls (news, hacks, resources). Longer-term these admin actions should be POSTs against the Halext API so the same workflows are available from the Halext dashboard.
 
 ## Phase 5 – Deployment Modernization (Weeks 5–6)
 - Finish the improved `scripts/server-deploy.sh` workflow now that caching is in place; integrate with CI so pushes to `main` trigger backend/frontend deploys automatically.

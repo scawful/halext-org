@@ -171,6 +171,28 @@ location /webui/ {
     proxy_request_buffering off;
 }
 
+# Static assets referenced with absolute paths
+location ~ ^/(?:_app|static)/ {
+    proxy_pass http://127.0.0.1:${OPENWEBUI_PORT}\$request_uri;
+    proxy_http_version 1.1;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+    proxy_set_header X-Forwarded-Host \$host;
+    proxy_set_header X-Forwarded-Port \$server_port;
+    proxy_buffering off;
+}
+
+location = /manifest.json {
+    proxy_pass http://127.0.0.1:${OPENWEBUI_PORT}/manifest.json;
+    proxy_http_version 1.1;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+}
+
 # Ollama API proxy (optional, for direct access)
 location /ollama/ {
     proxy_pass http://127.0.0.1:${OLLAMA_PORT}/;
