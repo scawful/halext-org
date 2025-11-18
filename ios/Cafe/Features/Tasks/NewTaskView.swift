@@ -29,7 +29,7 @@ struct NewTaskView: View {
 
     private func requestAISuggestions() {
         showingAISuggestions = true
-        Task {
+        _Concurrency.Task {
             await loadAISuggestions()
         }
     }
@@ -206,7 +206,7 @@ struct NewTaskView: View {
         )
 
         isCreating = true
-        Task { [weak self] in
+        _Concurrency.Task { [weak self] in
             await self?.onCreate(taskCreate)
             await MainActor.run {
                 self?.isCreating = false

@@ -15,7 +15,7 @@ struct LoginView: View {
     @State private var showingRegister = false
 
     private func performLogin() {
-        Task {
+        _Concurrency.Task {
             await appState.login(username: username, password: password)
         }
     }

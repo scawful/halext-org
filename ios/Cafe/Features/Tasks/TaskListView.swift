@@ -175,7 +175,7 @@ struct TaskRowView: View {
     @State private var isToggling = false
 
     private func performToggle() {
-        Task {
+        _Concurrency.Task {
             isToggling = true
             await onToggle()
             isToggling = false
@@ -183,7 +183,7 @@ struct TaskRowView: View {
     }
 
     private func performDelete() {
-        Task {
+        _Concurrency.Task {
             await onDelete()
         }
     }

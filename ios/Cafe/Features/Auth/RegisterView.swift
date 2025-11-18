@@ -41,7 +41,7 @@ struct RegisterView: View {
     }
 
     private func performRegistration() {
-        Task {
+        _Concurrency.Task {
             // Save access code if provided
             if !accessCode.isEmpty {
                 KeychainManager.shared.saveAccessCode(accessCode)
