@@ -27,6 +27,13 @@ struct NewTaskView: View {
         !title.isEmpty
     }
 
+    private func requestAISuggestions() {
+        showingAISuggestions = true
+        let _ = Task { @MainActor in
+            await loadAISuggestions()
+        }
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -89,12 +96,7 @@ struct NewTaskView: View {
                     header: Text("AI Assistant"),
                     footer: Text("Get smart suggestions for subtasks, labels, and estimated time").font(.caption)
                 ) {
-                    Button(action: {
-                        showingAISuggestions = true
-                        let _ = Task { @MainActor in
-                            await loadAISuggestions()
-                        }
-                    }) {
+                    Button(action: requestAISuggestions) {
                         HStack {
                             Image(systemName: "sparkles")
                             Text("Get AI Suggestions")

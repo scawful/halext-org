@@ -40,6 +40,27 @@ struct RegisterView: View {
         return nil
     }
 
+    private func performRegistration() {
+        let _ = Task { @MainActor in
+            // Save access code if provided
+            if !accessCode.isEmpty {
+                KeychainManager.shared.saveAccessCode(accessCode)
+            }
+
+            await appState.register(
+                username: username,
+                email: email,
+                password: password,
+                fullName: fullName.isEmpty ? nil : fullName
+            )
+
+            // Dismiss if successful
+            if appState.isAuthenticated {
+                dismiss()
+            }
+        }
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -93,26 +114,7 @@ struct RegisterView: View {
                             .font(.caption)
                     }
 
-                    Button(action: {
-                        let _ = Task { @MainActor in
-                            // Save access code if provided
-                            if !accessCode.isEmpty {
-                                KeychainManager.shared.saveAccessCode(accessCode)
-                            }
-
-                            await appState.register(
-                                username: username,
-                                email: email,
-                                password: password,
-                                fullName: fullName.isEmpty ? nil : fullName
-                            )
-
-                            // Dismiss if successful
-                            if appState.isAuthenticated {
-                                dismiss()
-                            }
-                        }
-                    }) {
+                    Button(action: performRegistration) {
                         if appState.isLoading {
                             HStack {
                                 Spacer()

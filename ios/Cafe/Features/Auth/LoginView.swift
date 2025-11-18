@@ -14,6 +14,12 @@ struct LoginView: View {
     @State private var password = ""
     @State private var showingRegister = false
 
+    private func performLogin() {
+        let _ = Task { @MainActor in
+            await appState.login(username: username, password: password)
+        }
+    }
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 24) {
@@ -64,11 +70,7 @@ struct LoginView: View {
                             .frame(maxWidth: .infinity)
                             .controlSize(.large)
                     } else {
-                        Button(action: {
-                            let _ = Task { @MainActor in
-                                await appState.login(username: username, password: password)
-                            }
-                        }) {
+                        Button(action: performLogin) {
                             Text("Sign In")
                                 .frame(maxWidth: .infinity)
                         }
