@@ -94,7 +94,7 @@ struct RegisterView: View {
                     }
 
                     Button(action: {
-                        Task { @MainActor in
+                        let _ = Task { @MainActor in
                             // Save access code if provided
                             if !accessCode.isEmpty {
                                 KeychainManager.shared.saveAccessCode(accessCode)

@@ -91,7 +91,7 @@ struct NewTaskView: View {
                 ) {
                     Button(action: {
                         showingAISuggestions = true
-                        Task { @MainActor in
+                        let _ = Task { @MainActor in
                             await loadAISuggestions()
                         }
                     }) {

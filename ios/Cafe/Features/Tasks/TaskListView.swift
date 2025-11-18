@@ -178,7 +178,7 @@ struct TaskRowView: View {
         HStack(alignment: .top, spacing: 12) {
             // Completion toggle
             Button(action: {
-                Task { @MainActor in
+                let _ = Task { @MainActor in
                     isToggling = true
                     await onToggle()
                     isToggling = false
@@ -233,7 +233,7 @@ struct TaskRowView: View {
         .padding(.vertical, 4)
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button(role: .destructive, action: {
-                Task { @MainActor in
+                let _ = Task { @MainActor in
                     await onDelete()
                 }
             }) {

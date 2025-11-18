@@ -65,7 +65,7 @@ struct LoginView: View {
                             .controlSize(.large)
                     } else {
                         Button(action: {
-                            Task { @MainActor in
+                            let _ = Task { @MainActor in
                                 await appState.login(username: username, password: password)
                             }
                         }) {

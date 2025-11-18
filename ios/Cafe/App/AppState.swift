@@ -22,8 +22,8 @@ class AppState {
             self.authToken = token
             self.isAuthenticated = true
             // Fetch current user in background
-            Task { [weak self] in
-                await self?.loadCurrentUser()
+            let _ = Task {
+                await self.loadCurrentUser()
             }
         }
     }
