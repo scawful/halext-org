@@ -30,7 +30,7 @@ struct NewTaskView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Task Details") {
+                Section(header: Text("Task Details")) {
                     TextField("Title", text: $title)
 
                     TextField("Description (Optional)", text: $description, axis: .vertical)
@@ -52,7 +52,7 @@ struct NewTaskView: View {
                     }
                 }
 
-                Section("Labels") {
+                Section(header: Text("Labels")) {
                     HStack {
                         TextField("Add label", text: $labelInput)
                             .textInputAutocapitalization(.never)
@@ -85,7 +85,10 @@ struct NewTaskView: View {
                     }
                 }
 
-                Section {
+                Section(
+                    header: Text("AI Assistant"),
+                    footer: Text("Get smart suggestions for subtasks, labels, and estimated time").font(.caption)
+                ) {
                     Button(action: {
                         showingAISuggestions = true
                         Task { @MainActor in
@@ -102,15 +105,10 @@ struct NewTaskView: View {
                         }
                     }
                     .disabled(title.isEmpty || isLoadingSuggestions)
-                } header: {
-                    Text("AI Assistant")
-                } footer: {
-                    Text("Get smart suggestions for subtasks, labels, and estimated time")
-                        .font(.caption)
                 }
 
                 if let suggestions = aiSuggestions {
-                    Section("AI Suggestions") {
+                    Section(header: Text("AI Suggestions")) {
                         VStack(alignment: .leading, spacing: 12) {
                             HStack {
                                 Text("Priority:")
@@ -198,8 +196,6 @@ struct NewTaskView: View {
     }
 
     private func createTask() {
-        isCreating = true
-
         let taskCreate = TaskCreate(
             title: title,
             description: description.isEmpty ? nil : description,
@@ -207,9 +203,12 @@ struct NewTaskView: View {
             labels: labels
         )
 
-        Task { @MainActor in
-            await onCreate(taskCreate)
-            isCreating = false
+        isCreating = true
+        Task { [weak self] in
+            await self?.onCreate(taskCreate)
+            await MainActor.run {
+                self?.isCreating = false
+            }
         }
     }
 
