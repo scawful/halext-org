@@ -9,6 +9,7 @@ import os
 from app import crud, models, schemas, auth
 from app.database import SessionLocal, engine
 from app.ai import AiGateway
+from app.ai_features import AiTaskHelper, AiEventHelper, AiNoteHelper
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -433,3 +434,187 @@ async def send_conversation_message(
 def openwebui_status():
     status_payload = ai_gateway.openwebui_status()
     return schemas.OpenWebUiStatus(**status_payload)
+
+# AI Endpoints
+@app.get("/ai/info", response_model=schemas.AiProviderInfo)
+def get_ai_provider_info():
+    """Get current AI provider configuration"""
+    return schemas.AiProviderInfo(**ai_gateway.get_provider_info())
+
+@app.get("/ai/models", response_model=schemas.AiModelsResponse)
+async def list_ai_models(current_user: models.User = Depends(auth.get_current_user)):
+    """List available AI models"""
+    models_list = await ai_gateway.get_models()
+    return schemas.AiModelsResponse(
+        models=[schemas.AiModelInfo(**m) for m in models_list],
+        provider=ai_gateway.provider,
+        current_model=ai_gateway.model
+    )
+
+@app.post("/ai/chat", response_model=schemas.AiChatResponse)
+async def ai_chat(
+    request: schemas.AiChatRequest,
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    """Generate AI chat response"""
+    response = await ai_gateway.generate_reply(request.prompt, request.history)
+    return schemas.AiChatResponse(
+        response=response,
+        model=request.model or ai_gateway.model,
+        provider=ai_gateway.provider
+    )
+
+@app.post("/ai/stream")
+async def ai_chat_stream(
+    request: schemas.AiChatRequest,
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    """Stream AI chat response (Server-Sent Events)"""
+    from fastapi.responses import StreamingResponse
+
+    async def generate():
+        async for chunk in ai_gateway.generate_stream(
+            request.prompt,
+            request.history,
+            request.model
+        ):
+            yield f"data: {chunk}\n\n"
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
+
+@app.post("/ai/embeddings", response_model=schemas.AiEmbeddingsResponse)
+async def generate_embeddings(
+    request: schemas.AiEmbeddingsRequest,
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    """Generate embeddings for text"""
+    embeddings = await ai_gateway.generate_embeddings(request.text, request.model)
+    return schemas.AiEmbeddingsResponse(
+        embeddings=embeddings,
+        model=request.model or ai_gateway.model,
+        dimension=len(embeddings)
+    )
+
+# AI Task Features
+@app.post("/ai/tasks/suggest", response_model=schemas.AiTaskSuggestionsResponse)
+async def suggest_task_enhancements(
+    request: schemas.AiTaskSuggestionsRequest,
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    """Get AI suggestions for task breakdown, labels, time estimate, and priority"""
+    helper = AiTaskHelper(ai_gateway)
+
+    # Run all suggestions in parallel
+    import asyncio
+    subtasks, labels, time_est, priority = await asyncio.gather(
+        helper.suggest_subtasks(request.title, request.description),
+        helper.suggest_labels(request.title, request.description),
+        helper.estimate_time(request.title, request.description),
+        helper.suggest_priority(request.title, request.description)
+    )
+
+    return schemas.AiTaskSuggestionsResponse(
+        subtasks=subtasks,
+        labels=labels,
+        estimated_hours=time_est["estimated_hours"],
+        priority=priority["priority"],
+        priority_reasoning=priority["reasoning"]
+    )
+
+@app.post("/ai/tasks/estimate-time", response_model=schemas.AiTimeEstimateResponse)
+async def estimate_task_time(
+    request: schemas.AiTaskSuggestionsRequest,
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    """Estimate time required for a task"""
+    helper = AiTaskHelper(ai_gateway)
+    result = await helper.estimate_time(request.title, request.description)
+    return schemas.AiTimeEstimateResponse(**result)
+
+@app.post("/ai/tasks/suggest-priority", response_model=schemas.AiPriorityResponse)
+async def suggest_task_priority(
+    request: schemas.AiTaskSuggestionsRequest,
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    """Suggest priority for a task"""
+    helper = AiTaskHelper(ai_gateway)
+    result = await helper.suggest_priority(request.title, request.description)
+    return schemas.AiPriorityResponse(**result)
+
+@app.post("/ai/tasks/suggest-labels", response_model=List[str])
+async def suggest_task_labels(
+    request: schemas.AiTaskSuggestionsRequest,
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    """Suggest labels for a task"""
+    helper = AiTaskHelper(ai_gateway)
+    return await helper.suggest_labels(request.title, request.description)
+
+# AI Event Features
+@app.post("/ai/events/analyze", response_model=schemas.AiEventAnalysisResponse)
+async def analyze_event(
+    request: schemas.AiEventAnalysisRequest,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Analyze event and provide AI suggestions"""
+    helper = AiEventHelper(ai_gateway)
+
+    # Get existing events for conflict detection
+    existing_events = crud.get_user_events(db, current_user.id)
+    events_data = [
+        {
+            "id": e.id,
+            "title": e.title,
+            "start_time": e.start_time,
+            "end_time": e.end_time
+        }
+        for e in existing_events
+    ]
+
+    # Run analysis
+    import asyncio
+    duration_minutes = int((request.end_time - request.start_time).total_seconds() / 60)
+
+    summary, prep_steps, optimal_times = await asyncio.gather(
+        helper.summarize_event(request.title, request.description, duration_minutes),
+        helper.suggest_preparation(request.title, request.description, request.event_type),
+        helper.suggest_optimal_time(request.title, duration_minutes, request.start_time, events_data)
+    )
+
+    conflicts = await helper.detect_conflicts(
+        request.title,
+        request.start_time,
+        request.end_time,
+        events_data
+    )
+
+    return schemas.AiEventAnalysisResponse(
+        summary=summary,
+        preparation_steps=prep_steps,
+        optimal_times=optimal_times,
+        conflicts=conflicts
+    )
+
+# AI Note Features
+@app.post("/ai/notes/summarize", response_model=schemas.AiNoteSummaryResponse)
+async def summarize_note(
+    request: schemas.AiNoteSummaryRequest,
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    """Summarize note and extract information"""
+    helper = AiNoteHelper(ai_gateway)
+
+    import asyncio
+    summary, tags, tasks = await asyncio.gather(
+        helper.summarize_note(request.content, request.max_length),
+        helper.generate_tags(request.content),
+        helper.extract_tasks(request.content)
+    )
+
+    return schemas.AiNoteSummaryResponse(
+        summary=summary,
+        tags=tags,
+        extracted_tasks=tasks
+    )

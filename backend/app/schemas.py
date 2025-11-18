@@ -178,3 +178,85 @@ class TokenData(BaseModel):
 class OpenWebUiStatus(BaseModel):
     enabled: bool
     url: Optional[str] = None
+
+# AI Schemas
+class AiChatRequest(BaseModel):
+    prompt: str
+    history: Optional[List[Dict[str, str]]] = Field(default_factory=list)
+    model: Optional[str] = None
+
+class AiChatResponse(BaseModel):
+    response: str
+    model: str
+    provider: str
+
+class AiModelInfo(BaseModel):
+    name: str
+    size: Any
+    provider: str
+    modified_at: Optional[str] = None
+
+class AiModelsResponse(BaseModel):
+    models: List[AiModelInfo]
+    provider: str
+    current_model: str
+
+class AiEmbeddingsRequest(BaseModel):
+    text: str
+    model: Optional[str] = None
+
+class AiEmbeddingsResponse(BaseModel):
+    embeddings: List[float]
+    model: str
+    dimension: int
+
+class AiProviderInfo(BaseModel):
+    provider: str
+    model: str
+    ollama_url: Optional[str] = None
+    openwebui_url: Optional[str] = None
+
+# AI Task Features
+class AiTaskSuggestionsRequest(BaseModel):
+    title: str
+    description: Optional[str] = None
+
+class AiTaskSuggestionsResponse(BaseModel):
+    subtasks: List[str]
+    labels: List[str]
+    estimated_hours: float
+    priority: str
+    priority_reasoning: str
+
+class AiTimeEstimateResponse(BaseModel):
+    estimated_hours: float
+    confidence: str
+    factors: str
+
+class AiPriorityResponse(BaseModel):
+    priority: str
+    reasoning: str
+
+# AI Event Features
+class AiEventAnalysisRequest(BaseModel):
+    title: str
+    description: Optional[str] = None
+    start_time: datetime
+    end_time: datetime
+    event_type: Optional[str] = None
+
+class AiEventAnalysisResponse(BaseModel):
+    summary: str
+    preparation_steps: List[str]
+    optimal_times: List[Dict[str, str]]
+    conflicts: Dict[str, Any]
+
+# AI Note Features
+class AiNoteSummaryRequest(BaseModel):
+    content: str
+    max_length: Optional[int] = 200
+
+class AiNoteSummaryResponse(BaseModel):
+    summary: str
+    tags: List[str]
+    extracted_tasks: List[str]
