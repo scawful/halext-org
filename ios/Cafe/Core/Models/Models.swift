@@ -78,7 +78,7 @@ struct Task: Codable, Identifiable {
     let dueDate: Date?
     let createdAt: Date
     let ownerId: Int
-    let labels: [Label]
+    let labels: [TaskLabel]
 
     enum CodingKeys: String, CodingKey {
         case id, title, description, completed, labels
@@ -88,7 +88,7 @@ struct Task: Codable, Identifiable {
     }
 }
 
-struct Label: Codable, Identifiable {
+struct TaskLabel: Codable, Identifiable {
     let id: Int
     let name: String
     let color: String?

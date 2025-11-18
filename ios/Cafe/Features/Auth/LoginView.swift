@@ -59,11 +59,11 @@ struct LoginView: View {
                             .padding(.horizontal)
                     }
 
-                    Button {
+                    Button(action: {
                         Task {
                             await appState.login(username: username, password: password)
                         }
-                    } label: {
+                    }) {
                         if appState.isLoading {
                             ProgressView()
                                 .frame(maxWidth: .infinity)
@@ -81,9 +81,9 @@ struct LoginView: View {
                 Spacer()
 
                 // Register link
-                Button {
+                Button(action: {
                     showingRegister = true
-                } label: {
+                }) {
                     Text("Don't have an account? **Register**")
                         .font(.subheadline)
                 }

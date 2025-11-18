@@ -22,7 +22,7 @@ class AppState {
             self.authToken = token
             self.isAuthenticated = true
             // Fetch current user in background
-            Task {
+            Task { @MainActor in
                 await loadCurrentUser()
             }
         }

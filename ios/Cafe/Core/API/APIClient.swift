@@ -128,7 +128,7 @@ class APIClient {
 
     // MARK: - Labels
 
-    func getLabels() async throws -> [Label] {
+    func getLabels() async throws -> [TaskLabel] {
         let request = try authorizedRequest(path: "/labels/", method: "GET")
         return try await performRequest(request)
     }
@@ -205,7 +205,7 @@ class APIClient {
 
 // MARK: - API Errors
 
-enum APIError: LocalizedError {
+enum APIError: LocalizedError, Equatable {
     case invalidResponse
     case httpError(Int)
     case decodingError
