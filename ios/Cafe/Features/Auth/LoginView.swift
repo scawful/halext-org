@@ -21,6 +21,13 @@ struct LoginView: View {
         }
     }
 
+    private func handleEnvironmentChange(_ newValue: Bool) {
+        useProduction = newValue
+        UserDefaults.standard.set(newValue, forKey: "useProductionAPI")
+        // Clear stored credentials when switching environments
+        KeychainManager.shared.clearAll()
+    }
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 24) {
@@ -89,10 +96,7 @@ struct LoginView: View {
                 VStack(spacing: 8) {
                     Toggle(isOn: Binding(
                         get: { useProduction },
-                        set: { newValue in
-                            useProduction = newValue
-                            UserDefaults.standard.set(newValue, forKey: "useProductionAPI")
-                        }
+                        set: handleEnvironmentChange
                     )) {
                         HStack {
                             Image(systemName: useProduction ? "cloud.fill" : "laptopcomputer")
