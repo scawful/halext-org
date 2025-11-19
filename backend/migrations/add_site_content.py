@@ -35,12 +35,12 @@ def run_migration():
     with engine.connect() as conn:
         conn.execute(text("UPDATE users SET is_admin = 1 WHERE username IN ('scawful', 'admin')"))
         conn.commit()
-    print("✅ Site content tables ready")
+    print("Site content tables ready")
 
 
 if __name__ == "__main__":
     try:
         run_migration()
     except Exception as exc:
-        print(f"❌ Migration failed: {exc}")
+        print(f"Migration failed: {exc}")
         sys.exit(1)

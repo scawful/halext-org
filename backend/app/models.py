@@ -276,7 +276,7 @@ class MediaAsset(Base):
     file_path = Column(String, nullable=False)
     public_url = Column(String, nullable=False)
     thumbnail_url = Column(String, nullable=True)
-    metadata = Column(JSON, default=dict)
+    meta = Column(JSON, default=dict)
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

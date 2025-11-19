@@ -280,7 +280,7 @@ class MediaAssetBase(BaseModel):
     file_path: str
     public_url: str
     thumbnail_url: Optional[str] = None
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    meta: Dict[str, Any] = Field(default_factory=dict)
 
 
 class MediaAsset(MediaAssetBase):
