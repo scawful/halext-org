@@ -72,6 +72,45 @@ class NavigationBarManager {
         saveTabs()
     }
 
+    func applyPreset(_ preset: NavigationPreset) {
+        visibleTabs = preset.tabs
+        saveTabs()
+    }
+
+    func saveCustomLayout(name: String) {
+        let layout = CustomLayout(name: name, tabs: visibleTabs)
+        var layouts = loadCustomLayouts()
+        layouts.append(layout)
+
+        if let data = try? JSONEncoder().encode(layouts) {
+            userDefaults.set(data, forKey: "customNavigationLayouts")
+            print("✅ Saved custom layout: \(name)")
+        }
+    }
+
+    func loadCustomLayouts() -> [CustomLayout] {
+        guard let data = userDefaults.data(forKey: "customNavigationLayouts"),
+              let layouts = try? JSONDecoder().decode([CustomLayout].self, from: data) else {
+            return []
+        }
+        return layouts
+    }
+
+    func deleteCustomLayout(_ layout: CustomLayout) {
+        var layouts = loadCustomLayouts()
+        layouts.removeAll { $0.id == layout.id }
+
+        if let data = try? JSONEncoder().encode(layouts) {
+            userDefaults.set(data, forKey: "customNavigationLayouts")
+            print("✅ Deleted custom layout: \(layout.name)")
+        }
+    }
+
+    func applyCustomLayout(_ layout: CustomLayout) {
+        visibleTabs = layout.tabs
+        saveTabs()
+    }
+
     // MARK: - Persistence
 
     private func saveTabs() {
@@ -89,6 +128,65 @@ class NavigationBarManager {
 
     func isTabVisible(_ tab: NavigationTab) -> Bool {
         visibleTabs.contains(tab)
+    }
+}
+
+// MARK: - Navigation Presets
+
+struct NavigationPreset: Identifiable {
+    let id = UUID()
+    let name: String
+    let description: String
+    let tabs: [NavigationTab]
+    let icon: String
+
+    static let allPresets: [NavigationPreset] = [
+        NavigationPreset(
+            name: "Productivity",
+            description: "Focus on tasks and organization",
+            tabs: [.dashboard, .tasks, .calendar, .templates, .more],
+            icon: "checkmark.circle.fill"
+        ),
+        NavigationPreset(
+            name: "Communication",
+            description: "Stay connected with your team",
+            tabs: [.dashboard, .messages, .chat, .calendar, .more],
+            icon: "bubble.left.and.bubble.right.fill"
+        ),
+        NavigationPreset(
+            name: "Financial",
+            description: "Manage money and budgets",
+            tabs: [.dashboard, .finance, .tasks, .calendar, .more],
+            icon: "dollarsign.circle.fill"
+        ),
+        NavigationPreset(
+            name: "Minimal",
+            description: "Just the essentials",
+            tabs: [.dashboard, .tasks, .more],
+            icon: "minus.circle.fill"
+        ),
+        NavigationPreset(
+            name: "Advanced",
+            description: "Power user features",
+            tabs: [.dashboard, .smartLists, .templates, .pages, .more],
+            icon: "star.fill"
+        )
+    ]
+}
+
+// MARK: - Custom Layout
+
+struct CustomLayout: Identifiable, Codable {
+    let id: UUID
+    let name: String
+    let tabs: [NavigationTab]
+    let createdAt: Date
+
+    init(name: String, tabs: [NavigationTab]) {
+        self.id = UUID()
+        self.name = name
+        self.tabs = tabs
+        self.createdAt = Date()
     }
 }
 

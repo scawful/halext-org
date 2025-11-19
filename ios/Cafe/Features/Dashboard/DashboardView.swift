@@ -40,6 +40,10 @@ struct DashboardView: View {
                             .padding(.horizontal)
                     }
 
+                    // iOS Features Discovery
+                    IOSFeaturesWidget()
+                        .padding(.horizontal)
+
                     // Quick actions
                     QuickActionsWidget()
                         .padding(.horizontal)
@@ -440,13 +444,233 @@ struct QuickActionButton: View {
     }
 }
 
+// MARK: - iOS Features Widget
+
+struct IOSFeaturesWidget: View {
+    @State private var showAllFeatures = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Image(systemName: "sparkles")
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [.blue, .purple],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+
+                Text("Discover iOS Features")
+                    .font(.headline)
+
+                Spacer()
+
+                Button(action: { showAllFeatures = true }) {
+                    Text("See All")
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                }
+            }
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    NavigationLink(destination: WidgetSettingsView()) {
+                        IOSFeatureCardContent(
+                            title: "Widgets",
+                            icon: "square.grid.3x3.fill",
+                            color: .blue,
+                            badge: "NEW",
+                            description: "Add tasks to home screen"
+                        )
+                    }
+                    .buttonStyle(.plain)
+
+                    IOSFeatureCard(
+                        title: "Live Activities",
+                        icon: "bell.badge.fill",
+                        color: .purple,
+                        badge: "iOS 16+",
+                        description: "Track tasks in real-time"
+                    )
+
+                    IOSFeatureCard(
+                        title: "Siri Shortcuts",
+                        icon: "mic.fill",
+                        color: .orange,
+                        badge: nil,
+                        description: "Voice task creation"
+                    )
+
+                    IOSFeatureCard(
+                        title: "Spotlight",
+                        icon: "magnifyingglass",
+                        color: .green,
+                        badge: nil,
+                        description: "Quick task search"
+                    )
+
+                    IOSFeatureCard(
+                        title: "Quick Actions",
+                        icon: "hand.point.up.left.fill",
+                        color: .pink,
+                        badge: "3D Touch",
+                        description: "App icon shortcuts"
+                    )
+
+                    IOSFeatureCard(
+                        title: "Handoff",
+                        icon: "arrow.triangle.2.circlepath",
+                        color: .cyan,
+                        badge: nil,
+                        description: "Continue on other devices"
+                    )
+                }
+                .padding(.horizontal, 4)
+            }
+
+            Text("Tap to learn how to enable these features")
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.blue.opacity(0.05),
+                            Color.purple.opacity(0.05)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(
+                    LinearGradient(
+                        colors: [.blue.opacity(0.3), .purple.opacity(0.3)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+        )
+        .sheet(isPresented: $showAllFeatures) {
+            IOSFeaturesDetailView()
+        }
+    }
+}
+
+struct IOSFeatureCard: View {
+    let title: String
+    let icon: String
+    let color: Color
+    let badge: String?
+    let description: String
+    @State private var isPressed = false
+
+    var body: some View {
+        Button {
+            // Navigate to feature details
+        } label: {
+            IOSFeatureCardContent(
+                title: title,
+                icon: icon,
+                color: color,
+                badge: badge,
+                description: description,
+                isPressed: isPressed
+            )
+        }
+        .buttonStyle(.plain)
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in isPressed = true }
+                .onEnded { _ in isPressed = false }
+        )
+    }
+}
+
+struct IOSFeatureCardContent: View {
+    let title: String
+    let icon: String
+    let color: Color
+    let badge: String?
+    let description: String
+    var isPressed: Bool = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                ZStack {
+                    Circle()
+                        .fill(color.opacity(0.2))
+                        .frame(width: 40, height: 40)
+
+                    Image(systemName: icon)
+                        .font(.title3)
+                        .foregroundColor(color)
+                }
+
+                Spacer()
+
+                if let badge = badge {
+                    Text(badge)
+                        .font(.caption2)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            Capsule()
+                                .fill(color)
+                        )
+                }
+            }
+
+            Text(title)
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .foregroundColor(.primary)
+
+            Text(description)
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(width: 160)
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(.systemBackground))
+                .shadow(color: .black.opacity(0.05), radius: 8, y: 2)
+        )
+        .scaleEffect(isPressed ? 0.95 : 1.0)
+    }
+}
+
+// Note: IOSFeaturesDetailView and related components are defined in MoreView.swift
+// to avoid code duplication between Dashboard and More tabs
+
 // MARK: - All Apps Widget
 
 struct AllAppsWidget: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("All Apps")
-                .font(.headline)
+            HStack {
+                Image(systemName: "square.grid.2x2")
+                    .foregroundColor(.blue)
+                Text("All Apps")
+                    .font(.headline)
+                Spacer()
+                Text("\(NavigationTab.allCases.filter { $0 != .dashboard && $0 != .more && $0 != .settings }.count)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
 
             LazyVGrid(columns: [
                 GridItem(.flexible()),
@@ -463,11 +687,17 @@ struct AllAppsWidget: View {
                 DashboardAppButton(tab: .smartLists)
                 DashboardAppButton(tab: .pages)
             }
+
+            // Helper text
+            Text("Tap any app to explore its features")
+                .font(.caption)
+                .foregroundColor(.secondary)
         }
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color(.systemGray6))
+                .fill(Color(.systemBackground))
+                .shadow(color: .black.opacity(0.05), radius: 8, y: 2)
         )
     }
 }

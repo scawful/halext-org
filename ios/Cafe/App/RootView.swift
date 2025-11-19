@@ -176,6 +176,12 @@ struct SettingsView: View {
                         .foregroundColor(.secondary)
                 }
 
+                Section("Widgets") {
+                    NavigationLink(destination: WidgetSettingsView()) {
+                        Label("Home & Lock Screen Widgets", systemImage: "square.stack.3d.up.fill")
+                    }
+                }
+
                 Section("Appearance") {
                     ThemeSwitcherView()
 
@@ -195,6 +201,12 @@ struct SettingsView: View {
                 Section("Communication") {
                     NavigationLink(destination: ChatSettingsView()) {
                         Label("Chat & AI Agents", systemImage: "bubble.left.and.bubble.right")
+                    }
+                }
+
+                Section("Power User") {
+                    NavigationLink(destination: AdvancedFeaturesView()) {
+                        Label("Advanced Features", systemImage: "wand.and.stars")
                     }
                 }
 
