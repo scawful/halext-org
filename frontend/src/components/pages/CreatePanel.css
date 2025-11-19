@@ -1,0 +1,126 @@
+.create-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  padding: 2rem;
+  color: var(--text-primary);
+}
+
+.create-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.creator-card {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: var(--shadow-md);
+}
+
+.creator-card-header h3 {
+  margin: 0;
+}
+
+.creator-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.creator-form input,
+.creator-form textarea,
+.creator-form select {
+  width: 100%;
+  padding: 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  font-family: inherit;
+}
+
+.creator-form textarea {
+  min-height: 120px;
+}
+
+.creator-form button {
+  align-self: flex-start;
+  padding: 0.65rem 1.5rem;
+  border-radius: 8px;
+  border: none;
+  background: var(--gradient-primary);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.label-manager {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.label-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.label-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(93, 114, 255, 0.2);
+  font-size: 0.85rem;
+}
+
+.label-chip button {
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.label-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.inline-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.creator-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.ghost-btn {
+  border: 1px solid var(--border-color);
+  background: transparent;
+  border-radius: 999px;
+  padding: 0.25rem 0.75rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.ghost-btn:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+@media (max-width: 768px) {
+  .create-panel {
+    padding: 1rem;
+  }
+}

@@ -2,7 +2,7 @@ import type { FormEvent, KeyboardEvent } from 'react'
 import { useCallback, useEffect, useState } from 'react'
 import { MenuBar } from './components/layout/MenuBar'
 import type { MenuSection } from './components/layout/MenuBar'
-import { Sidebar } from './components/layout/Sidebar'
+import { CreatePanel } from './components/pages/CreatePanel'
 import { DashboardGrid } from './components/layout/DashboardGrid'
 import { ImageGenerationSection } from './components/sections/ImageGenerationSection'
 import { AnimeSection } from './components/sections/AnimeSection'
@@ -55,7 +55,6 @@ function App() {
   const [openwebui, setOpenwebui] = useState<OpenWebUiStatus | null>(null)
   const [availableLabels, setAvailableLabels] = useState<Label[]>([])
   const [activeSection, setActiveSection] = useState<MenuSection>('dashboard')
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
   const logout = useCallback(() => {
     localStorage.removeItem('halext_token')
@@ -468,28 +467,56 @@ function App() {
             </button>
           </div>
           {authMode === 'login' ? (
-            <form onSubmit={handleLogin} className="stack">
+            <form onSubmit={handleLogin} className="stack" autoComplete="on">
               <label>
                 Username
-                <input name="username" placeholder="Your username" autoComplete="username" required />
+                <input
+                  name="username"
+                  type="text"
+                  inputMode="text"
+                  placeholder="Your username"
+                  autoComplete="username"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  required
+                />
               </label>
               <label>
                 Password
-                <input name="password" type="password" placeholder="Password" autoComplete="current-password" required />
+                <input
+                  name="password"
+                  type="password"
+                  placeholder="Password"
+                  autoComplete="current-password"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  required
+                />
               </label>
               <button type="submit" disabled={isLoading}>
                 Sign in
               </button>
             </form>
           ) : (
-            <form onSubmit={handleRegister} className="stack">
+            <form onSubmit={handleRegister} className="stack" autoComplete="on">
+              <label>
+                Username
+                <input
+                  name="username"
+                  type="text"
+                  inputMode="text"
+                  placeholder="Choose a username"
+                  autoComplete="username"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  required
+                />
+              </label>
               <label>
                 Full name
                 <input name="full_name" placeholder="Full name" autoComplete="name" />
-              </label>
-              <label>
-                Username
-                <input name="username" placeholder="Choose a username" autoComplete="username" required />
               </label>
               <label>
                 Email
@@ -497,7 +524,15 @@ function App() {
               </label>
               <label>
                 Password
-                <input name="password" type="password" placeholder="Create a password" autoComplete="new-password" required />
+                <input
+                  name="password"
+                  type="password"
+                  placeholder="Create a password"
+                  autoComplete="new-password"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  required
+                />
               </label>
               <button type="submit" disabled={isLoading}>
                 Create account
@@ -531,7 +566,7 @@ function App() {
           />
         ) : (
           <div className="empty-state-section">
-            <p className="muted">Create a page from the sidebar to start building your dashboard.</p>
+            <p className="muted">Use the plus button to create a page and start building your dashboard.</p>
           </div>
         )
       case 'tasks':
@@ -559,6 +594,29 @@ function App() {
         return <IoTSection />
       case 'admin':
         return token ? <AdminSection token={token} /> : <div className="section-placeholder">Please login to access admin panel</div>
+      case 'create':
+        return token ? (
+          <CreatePanel
+            taskForm={taskForm}
+            onTaskFormChange={setTaskForm}
+            onTaskSubmit={handleCreateTask}
+            newTaskLabels={newTaskLabels}
+            taskLabelInput={taskLabelInput}
+            onTaskLabelInputChange={setTaskLabelInput}
+            onTaskLabelInputKeyDown={handleLabelInputKeyDown}
+            onAddTaskLabel={addTaskLabel}
+            onRemoveTaskLabel={removeTaskLabel}
+            availableLabels={availableLabels}
+            eventForm={eventForm}
+            onEventFormChange={setEventForm}
+            onEventSubmit={handleCreateEvent}
+            pageForm={pageForm}
+            onPageFormChange={setPageForm}
+            onPageSubmit={handleCreatePage}
+          />
+        ) : (
+          <div className="section-placeholder">Please login to access creator tools</div>
+        )
       default:
         return null
     }
@@ -571,35 +629,8 @@ function App() {
         onSectionChange={setActiveSection}
         onLogout={logout}
         username={user?.username}
-        isSidebarOpen={isSidebarOpen}
-        onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
       />
       <div className="app-main">
-        <Sidebar
-          isOpen={isSidebarOpen}
-          activeSection={activeSection}
-          onSectionChange={setActiveSection}
-          onCloseSidebar={() => setIsSidebarOpen(false)}
-          user={user}
-          onLogout={logout}
-          taskForm={taskForm}
-          onTaskFormChange={setTaskForm}
-          onTaskSubmit={handleCreateTask}
-          newTaskLabels={newTaskLabels}
-          taskLabelInput={taskLabelInput}
-          onTaskLabelInputChange={setTaskLabelInput}
-          onTaskLabelInputKeyDown={handleLabelInputKeyDown}
-          onAddTaskLabel={addTaskLabel}
-          onRemoveTaskLabel={removeTaskLabel}
-          availableLabels={availableLabels}
-          eventForm={eventForm}
-          onEventFormChange={setEventForm}
-          onEventSubmit={handleCreateEvent}
-          pageForm={pageForm}
-          onPageFormChange={setPageForm}
-          onPageSubmit={handleCreatePage}
-        />
-        {isSidebarOpen && <div className="sidebar-backdrop" onClick={() => setIsSidebarOpen(false)} />}
         <main className="main-content">
           {renderSection()}
         </main>

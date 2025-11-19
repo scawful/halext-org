@@ -37,6 +37,7 @@
   display: flex;
   gap: 0.5rem;
   flex: 1;
+  flex-wrap: wrap;
 }
 
 .menu-item {
@@ -81,6 +82,17 @@
   display: flex;
   align-items: center;
   gap: 1rem;
+}
+
+.create-button {
+  background: rgba(93, 114, 255, 0.15);
+  border: 1px solid rgba(93, 114, 255, 0.4);
+  color: var(--text-primary);
+}
+
+.create-button:hover {
+  background: rgba(93, 114, 255, 0.35);
+  color: var(--text-primary);
 }
 
 .menu-user {
@@ -132,23 +144,11 @@
   gap: 1rem;
 }
 
-.sidebar-toggle {
-  display: none;
-  background: transparent;
-  border: none;
-  color: var(--text-secondary);
-  cursor: pointer;
-}
-
 @media (max-width: 768px) {
-  .sidebar-toggle {
-    display: block;
-  }
   .menu-items {
-    display: none;
+    overflow-x: auto;
   }
   .menu-brand h1 {
     display: none;
   }
 }
-

@@ -8,22 +8,29 @@ import {
   MdDeviceHub,
   MdImage,
   MdAdminPanelSettings,
-  MdMenu,
-  MdClose,
+  MdAdd,
 } from 'react-icons/md'
 import { FaRobot } from 'react-icons/fa'
 import { ThemeSwitcher } from '../common/ThemeSwitcher'
 import './MenuBar.css'
 
-type MenuSection = 'dashboard' | 'tasks' | 'chat' | 'calendar' | 'iot' | 'settings' | 'image-gen' | 'anime' | 'admin'
+type MenuSection =
+  | 'dashboard'
+  | 'tasks'
+  | 'chat'
+  | 'calendar'
+  | 'iot'
+  | 'settings'
+  | 'image-gen'
+  | 'anime'
+  | 'admin'
+  | 'create'
 
 type MenuBarProps = {
   activeSection: MenuSection
   onSectionChange: (section: MenuSection) => void
   onLogout: () => void
   username?: string
-  isSidebarOpen: boolean
-  onToggleSidebar: () => void
 }
 
 export const MenuBar = ({
@@ -31,8 +38,6 @@ export const MenuBar = ({
   onSectionChange,
   onLogout,
   username,
-  isSidebarOpen,
-  onToggleSidebar,
 }: MenuBarProps) => {
   const [showSettings, setShowSettings] = useState(false)
 
@@ -47,15 +52,17 @@ export const MenuBar = ({
     { id: 'admin' as MenuSection, icon: MdAdminPanelSettings, label: 'Admin Panel' },
   ]
 
+  const handleMenuClick = (section: MenuSection) => {
+    onSectionChange(section)
+    setShowSettings(false)
+  }
+
   return (
     <nav className="menu-bar">
       <div className="menu-left">
-        <button className="sidebar-toggle" onClick={onToggleSidebar}>
-          {isSidebarOpen ? <MdClose size={24} /> : <MdMenu size={24} />}
-        </button>
         <div className="menu-brand">
           <span className="menu-logo">☕</span>
-          <h1>Cafe</h1>
+          <h1>Halext Org</h1>
         </div>
       </div>
 
@@ -64,7 +71,7 @@ export const MenuBar = ({
           <button
             key={item.id}
             className={`menu-item ${activeSection === item.id ? 'active' : ''}`}
-            onClick={() => onSectionChange(item.id)}
+            onClick={() => handleMenuClick(item.id)}
             title={item.label}
           >
             <item.icon size={24} />
@@ -73,11 +80,18 @@ export const MenuBar = ({
       </div>
 
       <div className="menu-right">
+        <button
+          className={`menu-item create-button ${activeSection === 'create' ? 'active' : ''}`}
+          onClick={() => handleMenuClick('create')}
+          title="Create"
+        >
+          <MdAdd size={24} />
+        </button>
         <div className="menu-user">
           <button
-            className="menu-item"
+            className={`menu-item ${showSettings ? 'active' : ''}`}
             onClick={() => setShowSettings(!showSettings)}
-            title="Settings"
+            title="Workspace settings"
           >
             <MdSettings size={24} />
           </button>
