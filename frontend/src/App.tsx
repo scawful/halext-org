@@ -24,6 +24,8 @@ import type {
 import { API_BASE_URL, createDefaultLayout, createWidget, randomId } from './utils/helpers'
 import './App.css'
 
+type TaskUpdateInput = Partial<Omit<Task, 'labels'>> & { labels?: string[] }
+
 function App() {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('halext_token'))
   const [accessCode, setAccessCode] = useState<string>(() => localStorage.getItem('halext_access_code') ?? '')
@@ -273,7 +275,7 @@ function App() {
     setAvailableLabels(mergedLabels)
   }
 
-  const handleUpdateTask = async (id: number, updates: Partial<Task> & { labels?: string[] }) => {
+  const handleUpdateTask = async (id: number, updates: TaskUpdateInput) => {
     const payload: any = { ...updates }
     if (payload.due_date) {
       payload.due_date = new Date(payload.due_date).toISOString()

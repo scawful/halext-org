@@ -73,22 +73,61 @@
 
 .gift-item {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
-.gift-item button {
-  padding: 0.25rem 0.5rem;
+.gift-item-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.gift-item-name {
+  font-weight: 600;
+}
+
+.gift-item.purchased .gift-item-name {
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+
+.gift-item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
   font-size: 0.75rem;
-  background: rgba(255, 59, 48, 0.1);
-  border: 1px solid rgba(255, 59, 48, 0.3);
-  color: #ff3b30;
+  color: rgba(245, 245, 255, 0.7);
+}
+
+.gift-item-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.gift-item-actions button {
+  flex: 1;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.75rem;
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.2s ease;
+  border: 1px solid transparent;
+  background: rgba(93, 114, 255, 0.15);
+  color: #f5f5ff;
 }
 
-.gift-item button:hover {
+.gift-item-actions button:hover {
+  background: rgba(93, 114, 255, 0.25);
+}
+
+.gift-item-actions button:last-child {
+  background: rgba(255, 59, 48, 0.1);
+  border-color: rgba(255, 59, 48, 0.3);
+  color: #ffb4ae;
+}
+
+.gift-item-actions button:last-child:hover {
   background: rgba(255, 59, 48, 0.2);
 }
 
@@ -127,6 +166,18 @@
 .inline-form button:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(93, 114, 255, 0.3);
+}
+
+.inline-form.gift-form {
+  flex-direction: column;
+}
+
+.inline-form.gift-form input {
+  width: 100%;
+}
+
+.inline-form.gift-form button {
+  width: 100%;
 }
 
 .iframe-container {

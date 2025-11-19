@@ -5,8 +5,18 @@ Handles user account provisioning and session sync between Halext Org and OpenWe
 import os
 from typing import Optional, Dict, Any
 from datetime import datetime, timedelta
-from jose import jwt
-from jose.exceptions import ExpiredSignatureError, JWTError
+try:
+    from jose import jwt
+    from jose.exceptions import ExpiredSignatureError, JWTError
+except ImportError:
+    try:
+        import jwt  # type: ignore
+        from jwt import ExpiredSignatureError, PyJWTError
+        JWTError = PyJWTError
+    except ImportError as exc:  # pragma: no cover - hard failure during startup
+        raise ImportError(
+            "OpenWebUI sync requires python-jose[cryptography] or PyJWT to be installed."
+        ) from exc
 
 try:
     import httpx

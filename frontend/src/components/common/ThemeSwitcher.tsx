@@ -1,15 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import './ThemeSwitcher.css';
+import { useState, useEffect } from 'react'
+import './ThemeSwitcher.css'
 
-const themes = ['purple', 'mocha', 'catppuccin', 'strawberry-matcha'];
+const themes = ['purple', 'mocha', 'catppuccin', 'strawberry-matcha']
 
 export const ThemeSwitcher = () => {
-  const [activeTheme, setActiveTheme] = useState(localStorage.getItem('theme') || 'purple');
+  const [activeTheme, setActiveTheme] = useState(localStorage.getItem('theme') || 'purple')
 
   useEffect(() => {
-    document.body.className = activeTheme;
-    localStorage.setItem('theme', activeTheme);
-  }, [activeTheme]);
+    document.body.className = activeTheme
+    localStorage.setItem('theme', activeTheme)
+  }, [activeTheme])
 
   return (
     <div className="theme-switcher">
@@ -26,5 +26,5 @@ export const ThemeSwitcher = () => {
         ))}
       </select>
     </div>
-  );
-};
+  )
+}

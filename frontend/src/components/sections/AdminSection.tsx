@@ -11,6 +11,7 @@ import {
   MdBuild,
 } from 'react-icons/md'
 import './AdminSection.css'
+import { API_BASE_URL } from '../../utils/helpers'
 
 interface AIClient {
   id: number
@@ -53,11 +54,9 @@ export const AdminSection = ({ token }: AdminSectionProps) => {
     is_public: false,
   })
 
-  const API_BASE = 'http://localhost:8000'
-
   const fetchClients = async () => {
     try {
-      const response = await fetch(`${API_BASE}/admin/ai-clients`, {
+      const response = await fetch(`${API_BASE_URL}/admin/ai-clients`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -80,7 +79,7 @@ export const AdminSection = ({ token }: AdminSectionProps) => {
   const handleAddClient = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      const response = await fetch(`${API_BASE}/admin/ai-clients`, {
+      const response = await fetch(`${API_BASE_URL}/admin/ai-clients`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -108,7 +107,7 @@ export const AdminSection = ({ token }: AdminSectionProps) => {
   const handleTestConnection = async (clientId: number) => {
     setTestingClient(clientId)
     try {
-      const response = await fetch(`${API_BASE}/admin/ai-clients/${clientId}/test`, {
+      const response = await fetch(`${API_BASE_URL}/admin/ai-clients/${clientId}/test`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -129,7 +128,7 @@ export const AdminSection = ({ token }: AdminSectionProps) => {
     if (!confirm('Delete this AI client?')) return
 
     try {
-      const response = await fetch(`${API_BASE}/admin/ai-clients/${clientId}`, {
+      const response = await fetch(`${API_BASE_URL}/admin/ai-clients/${clientId}`, {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -152,7 +151,7 @@ export const AdminSection = ({ token }: AdminSectionProps) => {
 
     setRebuilding(true)
     try {
-      const response = await fetch(`${API_BASE}/admin/rebuild-frontend`, {
+      const response = await fetch(`${API_BASE_URL}/admin/rebuild-frontend`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,

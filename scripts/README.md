@@ -6,6 +6,7 @@ This directory contains deployment and setup scripts for the Halext Org producti
 
 - `macos-sync.sh` – macOS helper that reinstalls backend/frontend deps when hashes change, then restarts the local dev stack (launchd or dev scripts) and probes the HTTP endpoints. It can also run `server-sync.sh` remotely via SSH when `--server-sync` is supplied; set `HALX_REMOTE_SERVER` (and related settings) in `scripts/macos-sync.env`.
 - `server-sync.sh` – Ubuntu helper that fast-forwards the repo, runs `server-deploy.sh`, restarts halext-api/OpenWebUI/nginx, and performs health checks (API, SPA, OpenWebUI).
+- `server-deploy-bg.sh` – Convenience wrapper that launches `server-deploy.sh` in the background (nice + logged to `/tmp`), then restarts `halext-api` when the deploy completes. Useful when a full install would otherwise spike CPU in your active shell.
 
 ## OpenWebUI Setup Script
 

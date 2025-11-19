@@ -5,6 +5,8 @@ import type { Task, Label } from '../../types/models'
 import type { AiTaskSuggestion } from '../../utils/aiApi'
 import './TasksSection.css'
 
+type TaskUpdateInput = Partial<Omit<Task, 'labels'>> & { labels?: string[] }
+
 interface TasksSectionProps {
   token: string
   tasks: Task[]
@@ -15,7 +17,7 @@ interface TasksSectionProps {
     due_date?: string
     labels: string[]
   }) => Promise<void>
-  onUpdateTask: (id: number, updates: Partial<Task> & { labels?: string[] }) => Promise<void>
+  onUpdateTask: (id: number, updates: TaskUpdateInput) => Promise<void>
   onDeleteTask: (id: number) => Promise<void>
 }
 
@@ -397,14 +399,21 @@ export const TasksSection = ({
 interface TaskItemProps {
   task: Task
   availableLabels: Label[]
-  onUpdate: (id: number, updates: Partial<Task> & { labels?: string[] }) => Promise<void>
+  onUpdate: (id: number, updates: TaskUpdateInput) => Promise<void>
   onDelete: () => void
+}
+
+type EditFormState = {
+  title: string
+  description: string
+  due_date: string
+  labels: string[]
 }
 
 const TaskItem = ({ task, availableLabels, onUpdate, onDelete }: TaskItemProps) => {
   const [isEditing, setIsEditing] = useState(false)
   const [showDetails, setShowDetails] = useState(false)
-  const [editForm, setEditForm] = useState({
+  const [editForm, setEditForm] = useState<EditFormState>({
     title: task.title,
     description: task.description || '',
     due_date: task.due_date ? new Date(task.due_date).toISOString().slice(0, 16) : '',

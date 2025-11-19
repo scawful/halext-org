@@ -36,4 +36,18 @@ export const createWidget = (type: WidgetType): LayoutWidget => {
   }
 }
 
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000'
+const resolvedApiBase = (() => {
+  const envValue = import.meta.env.VITE_API_BASE_URL?.trim()
+  if (envValue && envValue.length > 0) {
+    return envValue.replace(/\/$/, '')
+  }
+
+  if (typeof window !== 'undefined' && window.location) {
+    const origin = window.location.origin.replace(/\/$/, '')
+    return `${origin}/api`
+  }
+
+  return 'http://127.0.0.1:8000'
+})()
+
+export const API_BASE_URL = resolvedApiBase
