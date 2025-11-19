@@ -301,6 +301,7 @@ class BlogPostBase(BaseModel):
     hero_image_url: Optional[str] = None
     status: str = "draft"
     published_at: Optional[datetime] = None
+    file_path: Optional[str] = None
 
 
 class BlogPostCreate(BlogPostBase):
@@ -315,6 +316,7 @@ class BlogPostUpdate(BaseModel):
     hero_image_url: Optional[str] = None
     status: Optional[str] = None
     published_at: Optional[datetime] = None
+    file_path: Optional[str] = None
 
 
 class BlogPost(BlogPostBase):
@@ -325,6 +327,22 @@ class BlogPost(BlogPostBase):
 
     class Config:
         from_attributes = True
+
+
+class SiteSetting(BaseModel):
+    key: str
+    value: Dict[str, Any]
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class BlogTheme(BaseModel):
+    gradient_start: str = "#4c3b52"
+    gradient_end: str = "#000000"
+    accent_color: str = "#9775a3"
+    font_family: str = "'Source Sans Pro', sans-serif"
 
 # AI Schemas
 class AiChatRequest(BaseModel):

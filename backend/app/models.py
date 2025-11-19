@@ -295,8 +295,18 @@ class BlogPost(Base):
     hero_image_url = Column(String, nullable=True)
     status = Column(String, default="draft")  # draft, published
     published_at = Column(DateTime(timezone=True), nullable=True)
+    file_path = Column(String, nullable=True)
     author_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     author = relationship("User", backref="blog_posts")
+
+
+class SiteSetting(Base):
+    __tablename__ = "site_settings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    key = Column(String, unique=True, nullable=False, index=True)
+    value = Column(JSON, default=dict)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

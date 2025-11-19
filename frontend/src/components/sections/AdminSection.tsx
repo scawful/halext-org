@@ -64,6 +64,7 @@ interface BlogPost {
   tags: string[]
   status: string
   published_at?: string
+  file_path?: string
 }
 
 interface MediaAsset {
@@ -148,8 +149,16 @@ export const AdminSection = ({ token }: AdminSectionProps) => {
     body_markdown: '',
     tags_csv: '',
     status: 'draft',
+    file_path: '',
   })
   const [editingSlug, setEditingSlug] = useState<string | null>(null)
+  const [blogTheme, setBlogTheme] = useState<BlogTheme>({
+    gradient_start: '#4c3b52',
+    gradient_end: '#000000',
+    accent_color: '#9775a3',
+    font_family: "'Source Sans Pro', sans-serif",
+  })
+  const [themeLoaded, setThemeLoaded] = useState(false)
 
   // Media
   const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>([])
@@ -197,12 +206,35 @@ export const AdminSection = ({ token }: AdminSectionProps) => {
     }
   }
 
+  const fetchBlogTheme = async () => {
+    const response = await fetch(`${API_BASE_URL}/content/admin/blog-theme`, { headers: authHeaders })
+    if (response.ok) {
+      const data = await response.json()
+      setBlogTheme(data)
+      setThemeLoaded(true)
+    }
+  }
+
   const fetchMedia = async () => {
     const response = await fetch(`${API_BASE_URL}/content/admin/media`, { headers: authHeaders })
     if (response.ok) {
       const data = await response.json()
       setMediaAssets(data)
       setMediaLoaded(true)
+    }
+  }
+
+  const handleSaveBlogTheme = async () => {
+    const response = await fetch(`${API_BASE_URL}/content/admin/blog-theme`, {
+      method: 'PUT',
+      headers: {
+        ...authHeaders,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(blogTheme),
+    })
+    if (response.ok) {
+      alert('Blog theme saved')
     }
   }
 
@@ -219,10 +251,13 @@ export const AdminSection = ({ token }: AdminSectionProps) => {
     if (activeTab === 'blog' && !blogLoaded) {
       fetchBlogPosts()
     }
+    if (activeTab === 'blog' && !themeLoaded) {
+      fetchBlogTheme()
+    }
     if (activeTab === 'media' && !mediaLoaded) {
       fetchMedia()
     }
-  }, [activeTab, clientsLoaded, siteLoaded, photosLoaded, blogLoaded, mediaLoaded])
+  }, [activeTab, clientsLoaded, siteLoaded, photosLoaded, blogLoaded, mediaLoaded, themeLoaded])
 
   const handleAddClient = async (event: FormEvent) => {
     event.preventDefault()
@@ -450,6 +485,7 @@ export const AdminSection = ({ token }: AdminSectionProps) => {
         .map((tag) => tag.trim())
         .filter(Boolean),
       status: blogEditor.status,
+      file_path: blogEditor.file_path.trim() || undefined,
     }
     const isUpdate = Boolean(blogEditor.id)
     const pathSlug = isUpdate && editingSlug ? editingSlug : payload.slug
@@ -477,6 +513,7 @@ export const AdminSection = ({ token }: AdminSectionProps) => {
         body_markdown: data.body_markdown ?? '',
         tags_csv: (data.tags ?? []).join(', '),
         status: data.status,
+        file_path: data.file_path ?? '',
       })
       setEditingSlug(data.slug)
       alert('Blog post saved')
@@ -493,6 +530,7 @@ export const AdminSection = ({ token }: AdminSectionProps) => {
       body_markdown: post.body_markdown ?? '',
       tags_csv: (post.tags ?? []).join(', '),
       status: post.status,
+      file_path: post.file_path ?? '',
     })
     setEditingSlug(post.slug)
   }
@@ -852,6 +890,7 @@ export const AdminSection = ({ token }: AdminSectionProps) => {
               body_markdown: '',
               tags_csv: '',
               status: 'draft',
+              file_path: '',
             })
             setEditingSlug(null)
           }}
@@ -884,6 +923,14 @@ export const AdminSection = ({ token }: AdminSectionProps) => {
           <label className="form-field">
             <span>Slug</span>
             <input value={blogEditor.slug} onChange={(e) => setBlogEditor({ ...blogEditor, slug: e.target.value })} required />
+          </label>
+          <label className="form-field">
+            <span>Markdown File Path</span>
+            <input
+              value={blogEditor.file_path}
+              onChange={(e) => setBlogEditor({ ...blogEditor, file_path: e.target.value })}
+              placeholder="2024.md or posts/entry.md"
+            />
           </label>
           <label className="form-field">
             <span>Title</span>
@@ -922,6 +969,35 @@ export const AdminSection = ({ token }: AdminSectionProps) => {
         </label>
         <button className="btn-primary" type="submit">
           Save Post
+        </button>
+      </form>
+
+      <form onSubmit={(event) => {
+        event.preventDefault()
+        handleSaveBlogTheme()
+      }} className="editor-card">
+        <h3 className="text-lg font-semibold text-purple-200">Blog Theme</h3>
+        <p className="text-sm text-gray-400">Gradient + typography overrides for the personal blog</p>
+        <div className="grid grid-cols-2 gap-4">
+          <label className="form-field">
+            <span>Gradient Start</span>
+            <input type="color" value={blogTheme.gradient_start} onChange={(e) => setBlogTheme({ ...blogTheme, gradient_start: e.target.value })} />
+          </label>
+          <label className="form-field">
+            <span>Gradient End</span>
+            <input type="color" value={blogTheme.gradient_end} onChange={(e) => setBlogTheme({ ...blogTheme, gradient_end: e.target.value })} />
+          </label>
+          <label className="form-field">
+            <span>Accent Color</span>
+            <input type="color" value={blogTheme.accent_color} onChange={(e) => setBlogTheme({ ...blogTheme, accent_color: e.target.value })} />
+          </label>
+          <label className="form-field">
+            <span>Font Family</span>
+            <input value={blogTheme.font_family} onChange={(e) => setBlogTheme({ ...blogTheme, font_family: e.target.value })} />
+          </label>
+        </div>
+        <button className="btn-secondary" type="submit">
+          Save Theme
         </button>
       </form>
     </div>
@@ -995,4 +1071,10 @@ export const AdminSection = ({ token }: AdminSectionProps) => {
       {renderActiveTab()}
     </div>
   )
+}
+interface BlogTheme {
+  gradient_start: string
+  gradient_end: string
+  accent_color: string
+  font_family: string
 }
