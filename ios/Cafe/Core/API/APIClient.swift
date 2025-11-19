@@ -44,17 +44,43 @@ class APIClient {
 
     // MARK: - Authentication
 
+    /// Properly encode a string for application/x-www-form-urlencoded format
+    /// This follows RFC 3986 and HTML form encoding rules
+    private func formURLEncode(_ string: String) -> String? {
+        // Characters allowed in form data: A-Z, a-z, 0-9, -, _, ., ~
+        // Everything else must be percent-encoded
+        var allowedCharacters = CharacterSet.alphanumerics
+        allowedCharacters.insert(charactersIn: "-_.~")
+        return string.addingPercentEncoding(withAllowedCharacters: allowedCharacters)
+    }
+
     func login(username: String, password: String) async throws -> TokenResponse {
-        let formData = "username=\(username)&password=\(password)"
+        // URL encode the username and password for form data
+        guard let encodedUsername = formURLEncode(username),
+              let encodedPassword = formURLEncode(password) else {
+            throw APIError.invalidCredentials
+        }
+
+        let formData = "username=\(encodedUsername)&password=\(encodedPassword)"
         let loginURL = "\(baseURL)/token"
 
         print("🔐 Attempting login to: \(loginURL)")
         print("🌍 Using environment: \(environment)")
+        print("👤 Username: '\(username)' (length: \(username.count))")
+        print("🔑 Password length: \(password.count)")
+        print("📝 Encoded username: '\(encodedUsername)'")
+        print("📦 Form data: \(formData)")
 
         var request = URLRequest(url: URL(string: loginURL)!)
         request.httpMethod = "POST"
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
         request.httpBody = formData.data(using: .utf8)
+
+        // Log headers
+        print("📋 Headers: \(request.allHTTPHeaderFields ?? [:])")
+        if let body = request.httpBody, let bodyString = String(data: body, encoding: .utf8) {
+            print("📤 Request body: \(bodyString)")
+        }
 
         let response: TokenResponse = try await performRequest(request)
         print("✅ Login successful, got token")
@@ -130,17 +156,22 @@ class APIClient {
         return try await performRequest(request)
     }
 
-    // MARK: - Pages
-
-    func getPages() async throws -> [Page] {
-        let request = try authorizedRequest(path: "/pages/", method: "GET")
-        return try await performRequest(request)
-    }
-
     // MARK: - Labels
 
     func getLabels() async throws -> [TaskLabel] {
         let request = try authorizedRequest(path: "/labels/", method: "GET")
+        return try await performRequest(request)
+    }
+
+    func createLabel(name: String, color: String) async throws -> TaskLabel {
+        struct LabelCreate: Codable {
+            let name: String
+            let color: String
+        }
+
+        var request = try authorizedRequest(path: "/labels/", method: "POST")
+        let body = LabelCreate(name: name, color: color)
+        request.httpBody = try JSONEncoder().encode(body)
         return try await performRequest(request)
     }
 
@@ -153,6 +184,71 @@ class APIClient {
         return try await performRequest(request)
     }
 
+    /// Stream chat message responses token by token
+    func streamChatMessage(prompt: String, history: [ChatMessage] = []) async throws -> AsyncThrowingStream<String, Error> {
+        let chatRequest = AIChatRequest(prompt: prompt, history: history)
+        var request = try authorizedRequest(path: "/ai/chat/stream", method: "POST")
+        request.httpBody = try JSONEncoder().encode(chatRequest)
+        request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+        request.timeoutInterval = 120 // Longer timeout for streaming
+
+        return AsyncThrowingStream { continuation in
+            _Concurrency.Task {
+                do {
+                    let (bytes, response) = try await URLSession.shared.bytes(for: request)
+
+                    guard let httpResponse = response as? HTTPURLResponse else {
+                        continuation.finish(throwing: APIError.invalidResponse)
+                        return
+                    }
+
+                    guard (200...299).contains(httpResponse.statusCode) else {
+                        if httpResponse.statusCode == 401 {
+                            continuation.finish(throwing: APIError.unauthorized)
+                        } else {
+                            continuation.finish(throwing: APIError.httpError(httpResponse.statusCode))
+                        }
+                        return
+                    }
+
+                    var buffer = ""
+
+                    for try await byte in bytes {
+                        let char = Character(UnicodeScalar(byte))
+
+                        // Handle Server-Sent Events format or newline-delimited JSON
+                        if char == "\n" {
+                            let line = buffer.trimmingCharacters(in: .whitespacesAndNewlines)
+
+                            if line.hasPrefix("data: ") {
+                                // SSE format: "data: {json}"
+                                let jsonString = String(line.dropFirst(6))
+                                if let data = jsonString.data(using: .utf8),
+                                   let chunk = try? JSONDecoder().decode(StreamChunk.self, from: data) {
+                                    continuation.yield(chunk.content)
+                                }
+                            } else if !line.isEmpty && line.first == "{" {
+                                // Plain JSON chunks
+                                if let data = line.data(using: .utf8),
+                                   let chunk = try? JSONDecoder().decode(StreamChunk.self, from: data) {
+                                    continuation.yield(chunk.content)
+                                }
+                            }
+
+                            buffer = ""
+                        } else {
+                            buffer.append(char)
+                        }
+                    }
+
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+        }
+    }
+
     func getTaskSuggestions(title: String, description: String? = nil) async throws -> AITaskSuggestions {
         let suggestionRequest = AITaskSuggestionsRequest(title: title, description: description)
         var request = try authorizedRequest(path: "/ai/tasks/suggest", method: "POST")
@@ -162,7 +258,7 @@ class APIClient {
 
     // MARK: - Helper Methods
 
-    private func authorizedRequest(path: String, method: String) throws -> URLRequest {
+    internal func authorizedRequest(path: String, method: String) throws -> URLRequest {
         guard let token = token else {
             throw APIError.notAuthenticated
         }
@@ -175,7 +271,7 @@ class APIClient {
         return request
     }
 
-    private func performRequest<T: Decodable>(_ request: URLRequest) async throws -> T {
+    internal func performRequest<T: Decodable>(_ request: URLRequest) async throws -> T {
         let (data, response) = try await URLSession.shared.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
@@ -186,7 +282,13 @@ class APIClient {
         print("📡 HTTP Status: \(httpResponse.statusCode)")
 
         guard (200...299).contains(httpResponse.statusCode) else {
-            // Try to decode error message first
+            // Handle 401 Unauthorized first (before trying to decode error response)
+            if httpResponse.statusCode == 401 {
+                print("❌ Unauthorized - invalid or expired token")
+                throw APIError.unauthorized
+            }
+
+            // Try to decode error message for other errors
             if let errorResponse = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
                 print("❌ Server error: \(errorResponse.detail)")
                 throw APIError.serverError(errorResponse.detail)
@@ -195,11 +297,6 @@ class APIClient {
             // Try to get raw response text
             if let responseText = String(data: data, encoding: .utf8) {
                 print("❌ Server response (\(httpResponse.statusCode)): \(responseText)")
-            }
-
-            // Handle 401 Unauthorized
-            if httpResponse.statusCode == 401 {
-                throw APIError.unauthorized
             }
 
             throw APIError.httpError(httpResponse.statusCode)
@@ -232,6 +329,7 @@ enum APIError: LocalizedError, Equatable {
     case notAuthenticated
     case unauthorized
     case serverError(String)
+    case invalidCredentials
 
     var errorDescription: String? {
         switch self {
@@ -247,6 +345,8 @@ enum APIError: LocalizedError, Equatable {
             return "Session expired. Please login again."
         case .serverError(let message):
             return message
+        case .invalidCredentials:
+            return "Invalid username or password format"
         }
     }
 }

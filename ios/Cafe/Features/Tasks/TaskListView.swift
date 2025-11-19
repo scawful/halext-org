@@ -14,6 +14,10 @@ struct TaskListView: View {
     @State private var showingNewTask = false
     @State private var filterCompleted = false
 
+    // Offline support
+    @State private var syncManager = SyncManager.shared
+    @State private var networkMonitor = NetworkMonitor.shared
+
     private var filteredTasks: [Task] {
         if filterCompleted {
             return tasks.filter { !$0.completed }
@@ -86,6 +90,29 @@ struct TaskListView: View {
                     }
                 }
 
+                // Offline indicator
+                ToolbarItem(placement: .status) {
+                    HStack(spacing: 4) {
+                        if !networkMonitor.isConnected {
+                            Image(systemName: "wifi.slash")
+                                .foregroundColor(.orange)
+                            Text("Offline")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        } else if syncManager.isSyncing {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                            Text("Syncing...")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        } else if let lastSync = syncManager.lastSyncDate {
+                            Text("Synced \(lastSync, style: .relative)")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+
                 if filterCompleted {
                     ToolbarItem(placement: .secondaryAction) {
                         Button(action: {
@@ -120,15 +147,23 @@ struct TaskListView: View {
         }
     }
 
-    // MARK: - API Methods
+    // MARK: - Data Loading (Offline-First)
 
     private func loadTasks() async {
         isLoading = true
         errorMessage = nil
 
         do {
-            tasks = try await APIClient.shared.getTasks()
+            // First, load from local cache (fast)
+            tasks = try syncManager.loadTasksFromCache()
             isLoading = false
+
+            // Then sync with server if online
+            if networkMonitor.isConnected {
+                await syncManager.syncAll()
+                // Reload from cache after sync
+                tasks = try syncManager.loadTasksFromCache()
+            }
         } catch {
             errorMessage = "Failed to load tasks: \(error.localizedDescription)"
             isLoading = false
@@ -137,10 +172,40 @@ struct TaskListView: View {
 
     private func toggleTask(_ task: Task) async {
         do {
-            let updated = try await APIClient.shared.updateTask(id: task.id, completed: !task.completed)
-            // Update local list
-            if let index = tasks.firstIndex(where: { $0.id == task.id }) {
-                tasks[index] = updated
+            let newCompletedStatus = !task.completed
+
+            if networkMonitor.isConnected {
+                // Online: update via API
+                let updated = try await APIClient.shared.updateTask(id: task.id, completed: newCompletedStatus)
+                try? StorageManager.shared.updateTask(updated)
+
+                // Update local list with animation
+                withAnimation(.spring(response: 0.3)) {
+                    if let index = tasks.firstIndex(where: { $0.id == task.id }) {
+                        tasks[index] = updated
+                    }
+                }
+            } else {
+                // Offline: queue for sync
+                try await syncManager.updateTaskOffline(id: task.id, completed: newCompletedStatus)
+
+                // Update local list optimistically
+                withAnimation(.spring(response: 0.3)) {
+                    if let index = tasks.firstIndex(where: { $0.id == task.id }) {
+                        // Create updated task
+                        let updatedTask = Task(
+                            id: task.id,
+                            title: task.title,
+                            description: task.description,
+                            completed: newCompletedStatus,
+                            dueDate: task.dueDate,
+                            createdAt: task.createdAt,
+                            ownerId: task.ownerId,
+                            labels: task.labels
+                        )
+                        tasks[index] = updatedTask
+                    }
+                }
             }
         } catch {
             errorMessage = "Failed to update task: \(error.localizedDescription)"
@@ -149,9 +214,22 @@ struct TaskListView: View {
 
     private func createTask(_ taskCreate: TaskCreate) async {
         do {
-            let newTask = try await APIClient.shared.createTask(taskCreate)
-            tasks.insert(newTask, at: 0)
+            let newTask: Task
+
+            if networkMonitor.isConnected {
+                // Online: create via API
+                newTask = try await APIClient.shared.createTask(taskCreate)
+                try? StorageManager.shared.saveTask(newTask)
+            } else {
+                // Offline: create locally and queue for sync
+                newTask = try await syncManager.createTaskOffline(taskCreate)
+            }
+
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                tasks.insert(newTask, at: 0)
+            }
             showingNewTask = false
+            HapticManager.success()
         } catch {
             errorMessage = "Failed to create task: \(error.localizedDescription)"
         }
@@ -159,8 +237,18 @@ struct TaskListView: View {
 
     private func deleteTask(_ task: Task) async {
         do {
-            try await APIClient.shared.deleteTask(id: task.id)
-            tasks.removeAll { $0.id == task.id }
+            if networkMonitor.isConnected {
+                // Online: delete via API
+                try await APIClient.shared.deleteTask(id: task.id)
+                try? StorageManager.shared.deleteTask(id: task.id)
+            } else {
+                // Offline: delete locally and queue for sync
+                try await syncManager.deleteTaskOffline(id: task.id)
+            }
+
+            withAnimation(.easeOut(duration: 0.3)) {
+                tasks.removeAll { $0.id == task.id }
+            }
         } catch {
             errorMessage = "Failed to delete task: \(error.localizedDescription)"
         }
@@ -175,6 +263,13 @@ struct TaskRowView: View {
     @State private var isToggling = false
 
     private func performToggle() {
+        // Haptic feedback on toggle
+        if task.completed {
+            HapticManager.lightImpact()
+        } else {
+            HapticManager.success()
+        }
+
         _Concurrency.Task {
             isToggling = true
             await onToggle()
@@ -183,6 +278,9 @@ struct TaskRowView: View {
     }
 
     private func performDelete() {
+        // Haptic feedback on delete
+        HapticManager.mediumImpact()
+
         _Concurrency.Task {
             await onDelete()
         }
@@ -260,34 +358,6 @@ struct LabelBadge: View {
                     .fill(Color(hex: label.color ?? "#6B7280").opacity(0.2))
             )
             .foregroundColor(Color(hex: label.color ?? "#6B7280"))
-    }
-}
-
-// MARK: - Helper Extension
-
-extension Color {
-    init(hex: String) {
-        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-        var int: UInt64 = 0
-        Scanner(string: hex).scanHexInt64(&int)
-        let a, r, g, b: UInt64
-        switch hex.count {
-        case 3: // RGB (12-bit)
-            (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
-        case 6: // RGB (24-bit)
-            (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
-        case 8: // ARGB (32-bit)
-            (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
-        default:
-            (a, r, g, b) = (255, 0, 0, 0)
-        }
-        self.init(
-            .sRGB,
-            red: Double(r) / 255,
-            green: Double(g) / 255,
-            blue:  Double(b) / 255,
-            opacity: Double(a) / 255
-        )
     }
 }
 

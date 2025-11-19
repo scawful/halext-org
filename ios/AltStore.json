@@ -1,0 +1,55 @@
+{
+  "name": "Cafe",
+  "bundleIdentifier": "org.halext.Cafe",
+  "developerName": "Halext Org",
+  "subtitle": "Your productivity companion",
+  "version": "1.0",
+  "versionDate": "2025-01-19",
+  "versionDescription": "Initial release with tasks, calendar, AI chat, messaging, and theming",
+  "downloadURL": "https://org.halext.org/downloads/Cafe.ipa",
+  "localizedDescription": "Cafe is a comprehensive productivity app that helps you manage tasks, schedule events, chat with AI assistants, and stay organized. Features include:\n\n• Task Management with smart lists and templates\n• Calendar with event scheduling\n• AI Chat Assistant for productivity help\n• User-to-user messaging with presence indicators\n• Financial management (coming soon)\n• 15 beautiful themes (light and dark)\n• Customizable navigation\n• Offline support with sync\n• Widgets and Live Activities\n• Biometric authentication",
+  "iconURL": "https://org.halext.org/downloads/icon.png",
+  "tintColor": "#007AFF",
+  "size": 25000000,
+  "screenshotURLs": [
+    "https://org.halext.org/downloads/screenshot1.png",
+    "https://org.halext.org/downloads/screenshot2.png",
+    "https://org.halext.org/downloads/screenshot3.png"
+  ],
+  "permissions": [
+    {
+      "type": "photos",
+      "usageDescription": "Cafe needs access to your photos to attach images to tasks and messages"
+    },
+    {
+      "type": "camera",
+      "usageDescription": "Cafe needs access to your camera to capture images and scan documents"
+    },
+    {
+      "type": "microphone",
+      "usageDescription": "Cafe needs access to your microphone for voice input and speech recognition"
+    },
+    {
+      "type": "notifications",
+      "usageDescription": "Cafe sends notifications for task reminders and event alerts"
+    },
+    {
+      "type": "background-fetch",
+      "usageDescription": "Cafe syncs your data in the background to keep everything up to date"
+    }
+  ],
+  "appPermissions": {
+    "entitlements": [
+      {
+        "name": "com.apple.developer.usernotifications.filtering"
+      }
+    ],
+    "privacy": {
+      "NSPhotoLibraryUsageDescription": "Cafe needs access to your photos to attach images to tasks and messages",
+      "NSCameraUsageDescription": "Cafe needs camera access to capture images and scan documents",
+      "NSMicrophoneUsageDescription": "Cafe needs microphone access for voice input and speech recognition",
+      "NSSpeechRecognitionUsageDescription": "Cafe uses speech recognition to convert your voice to text",
+      "NSFaceIDUsageDescription": "Cafe uses Face ID to securely lock and unlock the app"
+    }
+  }
+}

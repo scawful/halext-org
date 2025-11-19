@@ -150,27 +150,10 @@ struct Event: Codable, Identifiable {
     }
 }
 
-// MARK: - Pages
-
-struct Page: Codable, Identifiable {
-    let id: Int
-    let title: String
-    let description: String?
-    let visibility: String
-    let createdAt: Date
-    let updatedAt: Date
-    let ownerId: Int
-
-    enum CodingKeys: String, CodingKey {
-        case id, title, description, visibility
-        case createdAt = "created_at"
-        case updatedAt = "updated_at"
-        case ownerId = "owner_id"
-    }
-}
-
 // MARK: - AI Models
 
+// Note: Using AiChatMessage from AiChatMessage.swift for typed chat messages
+// This ChatMessage is for API compatibility with backend
 struct ChatMessage: Codable {
     let role: String
     let content: String
@@ -192,6 +175,22 @@ struct AIChatResponse: Codable {
     let response: String
     let model: String
     let provider: String
+}
+
+/// Represents a chunk of streamed content from the AI
+struct StreamChunk: Codable {
+    let content: String
+    let isDone: Bool?
+
+    enum CodingKeys: String, CodingKey {
+        case content
+        case isDone = "is_done"
+    }
+
+    init(content: String, isDone: Bool? = nil) {
+        self.content = content
+        self.isDone = isDone
+    }
 }
 
 struct AITaskSuggestionsRequest: Codable {

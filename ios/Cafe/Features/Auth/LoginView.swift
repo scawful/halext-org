@@ -17,17 +17,22 @@ struct LoginView: View {
 
     private func performLogin() {
         _Concurrency.Task {
-            await appState.login(username: username, password: password)
+            // Trim whitespace from credentials
+            let trimmedUsername = username.trimmingCharacters(in: .whitespacesAndNewlines)
+            let trimmedPassword = password.trimmingCharacters(in: .whitespacesAndNewlines)
+            await appState.login(username: trimmedUsername, password: trimmedPassword)
         }
     }
 
     private func handleEnvironmentChange(_ newValue: Bool) {
         // Clear any existing auth state first
-        appState.logout()
+        _Concurrency.Task {
+            await appState.logout()
 
-        // Then update the environment setting
-        useProduction = newValue
-        UserDefaults.standard.set(newValue, forKey: "useProductionAPI")
+            // Then update the environment setting
+            useProduction = newValue
+            UserDefaults.standard.set(newValue, forKey: "useProductionAPI")
+        }
     }
 
     var body: some View {
@@ -123,7 +128,9 @@ struct LoginView: View {
                     // Clear Keychain button
                     Button(action: {
                         KeychainManager.shared.clearAll()
-                        appState.logout()
+                        _Concurrency.Task {
+                            await appState.logout()
+                        }
                     }) {
                         HStack {
                             Image(systemName: "trash")
