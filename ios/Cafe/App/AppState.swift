@@ -35,6 +35,11 @@ class AppState {
         SyncManager.shared.isSyncing
     }
 
+    // Admin Access
+    var isAdmin: Bool {
+        currentUser?.isAdmin ?? false
+    }
+
     init() {
         // Setup notification categories
         NotificationManager.shared.setupNotificationCategories()

@@ -9,6 +9,7 @@ import SwiftUI
 
 struct DashboardView: View {
     @State private var viewModel = DashboardViewModel()
+    @State private var showAIGenerator = false
 
     var body: some View {
         NavigationStack {
@@ -16,6 +17,10 @@ struct DashboardView: View {
                 LazyVStack(spacing: 20) {
                     // Welcome header
                     WelcomeHeader()
+                        .padding(.horizontal)
+
+                    // AI Generator Quick Access
+                    AIGeneratorQuickAccessCard(showAIGenerator: $showAIGenerator)
                         .padding(.horizontal)
 
                     // Stats cards
@@ -39,6 +44,10 @@ struct DashboardView: View {
                         UpcomingEventsWidget(events: viewModel.upcomingEvents)
                             .padding(.horizontal)
                     }
+
+                    // Meal Planning Widget
+                    MealPlanningWidget()
+                        .padding(.horizontal)
 
                     // iOS Features Discovery
                     IOSFeaturesWidget()
@@ -66,6 +75,86 @@ struct DashboardView: View {
                     ProgressView()
                 }
             }
+            .sheet(isPresented: $showAIGenerator) {
+                SmartGeneratorView()
+            }
+        }
+    }
+}
+
+// MARK: - AI Generator Quick Access Card
+
+struct AIGeneratorQuickAccessCard: View {
+    @Binding var showAIGenerator: Bool
+
+    var body: some View {
+        Button {
+            showAIGenerator = true
+        } label: {
+            HStack(spacing: 16) {
+                // Icon
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [.blue, .purple],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 60, height: 60)
+
+                    Image(systemName: "sparkles")
+                        .font(.title2)
+                        .foregroundColor(.white)
+                }
+
+                // Content
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text("AI Task Generator")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+
+                        Spacer()
+
+                        Image(systemName: "arrow.right.circle.fill")
+                            .foregroundColor(.blue)
+                    }
+
+                    Text("Describe what you need in plain English")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .lineLimit(2)
+                }
+
+                Spacer()
+            }
+            .padding()
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color.blue.opacity(0.08),
+                                Color.purple.opacity(0.08)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(
+                        LinearGradient(
+                            colors: [.blue.opacity(0.4), .purple.opacity(0.4)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1.5
+                    )
+            )
         }
     }
 }
@@ -374,6 +463,8 @@ struct EventRow: View {
 // MARK: - Quick Actions
 
 struct QuickActionsWidget: View {
+    @State private var showAIGenerator = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Quick Actions")
@@ -395,11 +486,25 @@ struct QuickActionsWidget: View {
                     color: .purple
                 )
 
-                QuickActionButton(
-                    title: "AI Assistant",
-                    icon: "sparkles",
-                    color: .orange
-                )
+                Button {
+                    showAIGenerator = true
+                } label: {
+                    VStack(spacing: 8) {
+                        Image(systemName: "sparkles")
+                            .font(.title2)
+                            .foregroundColor(.orange)
+
+                        Text("AI Generator")
+                            .font(.caption)
+                            .foregroundColor(.primary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color(.systemBackground))
+                    )
+                }
 
                 QuickActionButton(
                     title: "View All",
@@ -413,6 +518,9 @@ struct QuickActionsWidget: View {
             RoundedRectangle(cornerRadius: 16)
                 .fill(Color(.systemGray6))
         )
+        .sheet(isPresented: $showAIGenerator) {
+            SmartGeneratorView()
+        }
     }
 }
 
@@ -655,6 +763,107 @@ struct IOSFeatureCardContent: View {
 
 // Note: IOSFeaturesDetailView and related components are defined in MoreView.swift
 // to avoid code duplication between Dashboard and More tabs
+
+// MARK: - Meal Planning Widget
+
+struct MealPlanningWidget: View {
+    @State private var showingRecipeGenerator = false
+    @State private var showingMealPlan = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Image(systemName: "fork.knife")
+                    .foregroundColor(.orange)
+                Text("What's for Dinner?")
+                    .font(.headline)
+                Spacer()
+            }
+
+            VStack(spacing: 12) {
+                // Recipe Ideas Button
+                Button(action: { showingRecipeGenerator = true }) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Recipe Ideas")
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.primary)
+
+                            Text("Get AI-powered recipe suggestions")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+
+                        Spacer()
+
+                        Image(systemName: "sparkles")
+                            .font(.title3)
+                            .foregroundColor(.orange)
+                    }
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.orange.opacity(0.1))
+                    )
+                }
+                .buttonStyle(.plain)
+
+                // Meal Plan Button
+                Button(action: { showingMealPlan = true }) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Weekly Meal Plan")
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.primary)
+
+                            Text("Plan your meals for the week")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+
+                        Spacer()
+
+                        Image(systemName: "calendar")
+                            .font(.title3)
+                            .foregroundColor(.orange)
+                    }
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.orange.opacity(0.1))
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+
+            // Quick Tips
+            HStack(spacing: 8) {
+                Image(systemName: "lightbulb.fill")
+                    .font(.caption)
+                    .foregroundColor(.yellow)
+
+                Text("Tip: Add shopping lists to your tasks to get instant recipe suggestions")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .padding(.top, 4)
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(.systemBackground))
+                .shadow(color: .black.opacity(0.05), radius: 8, y: 2)
+        )
+        .sheet(isPresented: $showingRecipeGenerator) {
+            RecipeGeneratorView()
+        }
+        .sheet(isPresented: $showingMealPlan) {
+            MealPlanGeneratorView()
+        }
+    }
+}
 
 // MARK: - All Apps Widget
 

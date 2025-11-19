@@ -1,0 +1,665 @@
+{
+  "api_endpoint": "POST /api/ai/generate-tasks",
+  "description": "Generate structured tasks, events, and smart lists from natural language prompts",
+  "authentication": "Bearer token required",
+  "rate_limit": "10 requests per minute, 100 per day per user",
+  "examples": [
+    {
+      "scenario": "Trip Planning",
+      "request": {
+        "prompt": "Plan a trip to Japan next month",
+        "context": {
+          "timezone": "America/Los_Angeles",
+          "current_date": "2025-11-19T10:30:00Z",
+          "existing_task_titles": [
+            "Book dentist appointment",
+            "Finish project proposal"
+          ],
+          "upcoming_event_dates": [
+            "2025-11-25T14:00:00Z",
+            "2025-12-01T09:00:00Z"
+          ]
+        }
+      },
+      "response": {
+        "tasks": [
+          {
+            "title": "Research flight options",
+            "description": "Compare prices on different airlines and find best routes to Tokyo",
+            "due_date": "2025-12-10T17:00:00Z",
+            "priority": "high",
+            "labels": ["Travel", "Important"],
+            "estimated_minutes": 45,
+            "subtasks": [
+              "Check Google Flights for prices",
+              "Compare direct vs connecting flights",
+              "Look for airline deals and promotions"
+            ],
+            "reasoning": "High priority because flights should be booked early for better prices and availability"
+          },
+          {
+            "title": "Book round-trip flights",
+            "description": "Purchase tickets after researching best options",
+            "due_date": "2025-12-12T17:00:00Z",
+            "priority": "high",
+            "labels": ["Travel", "Important"],
+            "estimated_minutes": 30,
+            "subtasks": null,
+            "reasoning": "Must be done soon after research to secure good prices"
+          },
+          {
+            "title": "Reserve hotels in Tokyo and Kyoto",
+            "description": "Book accommodations for both cities",
+            "due_date": "2025-12-14T17:00:00Z",
+            "priority": "medium",
+            "labels": ["Travel", "Accommodation"],
+            "estimated_minutes": 60,
+            "subtasks": [
+              "Find hotel in Tokyo near train station",
+              "Book Kyoto ryokan or hotel",
+              "Check cancellation policies"
+            ],
+            "reasoning": "Medium priority, can be done shortly after flights are confirmed"
+          },
+          {
+            "title": "Apply for JR Pass",
+            "description": "Order Japan Rail Pass for unlimited train travel",
+            "due_date": "2025-12-15T17:00:00Z",
+            "priority": "medium",
+            "labels": ["Travel", "Transportation"],
+            "estimated_minutes": 20,
+            "subtasks": null,
+            "reasoning": "Must be ordered before trip and exchanged upon arrival"
+          },
+          {
+            "title": "Create packing list",
+            "description": "List all items needed for 2-week Japan trip",
+            "due_date": "2025-12-17T17:00:00Z",
+            "priority": "low",
+            "labels": ["Travel", "Preparation"],
+            "estimated_minutes": 30,
+            "subtasks": [
+              "Check weather forecast",
+              "List clothing items",
+              "Note electronics and adapters needed"
+            ],
+            "reasoning": "Can be done closer to trip date"
+          },
+          {
+            "title": "Book activities and tours",
+            "description": "Reserve tickets for museums, temples, and tours",
+            "due_date": "2025-12-18T17:00:00Z",
+            "priority": "low",
+            "labels": ["Travel", "Activities"],
+            "estimated_minutes": 90,
+            "subtasks": [
+              "Book Tokyo Skytree tickets",
+              "Reserve Fushimi Inari tour",
+              "Get temple visit reservations"
+            ],
+            "reasoning": "Optional but recommended for popular attractions"
+          }
+        ],
+        "events": [
+          {
+            "title": "Flight to Tokyo",
+            "description": "Departure from SFO to NRT",
+            "start_time": "2025-12-20T14:00:00Z",
+            "end_time": "2025-12-21T18:00:00Z",
+            "location": "San Francisco International Airport",
+            "recurrence_type": "none",
+            "reasoning": "Scheduled based on 'next month' being approximately 1 month from now"
+          },
+          {
+            "title": "Hotel Check-in Tokyo",
+            "description": "Check in to Tokyo hotel",
+            "start_time": "2025-12-21T23:00:00Z",
+            "end_time": "2025-12-22T00:00:00Z",
+            "location": "Tokyo, Japan",
+            "recurrence_type": "none",
+            "reasoning": "Arrival day check-in after flight"
+          },
+          {
+            "title": "Travel to Kyoto",
+            "description": "Shinkansen train to Kyoto",
+            "start_time": "2025-12-26T09:00:00Z",
+            "end_time": "2025-12-26T11:30:00Z",
+            "location": "Tokyo Station",
+            "recurrence_type": "none",
+            "reasoning": "Mid-trip city change for variety"
+          },
+          {
+            "title": "Return Flight",
+            "description": "Flight from NRT to SFO",
+            "start_time": "2026-01-03T16:00:00Z",
+            "end_time": "2026-01-03T09:00:00Z",
+            "location": "Narita International Airport",
+            "recurrence_type": "none",
+            "reasoning": "Return flight 2 weeks after departure"
+          }
+        ],
+        "smart_lists": [
+          {
+            "name": "Japan Packing List",
+            "description": "Essential items for 2-week Japan trip",
+            "category": "travel",
+            "items": [
+              "Passport (valid 6+ months)",
+              "Travel insurance documents",
+              "Japanese Yen (initial cash)",
+              "Travel adapter (Type A/B)",
+              "Pocket WiFi or SIM card",
+              "Comfortable walking shoes",
+              "Light jacket (December weather)",
+              "Medications and prescriptions",
+              "Credit cards (Visa/Mastercard)",
+              "Phone charger and power bank"
+            ],
+            "reasoning": "Essential items for international travel to Japan in winter"
+          },
+          {
+            "name": "Must-See Attractions",
+            "description": "Top places to visit in Tokyo and Kyoto",
+            "category": "travel",
+            "items": [
+              "Senso-ji Temple (Tokyo)",
+              "Shibuya Crossing (Tokyo)",
+              "Tokyo Skytree",
+              "Meiji Shrine (Tokyo)",
+              "Fushimi Inari Shrine (Kyoto)",
+              "Kinkaku-ji (Golden Pavilion, Kyoto)",
+              "Arashiyama Bamboo Grove (Kyoto)",
+              "Nishiki Market (Kyoto)"
+            ],
+            "reasoning": "Popular tourist attractions in both cities"
+          }
+        ],
+        "metadata": {
+          "original_prompt": "Plan a trip to Japan next month",
+          "model": "gpt-4",
+          "summary": "Created 6 tasks, 4 events, and 2 lists for planning a comprehensive trip to Japan including flights, accommodation, activities, and packing preparation"
+        }
+      }
+    },
+    {
+      "scenario": "Birthday Party Planning",
+      "request": {
+        "prompt": "Prepare for Sarah's birthday party on Saturday",
+        "context": {
+          "timezone": "America/New_York",
+          "current_date": "2025-11-19T15:00:00Z",
+          "existing_task_titles": [],
+          "upcoming_event_dates": []
+        }
+      },
+      "response": {
+        "tasks": [
+          {
+            "title": "Send party invitations",
+            "description": "Create and send invitations to all guests",
+            "due_date": "2025-11-21T17:00:00Z",
+            "priority": "high",
+            "labels": ["Party", "Urgent"],
+            "estimated_minutes": 30,
+            "subtasks": [
+              "Finalize guest list",
+              "Design invitation",
+              "Send via email or text"
+            ],
+            "reasoning": "High priority to give guests advance notice"
+          },
+          {
+            "title": "Book party venue",
+            "description": "Reserve space for the party",
+            "due_date": "2025-11-20T17:00:00Z",
+            "priority": "high",
+            "labels": ["Party", "Important"],
+            "estimated_minutes": 45,
+            "subtasks": null,
+            "reasoning": "Must be done ASAP before Saturday"
+          },
+          {
+            "title": "Order birthday cake",
+            "description": "Order custom cake from bakery",
+            "due_date": "2025-11-21T17:00:00Z",
+            "priority": "medium",
+            "labels": ["Party", "Food"],
+            "estimated_minutes": 20,
+            "subtasks": [
+              "Choose cake flavor",
+              "Decide on design",
+              "Place order with bakery"
+            ],
+            "reasoning": "Most bakeries need 2-3 days notice"
+          },
+          {
+            "title": "Buy decorations",
+            "description": "Purchase balloons, banners, and party supplies",
+            "due_date": "2025-11-22T17:00:00Z",
+            "priority": "medium",
+            "labels": ["Party", "Shopping"],
+            "estimated_minutes": 60,
+            "subtasks": null,
+            "reasoning": "Can be done a day or two before"
+          },
+          {
+            "title": "Plan party games and activities",
+            "description": "Organize entertainment for guests",
+            "due_date": "2025-11-21T17:00:00Z",
+            "priority": "low",
+            "labels": ["Party", "Entertainment"],
+            "estimated_minutes": 30,
+            "subtasks": [
+              "Choose 2-3 party games",
+              "Gather supplies needed",
+              "Create playlist"
+            ],
+            "reasoning": "Nice to have but not critical"
+          },
+          {
+            "title": "Shop for food and drinks",
+            "description": "Buy snacks, drinks, and party food",
+            "due_date": "2025-11-22T17:00:00Z",
+            "priority": "high",
+            "labels": ["Party", "Food", "Shopping"],
+            "estimated_minutes": 90,
+            "subtasks": [
+              "Make shopping list",
+              "Buy non-perishables",
+              "Buy fresh items day before"
+            ],
+            "reasoning": "Essential for the party"
+          },
+          {
+            "title": "Buy birthday gift for Sarah",
+            "description": "Purchase a thoughtful gift",
+            "due_date": "2025-11-22T17:00:00Z",
+            "priority": "medium",
+            "labels": ["Party", "Shopping"],
+            "estimated_minutes": 60,
+            "subtasks": null,
+            "reasoning": "Important but not time-critical"
+          },
+          {
+            "title": "Setup party venue",
+            "description": "Decorate and prepare the space",
+            "due_date": "2025-11-23T14:00:00Z",
+            "priority": "high",
+            "labels": ["Party", "Setup"],
+            "estimated_minutes": 120,
+            "subtasks": [
+              "Hang decorations",
+              "Set up tables and chairs",
+              "Arrange food station"
+            ],
+            "reasoning": "Must be done before guests arrive"
+          }
+        ],
+        "events": [
+          {
+            "title": "Party Setup",
+            "description": "Arrive early to decorate and prepare venue",
+            "start_time": "2025-11-23T14:00:00Z",
+            "end_time": "2025-11-23T16:00:00Z",
+            "location": "Party Venue",
+            "recurrence_type": "none",
+            "reasoning": "2 hours before party for setup"
+          },
+          {
+            "title": "Sarah's Birthday Party",
+            "description": "Main birthday celebration",
+            "start_time": "2025-11-23T18:00:00Z",
+            "end_time": "2025-11-23T22:00:00Z",
+            "location": "Party Venue",
+            "recurrence_type": "none",
+            "reasoning": "Typical party duration of 4 hours"
+          }
+        ],
+        "smart_lists": [
+          {
+            "name": "Party Shopping List",
+            "description": "Items to buy for the party",
+            "category": "shopping",
+            "items": [
+              "Balloons (various colors)",
+              "Happy Birthday banner",
+              "Paper plates and cups",
+              "Napkins",
+              "Plastic cutlery",
+              "Chips and snacks",
+              "Sodas and juice",
+              "Ice",
+              "Candles for cake",
+              "Gift wrap and card"
+            ],
+            "reasoning": "Comprehensive shopping list for party supplies"
+          }
+        ],
+        "metadata": {
+          "original_prompt": "Prepare for Sarah's birthday party on Saturday",
+          "model": "gpt-4",
+          "summary": "Created 8 tasks, 2 events, and 1 shopping list for organizing a birthday party on short notice"
+        }
+      }
+    },
+    {
+      "scenario": "Weekly Meal Prep",
+      "request": {
+        "prompt": "Weekly meal prep routine for healthy eating",
+        "context": {
+          "timezone": "America/Chicago",
+          "current_date": "2025-11-19T12:00:00Z",
+          "existing_task_titles": [],
+          "upcoming_event_dates": []
+        }
+      },
+      "response": {
+        "tasks": [
+          {
+            "title": "Plan weekly menu",
+            "description": "Choose recipes for breakfast, lunch, and dinner",
+            "due_date": null,
+            "priority": "medium",
+            "labels": ["Health", "Meal Prep", "Planning"],
+            "estimated_minutes": 30,
+            "subtasks": [
+              "Browse healthy recipes",
+              "Check pantry inventory",
+              "Balance nutrition across meals"
+            ],
+            "reasoning": "Foundation for successful meal prep"
+          },
+          {
+            "title": "Create grocery list",
+            "description": "List all ingredients needed for weekly meals",
+            "due_date": null,
+            "priority": "medium",
+            "labels": ["Health", "Meal Prep", "Shopping"],
+            "estimated_minutes": 20,
+            "subtasks": [
+              "Check recipes for ingredients",
+              "Note quantities needed",
+              "Organize by store section"
+            ],
+            "reasoning": "Essential step after menu planning"
+          }
+        ],
+        "events": [
+          {
+            "title": "Menu Planning Session",
+            "description": "Plan meals for the upcoming week",
+            "start_time": "2025-11-24T14:00:00Z",
+            "end_time": "2025-11-24T14:30:00Z",
+            "location": null,
+            "recurrence_type": "weekly",
+            "reasoning": "Recurring every Sunday to plan ahead"
+          },
+          {
+            "title": "Grocery Shopping",
+            "description": "Buy all ingredients for weekly meal prep",
+            "start_time": "2025-11-24T16:00:00Z",
+            "end_time": "2025-11-24T17:00:00Z",
+            "location": "Grocery Store",
+            "recurrence_type": "weekly",
+            "reasoning": "Weekly shopping trip after planning"
+          },
+          {
+            "title": "Meal Prep Cooking Session",
+            "description": "Prepare and cook meals for the week",
+            "start_time": "2025-11-24T18:00:00Z",
+            "end_time": "2025-11-24T21:00:00Z",
+            "location": "Home Kitchen",
+            "recurrence_type": "weekly",
+            "reasoning": "3-hour cooking session every Sunday"
+          },
+          {
+            "title": "Portion and Store Meals",
+            "description": "Divide meals into containers and refrigerate",
+            "start_time": "2025-11-24T21:00:00Z",
+            "end_time": "2025-11-24T22:00:00Z",
+            "location": "Home Kitchen",
+            "recurrence_type": "weekly",
+            "reasoning": "Final step after cooking"
+          }
+        ],
+        "smart_lists": [
+          {
+            "name": "Meal Prep Containers",
+            "description": "Storage containers needed for meal prep",
+            "category": "kitchen",
+            "items": [
+              "Glass meal prep containers (15-20)",
+              "Divided containers for lunches",
+              "Freezer-safe bags",
+              "Labels and markers",
+              "Reusable produce bags"
+            ],
+            "reasoning": "Essential supplies for organized meal prep"
+          },
+          {
+            "name": "Healthy Protein Sources",
+            "description": "Protein options for balanced meals",
+            "category": "nutrition",
+            "items": [
+              "Chicken breast",
+              "Ground turkey",
+              "Salmon fillets",
+              "Eggs",
+              "Greek yogurt",
+              "Tofu",
+              "Black beans",
+              "Lentils"
+            ],
+            "reasoning": "Variety of protein sources for weekly rotation"
+          }
+        ],
+        "metadata": {
+          "original_prompt": "Weekly meal prep routine for healthy eating",
+          "model": "gpt-4",
+          "summary": "Created 2 planning tasks, 4 recurring weekly events, and 2 lists for establishing a sustainable meal prep routine"
+        }
+      }
+    },
+    {
+      "scenario": "Home Renovation",
+      "request": {
+        "prompt": "Kitchen renovation project starting next month",
+        "context": {
+          "timezone": "America/Los_Angeles",
+          "current_date": "2025-11-19T10:00:00Z",
+          "existing_task_titles": [],
+          "upcoming_event_dates": []
+        }
+      },
+      "response": {
+        "tasks": [
+          {
+            "title": "Get renovation quotes from contractors",
+            "description": "Contact 3-5 contractors for project estimates",
+            "due_date": "2025-11-25T17:00:00Z",
+            "priority": "high",
+            "labels": ["Home", "Renovation", "Planning"],
+            "estimated_minutes": 120,
+            "subtasks": [
+              "Research local contractors",
+              "Request quotes",
+              "Schedule consultations"
+            ],
+            "reasoning": "Critical first step to understand costs and timeline"
+          },
+          {
+            "title": "Finalize kitchen design and layout",
+            "description": "Choose cabinets, countertops, appliances, and colors",
+            "due_date": "2025-11-28T17:00:00Z",
+            "priority": "high",
+            "labels": ["Home", "Renovation", "Design"],
+            "estimated_minutes": 180,
+            "subtasks": [
+              "Browse kitchen designs",
+              "Measure space",
+              "Create mood board",
+              "Select materials"
+            ],
+            "reasoning": "Must be decided before work begins"
+          },
+          {
+            "title": "Apply for building permits",
+            "description": "Submit permit applications to city",
+            "due_date": "2025-12-02T17:00:00Z",
+            "priority": "high",
+            "labels": ["Home", "Renovation", "Legal"],
+            "estimated_minutes": 60,
+            "subtasks": [
+              "Check permit requirements",
+              "Gather necessary documents",
+              "Submit applications"
+            ],
+            "reasoning": "Can take 2-4 weeks to approve"
+          },
+          {
+            "title": "Order custom cabinets and countertops",
+            "description": "Place orders for long lead-time items",
+            "due_date": "2025-12-05T17:00:00Z",
+            "priority": "high",
+            "labels": ["Home", "Renovation", "Materials"],
+            "estimated_minutes": 90,
+            "subtasks": null,
+            "reasoning": "Custom items can take 6-8 weeks"
+          },
+          {
+            "title": "Order appliances",
+            "description": "Purchase refrigerator, stove, dishwasher, microwave",
+            "due_date": "2025-12-10T17:00:00Z",
+            "priority": "medium",
+            "labels": ["Home", "Renovation", "Materials"],
+            "estimated_minutes": 120,
+            "subtasks": [
+              "Compare appliance brands",
+              "Check delivery times",
+              "Place orders"
+            ],
+            "reasoning": "Need to coordinate delivery with installation"
+          },
+          {
+            "title": "Set up temporary kitchen",
+            "description": "Create functional cooking space during renovation",
+            "due_date": "2025-12-18T17:00:00Z",
+            "priority": "medium",
+            "labels": ["Home", "Renovation", "Planning"],
+            "estimated_minutes": 60,
+            "subtasks": [
+              "Set up microwave in dining room",
+              "Move essentials to temporary area",
+              "Stock disposable plates/utensils"
+            ],
+            "reasoning": "Important for daily life during construction"
+          },
+          {
+            "title": "Clear out kitchen completely",
+            "description": "Remove all items and pack safely",
+            "due_date": "2025-12-19T17:00:00Z",
+            "priority": "high",
+            "labels": ["Home", "Renovation", "Preparation"],
+            "estimated_minutes": 180,
+            "subtasks": [
+              "Box up dishes and cookware",
+              "Empty cabinets and drawers",
+              "Store safely in garage"
+            ],
+            "reasoning": "Must be done before demo starts"
+          }
+        ],
+        "events": [
+          {
+            "title": "Initial contractor consultation",
+            "description": "Walk-through with potential contractor",
+            "start_time": "2025-11-26T14:00:00Z",
+            "end_time": "2025-11-26T15:30:00Z",
+            "location": "Home",
+            "recurrence_type": "none",
+            "reasoning": "First consultation meeting"
+          },
+          {
+            "title": "Permit approval appointment",
+            "description": "Meeting with city building department",
+            "start_time": "2025-12-09T10:00:00Z",
+            "end_time": "2025-12-09T11:00:00Z",
+            "location": "City Hall",
+            "recurrence_type": "none",
+            "reasoning": "Required permit review"
+          },
+          {
+            "title": "Kitchen demolition starts",
+            "description": "Contractors begin demo work",
+            "start_time": "2025-12-20T08:00:00Z",
+            "end_time": "2025-12-20T17:00:00Z",
+            "location": "Home",
+            "recurrence_type": "none",
+            "reasoning": "Official start of renovation"
+          },
+          {
+            "title": "Cabinet installation",
+            "description": "Custom cabinets delivered and installed",
+            "start_time": "2026-01-15T08:00:00Z",
+            "end_time": "2026-01-15T17:00:00Z",
+            "location": "Home",
+            "recurrence_type": "none",
+            "reasoning": "After 8 weeks lead time"
+          },
+          {
+            "title": "Final inspection",
+            "description": "City inspector final approval",
+            "start_time": "2026-02-01T14:00:00Z",
+            "end_time": "2026-02-01T15:00:00Z",
+            "location": "Home",
+            "recurrence_type": "none",
+            "reasoning": "Required before project completion"
+          }
+        ],
+        "smart_lists": [],
+        "metadata": {
+          "original_prompt": "Kitchen renovation project starting next month",
+          "model": "gpt-4",
+          "summary": "Created 7 tasks and 5 events for a comprehensive kitchen renovation timeline spanning 2-3 months"
+        }
+      }
+    }
+  ],
+  "error_responses": [
+    {
+      "scenario": "Empty prompt",
+      "status": 400,
+      "error": {
+        "detail": "Prompt is required and must be at least 5 characters"
+      }
+    },
+    {
+      "scenario": "Prompt too long",
+      "status": 400,
+      "error": {
+        "detail": "Prompt must be less than 2000 characters"
+      }
+    },
+    {
+      "scenario": "Invalid authentication",
+      "status": 401,
+      "error": {
+        "detail": "Invalid or expired authentication token"
+      }
+    },
+    {
+      "scenario": "Rate limit exceeded",
+      "status": 429,
+      "error": {
+        "detail": "Rate limit exceeded. Maximum 10 requests per minute."
+      }
+    },
+    {
+      "scenario": "AI service unavailable",
+      "status": 503,
+      "error": {
+        "detail": "AI service temporarily unavailable. Please try again later."
+      }
+    }
+  ]
+}

@@ -210,6 +210,25 @@ struct SettingsView: View {
                     }
                 }
 
+                // Admin section - only visible to admin users
+                if appState.isAdmin {
+                    Section("Administration") {
+                        NavigationLink(destination: AdminView()) {
+                            Label {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Admin Panel")
+                                    Text("System management and configuration")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            } icon: {
+                                Image(systemName: "shield.fill")
+                                    .foregroundColor(.orange)
+                            }
+                        }
+                    }
+                }
+
                 Section {
                     Button(role: .destructive, action: {
                         _Concurrency.Task {

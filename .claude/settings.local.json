@@ -31,7 +31,16 @@
       "Bash(./scripts/preflight-check.sh:*)",
       "Bash(tree:*)",
       "Bash(killall:*)",
-      "Bash(xargs kill:*)"
+      "Bash(xargs kill:*)",
+      "Bash(ssh-copy-id:*)",
+      "Bash(ssh:*)",
+      "Bash(sudo /usr/libexec/ApplicationFirewall/socketfilterfw:*)",
+      "Bash(./scripts/deploy-frontend-fast.sh:*)",
+      "Bash(ping:*)",
+      "Bash(nc -zv:*)",
+      "Bash(cloudflared tunnel route dns:*)",
+      "Bash(defaults write:*)",
+      "Bash(pgrep:*)"
     ],
     "deny": [],
     "ask": []

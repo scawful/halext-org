@@ -1,0 +1,30 @@
+Command line invocation:
+    /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild -project Cafe.xcodeproj -scheme Cafe -configuration Debug -sdk iphonesimulator -destination "platform=iOS Simulator,name=iPhone 15" clean build
+
+Build settings from command line:
+    SDKROOT = iphonesimulator26.1
+
+2025-11-19 01:42:44.522 xcodebuild[82237:10451587] [MT] IDERunDestination: Supported platforms for the buildables in the current scheme is empty.
+2025-11-19 01:43:44.719 xcodebuild[82237:10451587] Writing error result bundle to /var/folders/42/b_1q5t0n1xgb_05h2067y8hh0000gn/T/ResultBundle_2025-19-11_01-43-0044.xcresult
+xcodebuild: error: Unable to find a device matching the provided destination specifier:
+		{ platform:iOS Simulator, OS:latest, name:iPhone 15 }
+
+	The requested device could not be found because no available devices matched the request.
+
+	Available destinations for the "Cafe" scheme:
+		{ platform:iOS, id:dvtdevice-DVTiPhonePlaceholder-iphoneos:placeholder, name:Any iOS Device }
+		{ platform:iOS Simulator, id:dvtdevice-DVTiOSDeviceSimulatorPlaceholder-iphonesimulator:placeholder, name:Any iOS Simulator Device }
+		{ platform:iOS Simulator, arch:arm64, id:45E79BAD-EAED-4493-897C-6D938352B54A, OS:26.1, name:iPad (A16) }
+		{ platform:iOS Simulator, arch:arm64, id:D7EC3DFD-EE89-4B03-A66B-6B4358EDF2DB, OS:26.1, name:iPad Air 11-inch (M3) }
+		{ platform:iOS Simulator, arch:arm64, id:EF9FE696-F921-4D3F-A565-0D94B38C03AD, OS:26.1, name:iPad Air 13-inch (M3) }
+		{ platform:iOS Simulator, arch:arm64, id:9ABC324C-4F73-431F-ACB0-A577F06F8A2B, OS:26.1, name:iPad Pro 11-inch (M5) }
+		{ platform:iOS Simulator, arch:arm64, id:DB6F0233-4FFD-400C-BE95-493CD870DAB1, OS:26.1, name:iPad Pro 13-inch (M5) }
+		{ platform:iOS Simulator, arch:arm64, id:55428DD7-6854-4974-97CE-7247EE0AC233, OS:26.1, name:iPad mini (A17 Pro) }
+		{ platform:iOS Simulator, arch:arm64, id:665D582B-5086-4192-8798-60D0B5A93283, OS:26.1, name:iPhone 16e }
+		{ platform:iOS Simulator, arch:arm64, id:EB3CF64D-60FF-441A-9F7E-1AB911E052A6, OS:26.1, name:iPhone 17 }
+		{ platform:iOS Simulator, arch:arm64, id:B72360B6-FAC8-46B5-9191-DE53A3146B0A, OS:26.1, name:iPhone 17 Pro }
+		{ platform:iOS Simulator, arch:arm64, id:A85835F7-9B92-4236-A255-D38603C89D48, OS:26.1, name:iPhone 17 Pro Max }
+		{ platform:iOS Simulator, arch:arm64, id:E47E7BFB-C178-416F-94F9-BE52C6BE0C11, OS:26.1, name:iPhone Air }
+
+	Ineligible destinations for the "Cafe" scheme:
+		{ platform:macOS, arch:undefined_arch, variant:Designed for [iPad,iPhone], id:00006000-000259EE3C51801E, name:My Mac, error:Xcode doesn’t support My Mac’s macOS 26.0.1 (25A362).  }

@@ -13,6 +13,8 @@ struct TaskListView: View {
     @State private var errorMessage: String?
     @State private var showingNewTask = false
     @State private var filterCompleted = false
+    @State private var showingRecipeGenerator = false
+    @State private var selectedTaskForRecipes: Task?
 
     // Offline support
     @State private var syncManager = SyncManager.shared
@@ -72,6 +74,9 @@ struct TaskListView: View {
                                 await toggleTask(task)
                             } onDelete: {
                                 await deleteTask(task)
+                            } onGenerateRecipe: {
+                                selectedTaskForRecipes = task
+                                showingRecipeGenerator = true
                             }
                         }
                     }
@@ -129,6 +134,9 @@ struct TaskListView: View {
                 NewTaskView { newTask in
                     await createTask(newTask)
                 }
+            }
+            .sheet(isPresented: $showingRecipeGenerator) {
+                RecipeGeneratorFromTaskView(task: selectedTaskForRecipes)
             }
             .task {
                 await loadTasks()
@@ -259,6 +267,7 @@ struct TaskRowView: View {
     let task: Task
     let onToggle: () async -> Void
     let onDelete: () async -> Void
+    let onGenerateRecipe: () -> Void
 
     @State private var isToggling = false
 
@@ -342,6 +351,21 @@ struct TaskRowView: View {
                 SwiftUI.Label("Delete", systemImage: "trash")
             }
         }
+        .swipeActions(edge: .leading, allowsFullSwipe: false) {
+            Button(action: onGenerateRecipe) {
+                SwiftUI.Label("Recipe", systemImage: "fork.knife")
+            }
+            .tint(.orange)
+        }
+        .contextMenu {
+            Button(action: onGenerateRecipe) {
+                SwiftUI.Label("Generate Recipes", systemImage: "fork.knife")
+            }
+
+            Button(action: performDelete) {
+                SwiftUI.Label("Delete", systemImage: "trash")
+            }
+        }
     }
 }
 
@@ -358,6 +382,138 @@ struct LabelBadge: View {
                     .fill(Color(hex: label.color ?? "#6B7280").opacity(0.2))
             )
             .foregroundColor(Color(hex: label.color ?? "#6B7280"))
+    }
+}
+
+// MARK: - Recipe Generator from Task
+
+struct RecipeGeneratorFromTaskView: View {
+    let task: Task?
+    @StateObject private var recipeGenerator = AIRecipeGenerator.shared
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var selectedIngredients: [String] = []
+    @State private var generatedRecipes: [Recipe] = []
+    @State private var selectedRecipe: Recipe?
+    @State private var errorMessage: String?
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                if recipeGenerator.isGenerating {
+                    VStack(spacing: 20) {
+                        ProgressView()
+                            .scaleEffect(1.5)
+                        Text("Generating recipes from your shopping list...")
+                            .font(.headline)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding()
+                    }
+                } else if generatedRecipes.isEmpty {
+                    VStack(spacing: 20) {
+                        Image(systemName: "cart.fill")
+                            .font(.system(size: 60))
+                            .foregroundColor(.orange)
+
+                        if let task = task {
+                            Text("Generate recipes from:")
+                                .font(.headline)
+                            Text(task.title)
+                                .font(.title3)
+                                .fontWeight(.bold)
+                                .padding(.horizontal)
+                                .multilineTextAlignment(.center)
+
+                            if !selectedIngredients.isEmpty {
+                                Text("Found \(selectedIngredients.count) ingredients")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+
+                        Button(action: generateRecipes) {
+                            Label("Generate Recipes", systemImage: "sparkles")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Color.orange)
+                                .cornerRadius(12)
+                        }
+                        .padding(.horizontal)
+                        .disabled(selectedIngredients.isEmpty)
+                    }
+                } else {
+                    ScrollView {
+                        LazyVStack(spacing: 16) {
+                            Text("\(generatedRecipes.count) recipes found")
+                                .font(.headline)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal)
+
+                            ForEach(generatedRecipes) { recipe in
+                                RecipeCardView(recipe: recipe) {
+                                    selectedRecipe = recipe
+                                }
+                                .padding(.horizontal)
+                            }
+                        }
+                        .padding(.vertical)
+                    }
+                }
+            }
+            .navigationTitle("Recipe Ideas")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
+            .sheet(item: $selectedRecipe) { recipe in
+                NavigationStack {
+                    RecipeDetailView(recipe: recipe)
+                }
+            }
+            .alert("Error", isPresented: .constant(errorMessage != nil)) {
+                Button("OK") {
+                    errorMessage = nil
+                }
+            } message: {
+                if let error = errorMessage {
+                    Text(error)
+                }
+            }
+            .task {
+                extractIngredients()
+            }
+        }
+    }
+
+    private func extractIngredients() {
+        guard let task = task else { return }
+        selectedIngredients = recipeGenerator.extractIngredientsFromTask(task)
+    }
+
+    private func generateRecipes() {
+        _Concurrency.Task {
+            do {
+                let recipes = try await recipeGenerator.generateRecipes(
+                    ingredients: selectedIngredients,
+                    servings: 4
+                )
+
+                await MainActor.run {
+                    generatedRecipes = recipes
+                }
+            } catch {
+                await MainActor.run {
+                    errorMessage = error.localizedDescription
+                }
+            }
+        }
     }
 }
 

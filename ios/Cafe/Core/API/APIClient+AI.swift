@@ -109,6 +109,145 @@ extension APIClient {
         request.httpBody = try JSONEncoder().encode(body)
         return try await performRequest(request)
     }
+
+    // MARK: - Recipe AI Features
+
+    func generateRecipes(request: RecipeGenerationRequest) async throws -> RecipeGenerationResponse {
+        var apiRequest = try authorizedRequest(path: "/ai/recipes/generate", method: "POST")
+        let encoder = JSONEncoder()
+        encoder.keyEncodingStrategy = .convertToSnakeCase
+        apiRequest.httpBody = try encoder.encode(request)
+
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+
+        let (data, response) = try await URLSession.shared.data(for: apiRequest)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.invalidResponse
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            throw APIError.httpError(httpResponse.statusCode)
+        }
+
+        return try decoder.decode(RecipeGenerationResponse.self, from: data)
+    }
+
+    func generateMealPlan(request: MealPlanRequest) async throws -> MealPlanResponse {
+        var apiRequest = try authorizedRequest(path: "/ai/recipes/meal-plan", method: "POST")
+        let encoder = JSONEncoder()
+        encoder.keyEncodingStrategy = .convertToSnakeCase
+        apiRequest.httpBody = try encoder.encode(request)
+
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        decoder.dateDecodingStrategy = .iso8601
+
+        let (data, response) = try await URLSession.shared.data(for: apiRequest)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.invalidResponse
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            throw APIError.httpError(httpResponse.statusCode)
+        }
+
+        return try decoder.decode(MealPlanResponse.self, from: data)
+    }
+
+    func generateRecipesWithSubstitutions(
+        ingredients: [String],
+        recipeType: String?
+    ) async throws -> RecipeGenerationResponse {
+        struct SubstitutionRequest: Codable {
+            let ingredients: [String]
+            let recipeType: String?
+
+            enum CodingKeys: String, CodingKey {
+                case ingredients
+                case recipeType = "recipe_type"
+            }
+        }
+
+        var apiRequest = try authorizedRequest(path: "/ai/recipes/suggest-substitutions", method: "POST")
+        let body = SubstitutionRequest(ingredients: ingredients, recipeType: recipeType)
+        apiRequest.httpBody = try JSONEncoder().encode(body)
+
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+
+        let (data, response) = try await URLSession.shared.data(for: apiRequest)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.invalidResponse
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            throw APIError.httpError(httpResponse.statusCode)
+        }
+
+        return try decoder.decode(RecipeGenerationResponse.self, from: data)
+    }
+
+    func analyzeIngredients(ingredients: [String]) async throws -> IngredientAnalysis {
+        struct IngredientsRequest: Codable {
+            let ingredients: [String]
+        }
+
+        var apiRequest = try authorizedRequest(path: "/ai/recipes/analyze-ingredients", method: "POST")
+        let body = IngredientsRequest(ingredients: ingredients)
+        apiRequest.httpBody = try JSONEncoder().encode(body)
+
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+
+        let (data, response) = try await URLSession.shared.data(for: apiRequest)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.invalidResponse
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            throw APIError.httpError(httpResponse.statusCode)
+        }
+
+        return try decoder.decode(IngredientAnalysis.self, from: data)
+    }
+
+    // MARK: - Smart Generation
+
+    func generateSmartItems(prompt: String, context: GenerationContext) async throws -> SmartGenerationResponse {
+        struct SmartGenerationRequest: Codable {
+            let prompt: String
+            let context: GenerationContext
+        }
+
+        var request = try authorizedRequest(path: "/ai/generate-tasks", method: "POST")
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        let body = SmartGenerationRequest(prompt: prompt, context: context)
+        request.httpBody = try encoder.encode(body)
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.invalidResponse
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            if httpResponse.statusCode == 401 {
+                throw APIError.unauthorized
+            }
+            throw APIError.httpError(httpResponse.statusCode)
+        }
+
+        return try decoder.decode(SmartGenerationResponse.self, from: data)
+    }
 }
 
 // MARK: - AI Models
@@ -165,4 +304,71 @@ struct AINoteSummary: Codable {
     let summary: String
     let keyPoints: [String]
     let wordCount: Int
+}
+
+// MARK: - Smart Generation Models
+
+struct SmartGenerationResponse: Codable {
+    let tasks: [GeneratedTaskData]
+    let events: [GeneratedEventData]
+    let smartLists: [GeneratedSmartListData]
+    let metadata: GenerationMetadataData
+
+    enum CodingKeys: String, CodingKey {
+        case tasks, events, metadata
+        case smartLists = "smart_lists"
+    }
+}
+
+struct GeneratedTaskData: Codable {
+    let title: String
+    let description: String?
+    let dueDate: Date?
+    let priority: String?
+    let labels: [String]
+    let estimatedMinutes: Int?
+    let subtasks: [String]?
+    let reasoning: String?
+
+    enum CodingKeys: String, CodingKey {
+        case title, description, priority, labels, subtasks, reasoning
+        case dueDate = "due_date"
+        case estimatedMinutes = "estimated_minutes"
+    }
+}
+
+struct GeneratedEventData: Codable {
+    let title: String
+    let description: String?
+    let startTime: Date
+    let endTime: Date
+    let location: String?
+    let recurrenceType: String
+    let reasoning: String?
+
+    enum CodingKeys: String, CodingKey {
+        case title, description, location, reasoning
+        case startTime = "start_time"
+        case endTime = "end_time"
+        case recurrenceType = "recurrence_type"
+    }
+}
+
+struct GeneratedSmartListData: Codable {
+    let name: String
+    let description: String?
+    let category: String
+    let items: [String]
+    let reasoning: String?
+}
+
+struct GenerationMetadataData: Codable {
+    let originalPrompt: String
+    let model: String
+    let summary: String
+
+    enum CodingKeys: String, CodingKey {
+        case model, summary
+        case originalPrompt = "original_prompt"
+    }
 }

@@ -22,6 +22,7 @@ struct NewTaskView: View {
     @State private var showingAISuggestions = false
     @State private var aiSuggestions: AITaskSuggestions?
     @State private var isLoadingSuggestions = false
+    @State private var showAIGenerator = false
 
     private var isValid: Bool {
         !title.isEmpty
@@ -94,11 +95,31 @@ struct NewTaskView: View {
 
                 Section(
                     header: Text("AI Assistant"),
-                    footer: Text("Get smart suggestions for subtasks, labels, and estimated time").font(.caption)
+                    footer: Text("Generate complete tasks from a natural language description or get smart suggestions").font(.caption)
                 ) {
-                    Button(action: requestAISuggestions) {
+                    Button {
+                        showAIGenerator = true
+                    } label: {
                         HStack {
                             Image(systemName: "sparkles")
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Generate from Idea")
+                                    .fontWeight(.medium)
+                                Text("Describe what you need in plain English")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            Spacer()
+                            Image(systemName: "arrow.right.circle.fill")
+                                .foregroundColor(.blue)
+                        }
+                    }
+
+                    Divider()
+
+                    Button(action: requestAISuggestions) {
+                        HStack {
+                            Image(systemName: "wand.and.stars")
                             Text("Get AI Suggestions")
                             Spacer()
                             if isLoadingSuggestions {
@@ -193,6 +214,9 @@ struct NewTaskView: View {
                     }
                     .disabled(!isValid || isCreating)
                 }
+            }
+            .sheet(isPresented: $showAIGenerator) {
+                SmartGeneratorView()
             }
         }
     }

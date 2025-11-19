@@ -37,11 +37,13 @@ struct User: Codable, Identifiable {
     let email: String
     let fullName: String?
     let createdAt: Date
+    let isAdmin: Bool
 
     enum CodingKeys: String, CodingKey {
         case id, username, email
         case fullName = "full_name"
         case createdAt = "created_at"
+        case isAdmin = "is_admin"
     }
 }
 
