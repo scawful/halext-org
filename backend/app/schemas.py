@@ -164,6 +164,7 @@ class UserBase(BaseModel):
     username: str
     email: str
     full_name: Optional[str] = None
+    is_admin: bool = False
 
 class UserCreate(UserBase):
     password: str
@@ -189,6 +190,141 @@ class TokenData(BaseModel):
 class OpenWebUiStatus(BaseModel):
     enabled: bool
     url: Optional[str] = None
+
+
+class SiteSection(BaseModel):
+    type: str
+    title: Optional[str] = None
+    body: Optional[str] = None
+    items: List[Dict[str, Any]] = Field(default_factory=list)
+    media: Optional[Dict[str, Any]] = None
+
+
+class SiteNavLink(BaseModel):
+    label: str
+    url: str
+    description: Optional[str] = None
+
+
+class SitePageBase(BaseModel):
+    slug: str
+    title: str
+    summary: Optional[str] = None
+    hero_image_url: Optional[str] = None
+    sections: List[SiteSection] = Field(default_factory=list)
+    nav_links: List[SiteNavLink] = Field(default_factory=list)
+    theme: Dict[str, Any] = Field(default_factory=dict)
+    is_published: bool = False
+
+
+class SitePageCreate(SitePageBase):
+    pass
+
+
+class SitePageUpdate(BaseModel):
+    title: Optional[str] = None
+    summary: Optional[str] = None
+    hero_image_url: Optional[str] = None
+    sections: Optional[List[SiteSection]] = None
+    nav_links: Optional[List[SiteNavLink]] = None
+    theme: Optional[Dict[str, Any]] = None
+    is_published: Optional[bool] = None
+
+
+class SitePageDetail(SitePageBase):
+    id: int
+    owner_id: Optional[int]
+    updated_by_id: Optional[int]
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class PhotoAlbumBase(BaseModel):
+    slug: str
+    title: str
+    description: Optional[str] = None
+    cover_image_url: Optional[str] = None
+    hero_text: Optional[str] = None
+    photos: List[Dict[str, Any]] = Field(default_factory=list)
+    is_public: bool = True
+
+
+class PhotoAlbumCreate(PhotoAlbumBase):
+    pass
+
+
+class PhotoAlbumUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    cover_image_url: Optional[str] = None
+    hero_text: Optional[str] = None
+    photos: Optional[List[Dict[str, Any]]] = None
+    is_public: Optional[bool] = None
+
+
+class PhotoAlbum(PhotoAlbumBase):
+    id: int
+    owner_id: Optional[int]
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class MediaAssetBase(BaseModel):
+    title: Optional[str] = None
+    file_path: str
+    public_url: str
+    thumbnail_url: Optional[str] = None
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
+class MediaAsset(MediaAssetBase):
+    id: int
+    owner_id: Optional[int]
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class BlogPostBase(BaseModel):
+    slug: str
+    title: str
+    summary: Optional[str] = None
+    body_markdown: str
+    tags: List[str] = Field(default_factory=list)
+    hero_image_url: Optional[str] = None
+    status: str = "draft"
+    published_at: Optional[datetime] = None
+
+
+class BlogPostCreate(BlogPostBase):
+    pass
+
+
+class BlogPostUpdate(BaseModel):
+    title: Optional[str] = None
+    summary: Optional[str] = None
+    body_markdown: Optional[str] = None
+    tags: Optional[List[str]] = None
+    hero_image_url: Optional[str] = None
+    status: Optional[str] = None
+    published_at: Optional[datetime] = None
+
+
+class BlogPost(BlogPostBase):
+    id: int
+    author_id: Optional[int]
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
 
 # AI Schemas
 class AiChatRequest(BaseModel):

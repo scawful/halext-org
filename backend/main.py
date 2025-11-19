@@ -13,6 +13,7 @@ from app.ai_features import AiTaskHelper, AiEventHelper, AiNoteHelper
 from app.openwebui_sync import OpenWebUISync
 from app.admin_routes import router as admin_router
 from app.ai_routes import router as ai_router
+from app.content_routes import router as content_router
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -35,6 +36,7 @@ app.add_middleware(
 # Include admin routes
 app.include_router(admin_router)
 app.include_router(ai_router, prefix="/api/v1", tags=["AI"])
+app.include_router(content_router, prefix="/api")
 
 ACCESS_CODE = os.getenv("ACCESS_CODE", "").strip()
 # For development, disable access code requirement

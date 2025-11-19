@@ -7,36 +7,9 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel
 
-from . import models, auth
-from .database import SessionLocal
+from . import models
+from .admin_utils import get_current_admin_user, get_db
 from .ai_client_manager import ai_client_manager
-
-
-# Dependency
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
-def get_current_admin_user(
-    current_user: models.User = Depends(auth.get_current_active_user),
-    db: Session = Depends(get_db)
-) -> models.User:
-    """
-    Check if current user is an admin
-    For now, we'll use a simple check - you can enhance this
-    """
-    # TODO: Add proper admin role system
-    # For now, check if user ID is 1 (first user) or has specific username
-    if current_user.id == 1 or current_user.username in ["admin", "scawful"]:
-        return current_user
-    raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail="Admin access required"
-    )
 
 
 router = APIRouter(prefix="/admin", tags=["admin"])

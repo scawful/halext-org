@@ -18,6 +18,7 @@ class User(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
     full_name = Column(String)
+    is_admin = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     tasks = relationship("Task", back_populates="owner")
@@ -226,3 +227,76 @@ class ChatMessage(Base):
 
     conversation = relationship("Conversation", back_populates="messages")
     author = relationship("User")
+
+
+class SitePage(Base):
+    __tablename__ = "site_pages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    slug = Column(String, unique=True, nullable=False, index=True)
+    title = Column(String, nullable=False)
+    summary = Column(Text, nullable=True)
+    hero_image_url = Column(String, nullable=True)
+    sections = Column(JSON, default=list)
+    nav_links = Column(JSON, default=list)
+    theme = Column(JSON, default=dict)
+    is_published = Column(Boolean, default=False)
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    updated_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    owner = relationship("User", foreign_keys=[owner_id], backref="site_pages")
+    updated_by = relationship("User", foreign_keys=[updated_by_id])
+
+
+class PhotoAlbum(Base):
+    __tablename__ = "photo_albums"
+
+    id = Column(Integer, primary_key=True, index=True)
+    slug = Column(String, unique=True, nullable=False, index=True)
+    title = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    cover_image_url = Column(String, nullable=True)
+    hero_text = Column(String, nullable=True)
+    photos = Column(JSON, default=list)
+    is_public = Column(Boolean, default=True)
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    owner = relationship("User", backref="photo_albums")
+
+
+class MediaAsset(Base):
+    __tablename__ = "media_assets"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=True)
+    file_path = Column(String, nullable=False)
+    public_url = Column(String, nullable=False)
+    thumbnail_url = Column(String, nullable=True)
+    metadata = Column(JSON, default=dict)
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    owner = relationship("User", backref="media_assets")
+
+
+class BlogPost(Base):
+    __tablename__ = "blog_posts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    slug = Column(String, unique=True, nullable=False, index=True)
+    title = Column(String, nullable=False)
+    summary = Column(Text, nullable=True)
+    body_markdown = Column(Text, nullable=False)
+    tags = Column(JSON, default=list)
+    hero_image_url = Column(String, nullable=True)
+    status = Column(String, default="draft")  # draft, published
+    published_at = Column(DateTime(timezone=True), nullable=True)
+    author_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    author = relationship("User", backref="blog_posts")
