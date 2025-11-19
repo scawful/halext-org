@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct ThemeSwitcherView: View {
-    @Environment(ThemeManager.self) var themeManager
+    @Environment(ThemeManager.self) private var themeManager
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -21,7 +21,9 @@ struct ThemeSwitcherView: View {
 
                 Picker("Appearance", selection: Binding(
                     get: { themeManager.appearanceMode },
-                    set: { themeManager.appearanceMode = $0 }
+                    set: { newValue in
+                        themeManager.appearanceMode = newValue
+                    }
                 )) {
                     ForEach(AppearanceMode.allCases) { mode in
                         Text(mode.rawValue).tag(mode)
@@ -92,12 +94,17 @@ struct ThemeSwitcherView: View {
 // MARK: - Theme Preview Button
 
 struct ThemePreviewButton: View {
+    @Environment(ThemeManager.self) private var themeManager
     let theme: Theme
     let isSelected: Bool
     let action: () -> Void
 
     var body: some View {
-        Button(action: action) {
+        Button {
+            print("🎨 Theme button tapped: \(theme.name)")
+            themeManager.setTheme(theme)
+            action()
+        } label: {
             VStack(spacing: 6) {
                 // Color preview circles
                 HStack(spacing: 4) {

@@ -43,6 +43,10 @@ struct DashboardView: View {
                     // Quick actions
                     QuickActionsWidget()
                         .padding(.horizontal)
+
+                    // All Apps Grid
+                    AllAppsWidget()
+                        .padding(.horizontal)
                 }
                 .padding(.vertical)
             }
@@ -432,6 +436,103 @@ struct QuickActionButton: View {
                 RoundedRectangle(cornerRadius: 12)
                     .fill(Color(.systemBackground))
             )
+        }
+    }
+}
+
+// MARK: - All Apps Widget
+
+struct AllAppsWidget: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("All Apps")
+                .font(.headline)
+
+            LazyVGrid(columns: [
+                GridItem(.flexible()),
+                GridItem(.flexible()),
+                GridItem(.flexible()),
+                GridItem(.flexible())
+            ], spacing: 16) {
+                DashboardAppButton(tab: .tasks)
+                DashboardAppButton(tab: .calendar)
+                DashboardAppButton(tab: .chat)
+                DashboardAppButton(tab: .messages)
+                DashboardAppButton(tab: .finance)
+                DashboardAppButton(tab: .templates)
+                DashboardAppButton(tab: .smartLists)
+                DashboardAppButton(tab: .pages)
+            }
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(.systemGray6))
+        )
+    }
+}
+
+struct DashboardAppButton: View {
+    let tab: NavigationTab
+    @State private var isPressed = false
+
+    var body: some View {
+        NavigationLink(destination: destinationView) {
+            VStack(spacing: 6) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(
+                            LinearGradient(
+                                colors: [tab.color, tab.color.opacity(0.7)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 50, height: 50)
+                        .shadow(color: tab.color.opacity(0.3), radius: isPressed ? 2 : 4, y: isPressed ? 1 : 2)
+
+                    Image(systemName: tab.icon)
+                        .font(.title3)
+                        .foregroundColor(.white)
+                }
+                .scaleEffect(isPressed ? 0.95 : 1.0)
+
+                Text(tab.rawValue)
+                    .font(.caption2)
+                    .foregroundColor(.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+        }
+        .buttonStyle(.plain)
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in isPressed = true }
+                .onEnded { _ in isPressed = false }
+        )
+    }
+
+    @ViewBuilder
+    private var destinationView: some View {
+        switch tab {
+        case .tasks:
+            TaskListView()
+        case .calendar:
+            CalendarView()
+        case .chat:
+            ChatView()
+        case .messages:
+            MessagesView()
+        case .finance:
+            FinanceView()
+        case .templates:
+            TaskTemplatesView()
+        case .smartLists:
+            SmartListsView()
+        case .pages:
+            PagesView()
+        case .dashboard, .settings, .more:
+            EmptyView()
         }
     }
 }
