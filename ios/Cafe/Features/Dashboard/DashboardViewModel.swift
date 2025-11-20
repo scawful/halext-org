@@ -113,4 +113,17 @@ class DashboardViewModel {
             task.dueDate! < now
         }
     }
+
+    var upcomingTasksForWeek: [Task] {
+        let calendar = Calendar.current
+        let now = Date()
+        let weekFromNow = calendar.date(byAdding: .day, value: 7, to: now)!
+
+        return tasks.filter { task in
+            !task.completed &&
+            task.dueDate != nil &&
+            task.dueDate! >= now &&
+            task.dueDate! <= weekFromNow
+        }
+    }
 }

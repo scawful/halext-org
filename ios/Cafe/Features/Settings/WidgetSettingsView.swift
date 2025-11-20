@@ -962,10 +962,10 @@ struct WidgetInstructionsView: View {
 
                 Section {
                     VStack(alignment: .leading, spacing: 12) {
-                        InfoRow(icon: "arrow.clockwise", text: "Widgets update automatically")
-                        InfoRow(icon: "hand.tap", text: "Tap any widget to open the app")
-                        InfoRow(icon: "gear", text: "Widget data syncs with the app")
-                        InfoRow(icon: "bolt.fill", text: "Interactive buttons work on iOS 17+")
+                        WidgetInfoRow(icon: "arrow.clockwise", text: "Widgets update automatically")
+                        WidgetInfoRow(icon: "hand.tap", text: "Tap any widget to open the app")
+                        WidgetInfoRow(icon: "gear", text: "Widget data syncs with the app")
+                        WidgetInfoRow(icon: "bolt.fill", text: "Interactive buttons work on iOS 17+")
                     }
                     .padding(.vertical, 4)
                 } header: {
@@ -1024,7 +1024,7 @@ struct InstructionStep: View {
     }
 }
 
-struct InfoRow: View {
+struct WidgetInfoRow: View {
     let icon: String
     let text: String
 
