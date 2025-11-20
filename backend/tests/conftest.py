@@ -7,10 +7,10 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.database import Base
+from app.database import Base, get_db
 from app.models import User, AIClientNode
 from app import crud, schemas, auth
-from main import app, get_db
+from main import app
 
 
 # Use in-memory SQLite database for testing

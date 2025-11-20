@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from typing import Optional
 from . import crud, models, schemas
-from .database import SessionLocal
+from .database import get_db
 import os
 
 # Configuration
@@ -43,13 +43,6 @@ def authenticate_user(db: Session, username: str, password: str):
     if not verify_password(password, user.hashed_password):
         return False
     return user
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     credentials_exception = HTTPException(

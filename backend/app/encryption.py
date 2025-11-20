@@ -6,7 +6,7 @@ import os
 import base64
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 
 def get_encryption_key() -> bytes:
@@ -25,7 +25,7 @@ def get_encryption_key() -> bytes:
     password = os.getenv("SECRET_KEY", "change-this-in-production").encode()
     salt = b"halext-org-api-key-salt"  # In production, use a random salt stored separately
 
-    kdf = PBKDF2(
+    kdf = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
         length=32,
         salt=salt,
