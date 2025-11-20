@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_
 from sqlalchemy.sql import func
 from typing import Optional, List
@@ -292,6 +292,10 @@ def create_conversation(
 def get_conversations_for_user(db: Session, user_id: int):
     return (
         db.query(models.Conversation)
+        .options(
+            joinedload(models.Conversation.participants).joinedload(models.ConversationParticipant.user),
+            joinedload(models.Conversation.messages),
+        )
         .join(models.ConversationParticipant)
         .filter(models.ConversationParticipant.user_id == user_id)
         .order_by(models.Conversation.updated_at.desc())
@@ -301,6 +305,10 @@ def get_conversations_for_user(db: Session, user_id: int):
 def get_conversation_for_user(db: Session, conversation_id: int, user_id: int):
     return (
         db.query(models.Conversation)
+        .options(
+            joinedload(models.Conversation.participants).joinedload(models.ConversationParticipant.user),
+            joinedload(models.Conversation.messages),
+        )
         .join(models.ConversationParticipant)
         .filter(
             models.Conversation.id == conversation_id,
