@@ -520,6 +520,7 @@ class GenerationContext(BaseModel):
 class AiGenerateTasksRequest(BaseModel):
     prompt: str
     context: GenerationContext
+    model: Optional[str] = None
 
 class GeneratedTaskData(BaseModel):
     title: str
@@ -611,6 +612,7 @@ class RecipeGenerationRequest(BaseModel):
     time_limit_minutes: Optional[int] = None
     servings: Optional[int] = None
     meal_type: Optional[str] = None
+    model: Optional[str] = None
 
 class RecipeGenerationResponse(BaseModel):
     recipes: List[Recipe] = Field(default_factory=list)
@@ -633,6 +635,7 @@ class MealPlanRequest(BaseModel):
     dietary_restrictions: Optional[List[str]] = None
     budget: Optional[float] = None
     meals_per_day: int
+    model: Optional[str] = None
 
 class MealPlanResponse(BaseModel):
     meal_plan: List[DailyMeal] = Field(default_factory=list)
@@ -643,6 +646,7 @@ class MealPlanResponse(BaseModel):
 class SubstitutionRequest(BaseModel):
     ingredients: List[str]
     recipe_type: Optional[str] = None
+    model: Optional[str] = None
 
 class IngredientSubstitution(BaseModel):
     original: str
@@ -652,6 +656,7 @@ class IngredientSubstitution(BaseModel):
 
 class IngredientsRequest(BaseModel):
     ingredients: List[str]
+    model: Optional[str] = None
 
 class IngredientCategory(BaseModel):
     id: str
@@ -662,3 +667,167 @@ class IngredientAnalysis(BaseModel):
     extracted_ingredients: List[str] = Field(default_factory=list)
     categories: List[IngredientCategory] = Field(default_factory=list)
     suggestions: List[str] = Field(default_factory=list)
+
+# Finance Schemas
+class FinanceAccountBase(BaseModel):
+    account_name: str
+    account_type: str = "checking"
+    institution_name: Optional[str] = None
+    account_number: Optional[str] = None
+    balance: float = 0.0
+    currency: str = "USD"
+    is_active: bool = True
+    theme_emoji: Optional[str] = None
+    accent_color: Optional[str] = None
+    plaid_account_id: Optional[str] = None
+
+
+class FinanceAccountCreate(FinanceAccountBase):
+    pass
+
+
+class FinanceAccountUpdate(BaseModel):
+    account_name: Optional[str] = None
+    balance: Optional[float] = None
+    is_active: Optional[bool] = None
+    accent_color: Optional[str] = None
+    theme_emoji: Optional[str] = None
+
+
+class FinanceAccount(FinanceAccountBase):
+    id: int
+    owner_id: int
+    last_synced: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class FinanceTransactionBase(BaseModel):
+    account_id: int
+    amount: float
+    description: str
+    category: str = "other"
+    transaction_type: str = "debit"
+    transaction_date: Optional[datetime] = None
+    merchant: Optional[str] = None
+    notes: Optional[str] = None
+    tags: List[str] = Field(default_factory=list)
+    mood_icon: Optional[str] = None
+
+
+class FinanceTransactionCreate(FinanceTransactionBase):
+    pass
+
+
+class FinanceTransaction(FinanceTransactionBase):
+    id: int
+    owner_id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class FinanceBudgetBase(BaseModel):
+    name: str
+    category: str = "general"
+    limit_amount: float
+    spent_amount: float = 0.0
+    period: str = "monthly"
+    emoji: Optional[str] = None
+    color_hex: Optional[str] = None
+
+
+class FinanceBudgetCreate(FinanceBudgetBase):
+    pass
+
+
+class FinanceBudgetUpdate(BaseModel):
+    spent_amount: Optional[float] = None
+    limit_amount: Optional[float] = None
+    emoji: Optional[str] = None
+    color_hex: Optional[str] = None
+
+
+class FinanceBudget(FinanceBudgetBase):
+    id: int
+    owner_id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class FinanceSummary(BaseModel):
+    total_balance: float
+    active_accounts: int
+    monthly_spending: float
+    monthly_income: float
+    budget_progress: List[FinanceBudget]
+    recent_transactions: List[FinanceTransaction]
+
+
+# Social Schemas
+class SocialCircleBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+    emoji: Optional[str] = None
+    theme_color: Optional[str] = None
+    vibe: Optional[str] = None
+
+
+class SocialCircleCreate(SocialCircleBase):
+    pass
+
+
+class SocialCircle(SocialCircleBase):
+    id: int
+    owner_id: int
+    invite_code: str
+    created_at: datetime
+    member_count: int = 0
+
+    class Config:
+        from_attributes = True
+
+
+class SocialCircleMember(BaseModel):
+    circle_id: int
+    user_id: int
+    role: str = "member"
+    joined_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class SocialPulseBase(BaseModel):
+    message: str
+    mood: Optional[str] = None
+    attachments: List[str] = Field(default_factory=list)
+
+
+class SocialPulseCreate(SocialPulseBase):
+    pass
+
+
+class SocialPulse(SocialPulseBase):
+    id: int
+    circle_id: int
+    author_id: int
+    created_at: datetime
+    author_name: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class ApiRouteInfo(BaseModel):
+    path: str
+    methods: List[str]
+    name: str
+    summary: Optional[str] = None

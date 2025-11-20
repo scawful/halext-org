@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Text, JSON, Table
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Text, JSON, Table, Float
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from .database import Base
@@ -334,3 +334,122 @@ class AIUsageLog(Base):
 
     def __repr__(self):
         return f"<AIUsageLog(user_id={self.user_id}, model='{self.model_identifier}', endpoint='{self.endpoint}')>"
+
+
+class FinanceAccount(Base):
+    __tablename__ = "finance_accounts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    account_name = Column(String, nullable=False)
+    account_type = Column(String, default="checking")
+    institution_name = Column(String, nullable=True)
+    account_number = Column(String, nullable=True)
+    balance = Column(Float, default=0.0)
+    currency = Column(String, default="USD")
+    is_active = Column(Boolean, default=True)
+    theme_emoji = Column(String, default="💳")
+    accent_color = Column(String, default="#8B5CF6")
+    plaid_account_id = Column(String, nullable=True)
+    last_synced = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    owner = relationship("User", backref="finance_accounts")
+    transactions = relationship(
+        "FinanceTransaction",
+        back_populates="account",
+        cascade="all, delete-orphan",
+    )
+
+
+class FinanceTransaction(Base):
+    __tablename__ = "finance_transactions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    account_id = Column(Integer, ForeignKey("finance_accounts.id"), nullable=False, index=True)
+    amount = Column(Float, nullable=False)
+    description = Column(String, nullable=False)
+    category = Column(String, default="other")
+    transaction_type = Column(String, default="debit")
+    transaction_date = Column(DateTime(timezone=True), server_default=func.now())
+    merchant = Column(String, nullable=True)
+    notes = Column(Text, nullable=True)
+    tags = Column(JSON, default=list)
+    mood_icon = Column(String, default="✨")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    owner = relationship("User", backref="finance_transactions")
+    account = relationship("FinanceAccount", back_populates="transactions")
+
+
+class FinanceBudget(Base):
+    __tablename__ = "finance_budgets"
+
+    id = Column(Integer, primary_key=True, index=True)
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    name = Column(String, nullable=False)
+    category = Column(String, default="general")
+    limit_amount = Column(Float, nullable=False)
+    spent_amount = Column(Float, default=0.0)
+    period = Column(String, default="monthly")
+    emoji = Column(String, default="🍰")
+    color_hex = Column(String, default="#F472B6")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    owner = relationship("User", backref="finance_budgets")
+
+
+class SocialCircle(Base):
+    __tablename__ = "social_circles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    emoji = Column(String, default="🌈")
+    theme_color = Column(String, default="#A855F7")
+    vibe = Column(String, default="cozy")
+    invite_code = Column(String, unique=True, index=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    owner = relationship("User", backref="social_circles")
+    members = relationship(
+        "SocialCircleMember",
+        back_populates="circle",
+        cascade="all, delete-orphan",
+    )
+    pulses = relationship(
+        "SocialPulse",
+        back_populates="circle",
+        cascade="all, delete-orphan",
+    )
+
+
+class SocialCircleMember(Base):
+    __tablename__ = "social_circle_members"
+
+    circle_id = Column(Integer, ForeignKey("social_circles.id"), primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
+    role = Column(String, default="member")
+    joined_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    circle = relationship("SocialCircle", back_populates="members")
+    user = relationship("User", backref="social_circle_memberships")
+
+
+class SocialPulse(Base):
+    __tablename__ = "social_pulses"
+
+    id = Column(Integer, primary_key=True, index=True)
+    circle_id = Column(Integer, ForeignKey("social_circles.id"), nullable=False)
+    author_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    mood = Column(String, default="sparkles")
+    message = Column(Text, nullable=False)
+    attachments = Column(JSON, default=list)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    circle = relationship("SocialCircle", back_populates="pulses")
+    author = relationship("User")

@@ -5,6 +5,7 @@ import json
 import uuid
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
+from sqlalchemy.orm import Session
 from app.ai import AiGateway
 
 
@@ -23,7 +24,9 @@ class AiRecipeGenerator:
         difficulty_level: Optional[str] = None,
         time_limit_minutes: Optional[int] = None,
         servings: Optional[int] = None,
-        meal_type: Optional[str] = None
+        meal_type: Optional[str] = None,
+        model_identifier: Optional[str] = None,
+        db: Optional[Session] = None,
     ) -> Dict[str, Any]:
         """
         Generate recipes based on available ingredients.
@@ -51,7 +54,12 @@ class AiRecipeGenerator:
         )
 
         # Call AI
-        response = await self.ai.generate_reply(prompt, user_id=self.user_id)
+        response = await self.ai.generate_reply(
+            prompt,
+            user_id=self.user_id,
+            model_identifier=model_identifier,
+            db=db,
+        )
 
         # Parse response
         parsed = self._parse_recipe_response(response, ingredients)
@@ -64,7 +72,9 @@ class AiRecipeGenerator:
         days: int,
         dietary_restrictions: Optional[List[str]] = None,
         budget: Optional[float] = None,
-        meals_per_day: int = 3
+        meals_per_day: int = 3,
+        model_identifier: Optional[str] = None,
+        db: Optional[Session] = None,
     ) -> Dict[str, Any]:
         """
         Generate a meal plan for multiple days.
@@ -87,7 +97,12 @@ class AiRecipeGenerator:
             meals_per_day
         )
 
-        response = await self.ai.generate_reply(prompt, user_id=self.user_id)
+        response = await self.ai.generate_reply(
+            prompt,
+            user_id=self.user_id,
+            model_identifier=model_identifier,
+            db=db,
+        )
         parsed = self._parse_meal_plan_response(response, days)
 
         return parsed
@@ -95,7 +110,9 @@ class AiRecipeGenerator:
     async def suggest_substitutions(
         self,
         ingredients: List[str],
-        recipe_type: Optional[str] = None
+        recipe_type: Optional[str] = None,
+        model_identifier: Optional[str] = None,
+        db: Optional[Session] = None,
     ) -> Dict[str, Any]:
         """
         Suggest ingredient substitutions and alternative recipes.
@@ -108,14 +125,21 @@ class AiRecipeGenerator:
             Dictionary with recipes and substitution suggestions
         """
         prompt = self._create_substitution_prompt(ingredients, recipe_type)
-        response = await self.ai.generate_reply(prompt, user_id=self.user_id)
+        response = await self.ai.generate_reply(
+            prompt,
+            user_id=self.user_id,
+            model_identifier=model_identifier,
+            db=db,
+        )
         parsed = self._parse_recipe_response(response, ingredients, include_substitutions=True)
 
         return parsed
 
     async def analyze_ingredients(
         self,
-        ingredients: List[str]
+        ingredients: List[str],
+        model_identifier: Optional[str] = None,
+        db: Optional[Session] = None,
     ) -> Dict[str, Any]:
         """
         Analyze and categorize ingredients.
@@ -127,7 +151,12 @@ class AiRecipeGenerator:
             Dictionary with categorized ingredients and suggestions
         """
         prompt = self._create_analysis_prompt(ingredients)
-        response = await self.ai.generate_reply(prompt, user_id=self.user_id)
+        response = await self.ai.generate_reply(
+            prompt,
+            user_id=self.user_id,
+            model_identifier=model_identifier,
+            db=db,
+        )
         parsed = self._parse_analysis_response(response)
 
         return parsed

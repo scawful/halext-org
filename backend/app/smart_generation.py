@@ -4,6 +4,7 @@ AI-powered smart generation for tasks, events, and smart lists
 import json
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
+from sqlalchemy.orm import Session
 from app.ai import AiGateway
 import uuid
 
@@ -21,7 +22,9 @@ class AiSmartGenerator:
         timezone: str,
         current_date: datetime,
         existing_task_titles: Optional[List[str]] = None,
-        upcoming_event_dates: Optional[List[datetime]] = None
+        upcoming_event_dates: Optional[List[datetime]] = None,
+        model_identifier: Optional[str] = None,
+        db: Optional[Session] = None,
     ) -> Dict[str, Any]:
         """
         Generate tasks, events, and smart lists from a natural language prompt.
@@ -55,16 +58,25 @@ User Request: {prompt}
 Generate a comprehensive response with tasks, events, and smart lists as needed. Return ONLY valid JSON matching the schema."""
 
         # Call AI to generate the response
-        response = await self.ai.generate_reply(
+        response, route = await self.ai.generate_reply(
             user_prompt,
             [
                 {"role": "system", "content": system_prompt}
             ],
-            user_id=self.user_id
+            user_id=self.user_id,
+            model_identifier=model_identifier,
+            db=db,
+            include_context=True,
         )
 
         # Parse the AI response
-        parsed = self._parse_ai_response(response, prompt, current_date)
+        resolved_model = route.identifier if route else None
+        parsed = self._parse_ai_response(
+            response,
+            prompt,
+            current_date,
+            resolved_model or model_identifier,
+        )
 
         return parsed
 
@@ -155,7 +167,8 @@ IMPORTANT RULES:
         self,
         response: str,
         original_prompt: str,
-        current_date: datetime
+        current_date: datetime,
+        resolved_model: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Parse the AI response and structure it into the expected format"""
         try:
@@ -185,7 +198,7 @@ IMPORTANT RULES:
             # Create metadata
             metadata = {
                 "original_prompt": original_prompt,
-                "model": self.ai.model,
+                "model": resolved_model or self.ai.default_model_identifier or self.ai.model,
                 "summary": self._generate_summary(tasks, events, smart_lists)
             }
 
@@ -207,7 +220,7 @@ IMPORTANT RULES:
                 "smart_lists": [],
                 "metadata": {
                     "original_prompt": original_prompt,
-                    "model": self.ai.model,
+                    "model": resolved_model or self.ai.default_model_identifier or self.ai.model,
                     "summary": "Failed to parse AI response. Please try rephrasing your request."
                 }
             }

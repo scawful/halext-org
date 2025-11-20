@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException, status, Header
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Optional, List
 import os
 
@@ -17,6 +17,7 @@ from app.admin_routes import router as admin_router
 from app.ai_routes import router as ai_router
 from app.content_routes import router as content_router
 from app.ai_usage_logger import log_ai_usage, estimate_token_count
+from app.admin_utils import get_current_admin_user
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -912,7 +913,9 @@ async def generate_smart_tasks(
         timezone=request.context.timezone,
         current_date=request.context.current_date,
         existing_task_titles=request.context.existing_task_titles,
-        upcoming_event_dates=request.context.upcoming_event_dates
+        upcoming_event_dates=request.context.upcoming_event_dates,
+        model_identifier=request.model,
+        db=db,
     )
 
     return schemas.AiGenerateTasksResponse(**result)
@@ -921,7 +924,8 @@ async def generate_smart_tasks(
 @app.post("/ai/recipes/generate", response_model=schemas.RecipeGenerationResponse)
 async def generate_recipes(
     request: schemas.RecipeGenerationRequest,
-    current_user: models.User = Depends(auth.get_current_user)
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
 ):
     """Generate recipes from available ingredients"""
     helper = AiRecipeGenerator(ai_gateway, user_id=current_user.id)
@@ -933,7 +937,9 @@ async def generate_recipes(
         difficulty_level=request.difficulty_level,
         time_limit_minutes=request.time_limit_minutes,
         servings=request.servings,
-        meal_type=request.meal_type
+        meal_type=request.meal_type,
+        model_identifier=request.model,
+        db=db,
     )
 
     return schemas.RecipeGenerationResponse(**result)
@@ -941,7 +947,8 @@ async def generate_recipes(
 @app.post("/ai/recipes/meal-plan", response_model=schemas.MealPlanResponse)
 async def generate_meal_plan(
     request: schemas.MealPlanRequest,
-    current_user: models.User = Depends(auth.get_current_user)
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
 ):
     """Generate a meal plan for multiple days"""
     helper = AiRecipeGenerator(ai_gateway, user_id=current_user.id)
@@ -951,7 +958,9 @@ async def generate_meal_plan(
         days=request.days,
         dietary_restrictions=request.dietary_restrictions,
         budget=request.budget,
-        meals_per_day=request.meals_per_day
+        meals_per_day=request.meals_per_day,
+        model_identifier=request.model,
+        db=db,
     )
 
     return schemas.MealPlanResponse(**result)
@@ -959,14 +968,17 @@ async def generate_meal_plan(
 @app.post("/ai/recipes/suggest-substitutions", response_model=schemas.RecipeGenerationResponse)
 async def suggest_ingredient_substitutions(
     request: schemas.SubstitutionRequest,
-    current_user: models.User = Depends(auth.get_current_user)
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
 ):
     """Suggest ingredient substitutions and alternative recipes"""
     helper = AiRecipeGenerator(ai_gateway, user_id=current_user.id)
 
     result = await helper.suggest_substitutions(
         ingredients=request.ingredients,
-        recipe_type=request.recipe_type
+        recipe_type=request.recipe_type,
+        model_identifier=request.model,
+        db=db,
     )
 
     return schemas.RecipeGenerationResponse(**result)
@@ -974,13 +986,240 @@ async def suggest_ingredient_substitutions(
 @app.post("/ai/recipes/analyze-ingredients", response_model=schemas.IngredientAnalysis)
 async def analyze_ingredients(
     request: schemas.IngredientsRequest,
-    current_user: models.User = Depends(auth.get_current_user)
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
 ):
     """Analyze and categorize ingredients"""
     helper = AiRecipeGenerator(ai_gateway, user_id=current_user.id)
 
     result = await helper.analyze_ingredients(
-        ingredients=request.ingredients
+        ingredients=request.ingredients,
+        model_identifier=request.model,
+        db=db,
     )
 
     return schemas.IngredientAnalysis(**result)
+
+# Finance Endpoints
+@app.get("/finance/accounts", response_model=List[schemas.FinanceAccount])
+def list_finance_accounts(
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
+    return crud.get_finance_accounts(db, current_user.id)
+
+
+@app.post("/finance/accounts", response_model=schemas.FinanceAccount, status_code=status.HTTP_201_CREATED)
+def create_finance_account(
+    payload: schemas.FinanceAccountCreate,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
+    return crud.create_finance_account(db, current_user.id, payload)
+
+
+@app.get("/finance/accounts/{account_id}", response_model=schemas.FinanceAccount)
+def get_finance_account(
+    account_id: int,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
+    account = crud.get_finance_account(db, current_user.id, account_id)
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    return account
+
+
+@app.put("/finance/accounts/{account_id}", response_model=schemas.FinanceAccount)
+def update_finance_account(
+    account_id: int,
+    payload: schemas.FinanceAccountUpdate,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
+    account = crud.get_finance_account(db, current_user.id, account_id)
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    return crud.update_finance_account(db, account, payload)
+
+
+@app.delete("/finance/accounts/{account_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_finance_account(
+    account_id: int,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
+    account = crud.get_finance_account(db, current_user.id, account_id)
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    crud.delete_finance_account(db, account)
+
+
+@app.post("/finance/accounts/{account_id}/sync", response_model=schemas.FinanceAccount)
+def sync_finance_account(
+    account_id: int,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
+    account = crud.get_finance_account(db, current_user.id, account_id)
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    account.last_synced = datetime.utcnow()
+    db.add(account)
+    db.commit()
+    db.refresh(account)
+    return account
+
+
+@app.get("/finance/transactions", response_model=List[schemas.FinanceTransaction])
+def list_finance_transactions(
+    account_id: Optional[int] = None,
+    limit: int = 50,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
+    return crud.list_finance_transactions(db, current_user.id, account_id=account_id, limit=limit)
+
+
+@app.post("/finance/transactions", response_model=schemas.FinanceTransaction, status_code=status.HTTP_201_CREATED)
+def create_finance_transaction(
+    payload: schemas.FinanceTransactionCreate,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
+    return crud.create_finance_transaction(db, current_user.id, payload)
+
+
+@app.get("/finance/budgets", response_model=List[schemas.FinanceBudget])
+def list_finance_budgets(
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
+    return crud.get_finance_budgets(db, current_user.id)
+
+
+@app.post("/finance/budgets", response_model=schemas.FinanceBudget, status_code=status.HTTP_201_CREATED)
+def create_finance_budget(
+    payload: schemas.FinanceBudgetCreate,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
+    return crud.create_finance_budget(db, current_user.id, payload)
+
+
+@app.patch("/finance/budgets/{budget_id}", response_model=schemas.FinanceBudget)
+def update_finance_budget(
+    budget_id: int,
+    payload: schemas.FinanceBudgetUpdate,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
+    budget = crud.get_finance_budget(db, current_user.id, budget_id)
+    if not budget:
+        raise HTTPException(status_code=404, detail="Budget not found")
+    return crud.update_finance_budget(db, budget, payload)
+
+
+@app.delete("/finance/budgets/{budget_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_finance_budget(
+    budget_id: int,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
+    budget = crud.get_finance_budget(db, current_user.id, budget_id)
+    if not budget:
+        raise HTTPException(status_code=404, detail="Budget not found")
+    crud.delete_finance_budget(db, budget)
+
+
+@app.get("/finance/summary", response_model=schemas.FinanceSummary)
+def finance_summary(
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
+    return crud.get_finance_summary(db, current_user.id)
+
+
+# Social Circles Endpoints
+@app.get("/social/circles", response_model=List[schemas.SocialCircle])
+def list_social_circles(
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
+    circles = crud.list_social_circles(db, current_user.id)
+    for circle in circles:
+        circle.member_count = len(circle.members)
+    return circles
+
+
+@app.post("/social/circles", response_model=schemas.SocialCircle, status_code=status.HTTP_201_CREATED)
+def create_social_circle(
+    payload: schemas.SocialCircleCreate,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
+    circle = crud.create_social_circle(db, current_user.id, payload)
+    circle.member_count = len(circle.members)
+    return circle
+
+
+@app.post("/social/circles/join", response_model=schemas.SocialCircle)
+def join_social_circle(
+    invite_code: str,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
+    circle = crud.join_social_circle(db, current_user.id, invite_code)
+    if not circle:
+        raise HTTPException(status_code=404, detail="Circle not found")
+    circle.member_count = len(circle.members)
+    return circle
+
+
+@app.get("/social/circles/{circle_id}/pulses", response_model=List[schemas.SocialPulse])
+def list_social_pulses(
+    circle_id: int,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
+    return crud.list_social_pulses(db, current_user.id, circle_id=circle_id)
+
+
+@app.post("/social/circles/{circle_id}/pulses", response_model=schemas.SocialPulse, status_code=status.HTTP_201_CREATED)
+def create_social_pulse(
+    circle_id: int,
+    payload: schemas.SocialPulseCreate,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
+    pulse = crud.create_social_pulse(db, current_user.id, circle_id, payload)
+    if not pulse:
+        raise HTTPException(status_code=404, detail="Circle not found")
+    return pulse
+
+
+@app.get("/admin/api-catalog", response_model=List[schemas.ApiRouteInfo])
+def admin_api_catalog(
+    current_user: models.User = Depends(get_current_admin_user),
+):
+    routes: List[schemas.ApiRouteInfo] = []
+    for route in app.routes:
+        if not getattr(route, "methods", None):
+            continue
+        if not getattr(route, "path", "").startswith("/"):
+            continue
+        if route.path.startswith("/openapi") or route.path.startswith("/docs"):
+            continue
+        methods = sorted(m for m in route.methods if m not in {"HEAD", "OPTIONS"})
+        if not methods:
+            continue
+        routes.append(
+            schemas.ApiRouteInfo(
+                path=route.path,
+                methods=methods,
+                name=route.name.replace("_", " ").title() if route.name else "Endpoint",
+                summary=getattr(route, "summary", None),
+            )
+        )
+    routes.sort(key=lambda item: item.path)
+    return routes

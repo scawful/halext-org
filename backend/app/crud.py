@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_
 from sqlalchemy.sql import func
 from typing import Optional, List
+import secrets
 from . import models, schemas
 from passlib.context import CryptContext
 from .presets import DEFAULT_LAYOUT_PRESETS
@@ -491,3 +492,277 @@ def list_provider_credentials(db: Session, owner_id: Optional[int] = None):
         )
 
     return results
+
+
+# Finance helpers
+def get_finance_accounts(db: Session, owner_id: int):
+    return (
+        db.query(models.FinanceAccount)
+        .filter(models.FinanceAccount.owner_id == owner_id)
+        .order_by(models.FinanceAccount.created_at.asc())
+        .all()
+    )
+
+
+def get_finance_account(db: Session, owner_id: int, account_id: int):
+    return (
+        db.query(models.FinanceAccount)
+        .filter(
+            models.FinanceAccount.owner_id == owner_id,
+            models.FinanceAccount.id == account_id,
+        )
+        .first()
+    )
+
+
+def create_finance_account(db: Session, owner_id: int, payload: schemas.FinanceAccountCreate):
+    db_account = models.FinanceAccount(
+        owner_id=owner_id,
+        **payload.dict(),
+    )
+    db.add(db_account)
+    db.commit()
+    db.refresh(db_account)
+    return db_account
+
+
+def update_finance_account(
+    db: Session,
+    db_account: models.FinanceAccount,
+    payload: schemas.FinanceAccountUpdate,
+):
+    for field, value in payload.dict(exclude_unset=True).items():
+        setattr(db_account, field, value)
+    db.add(db_account)
+    db.commit()
+    db.refresh(db_account)
+    return db_account
+
+
+def delete_finance_account(db: Session, db_account: models.FinanceAccount):
+    db.delete(db_account)
+    db.commit()
+
+
+def list_finance_transactions(
+    db: Session,
+    owner_id: int,
+    account_id: Optional[int] = None,
+    limit: int = 50,
+):
+    query = db.query(models.FinanceTransaction).filter(models.FinanceTransaction.owner_id == owner_id)
+    if account_id:
+        query = query.filter(models.FinanceTransaction.account_id == account_id)
+    return (
+        query.order_by(models.FinanceTransaction.transaction_date.desc())
+        .limit(limit)
+        .all()
+    )
+
+
+def create_finance_transaction(
+    db: Session,
+    owner_id: int,
+    payload: schemas.FinanceTransactionCreate,
+):
+    db_tx = models.FinanceTransaction(
+        owner_id=owner_id,
+        **payload.dict(exclude_unset=True),
+    )
+    if db_tx.transaction_date is None:
+        db_tx.transaction_date = func.now()
+    db.add(db_tx)
+
+    # Update account balance heuristically
+    account = (
+        db.query(models.FinanceAccount)
+        .filter(
+            models.FinanceAccount.owner_id == owner_id,
+            models.FinanceAccount.id == db_tx.account_id,
+        )
+        .first()
+    )
+    if account:
+        sign = 1 if db_tx.transaction_type == "credit" else -1
+        account.balance = (account.balance or 0.0) + (db_tx.amount or 0.0) * sign
+        db.add(account)
+
+    db.commit()
+    db.refresh(db_tx)
+    return db_tx
+
+
+def get_finance_budgets(db: Session, owner_id: int):
+    return (
+        db.query(models.FinanceBudget)
+        .filter(models.FinanceBudget.owner_id == owner_id)
+        .order_by(models.FinanceBudget.created_at.asc())
+        .all()
+    )
+
+
+def get_finance_budget(db: Session, owner_id: int, budget_id: int):
+    return (
+        db.query(models.FinanceBudget)
+        .filter(
+            models.FinanceBudget.owner_id == owner_id,
+            models.FinanceBudget.id == budget_id,
+        )
+        .first()
+    )
+
+
+def create_finance_budget(db: Session, owner_id: int, payload: schemas.FinanceBudgetCreate):
+    db_budget = models.FinanceBudget(owner_id=owner_id, **payload.dict())
+    db.add(db_budget)
+    db.commit()
+    db.refresh(db_budget)
+    return db_budget
+
+
+def update_finance_budget(
+    db: Session,
+    db_budget: models.FinanceBudget,
+    payload: schemas.FinanceBudgetUpdate,
+):
+    for field, value in payload.dict(exclude_unset=True).items():
+        setattr(db_budget, field, value)
+    db.add(db_budget)
+    db.commit()
+    db.refresh(db_budget)
+    return db_budget
+
+
+def delete_finance_budget(db: Session, db_budget: models.FinanceBudget):
+    db.delete(db_budget)
+    db.commit()
+
+
+def get_finance_summary(db: Session, owner_id: int):
+    accounts = get_finance_accounts(db, owner_id)
+    budgets = get_finance_budgets(db, owner_id)
+    transactions = list_finance_transactions(db, owner_id, limit=10)
+
+    total_balance = sum(account.balance or 0.0 for account in accounts)
+    monthly_spending = sum(
+        tx.amount or 0.0 for tx in transactions if tx.transaction_type == "debit"
+    )
+    monthly_income = sum(
+        tx.amount or 0.0 for tx in transactions if tx.transaction_type == "credit"
+    )
+
+    return schemas.FinanceSummary(
+        total_balance=total_balance,
+        active_accounts=len(accounts),
+        monthly_spending=monthly_spending,
+        monthly_income=monthly_income,
+        budget_progress=budgets,
+        recent_transactions=transactions,
+    )
+
+
+def _generate_invite_code() -> str:
+    return secrets.token_hex(3).upper()
+
+
+def create_social_circle(db: Session, owner_id: int, payload: schemas.SocialCircleCreate):
+    invite_code = _generate_invite_code()
+    db_circle = models.SocialCircle(
+        owner_id=owner_id,
+        invite_code=invite_code,
+        **payload.dict(exclude_unset=True),
+    )
+    db.add(db_circle)
+    db.flush()
+
+    membership = models.SocialCircleMember(circle_id=db_circle.id, user_id=owner_id, role="owner")
+    db.add(membership)
+    db.commit()
+    db.refresh(db_circle)
+    return db_circle
+
+
+def list_social_circles(db: Session, owner_id: int):
+    circles = (
+        db.query(models.SocialCircle)
+        .join(models.SocialCircleMember)
+        .filter(models.SocialCircleMember.user_id == owner_id)
+        .order_by(models.SocialCircle.created_at.asc())
+        .all()
+    )
+    for circle in circles:
+        circle.member_count = len(circle.members)
+    return circles
+
+
+def get_social_circle(db: Session, owner_id: int, circle_id: int):
+    return (
+        db.query(models.SocialCircle)
+        .join(models.SocialCircleMember)
+        .filter(
+            models.SocialCircle.id == circle_id,
+            models.SocialCircleMember.user_id == owner_id,
+        )
+        .first()
+    )
+
+
+def join_social_circle(db: Session, owner_id: int, invite_code: str):
+    circle = (
+        db.query(models.SocialCircle)
+        .filter(models.SocialCircle.invite_code == invite_code)
+        .first()
+    )
+    if not circle:
+        return None
+    existing = (
+        db.query(models.SocialCircleMember)
+        .filter(
+            models.SocialCircleMember.circle_id == circle.id,
+            models.SocialCircleMember.user_id == owner_id,
+        )
+        .first()
+    )
+    if existing:
+        return circle
+    membership = models.SocialCircleMember(circle_id=circle.id, user_id=owner_id, role="member")
+    db.add(membership)
+    db.commit()
+    return circle
+
+
+def list_social_pulses(db: Session, owner_id: int, circle_id: int, limit: int = 25):
+    circle = get_social_circle(db, owner_id, circle_id)
+    if not circle:
+        return []
+    pulses = (
+        db.query(models.SocialPulse)
+        .filter(models.SocialPulse.circle_id == circle_id)
+        .order_by(models.SocialPulse.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+    for pulse in pulses:
+        pulse.author_name = pulse.author.full_name or pulse.author.username
+    return pulses
+
+
+def create_social_pulse(
+    db: Session,
+    owner_id: int,
+    circle_id: int,
+    payload: schemas.SocialPulseCreate,
+):
+    circle = get_social_circle(db, owner_id, circle_id)
+    if not circle:
+        return None
+    db_pulse = models.SocialPulse(
+        circle_id=circle_id,
+        author_id=owner_id,
+        **payload.dict(),
+    )
+    db.add(db_pulse)
+    db.commit()
+    db.refresh(db_pulse)
+    db_pulse.author_name = db_pulse.author.full_name or db_pulse.author.username
+    return db_pulse
