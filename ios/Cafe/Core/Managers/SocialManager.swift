@@ -173,6 +173,9 @@ class SocialManager {
         guard let profile = currentProfile else {
             throw SocialError.noProfile
         }
+        guard isCloudKitAvailable else {
+            throw SocialError.cloudKitUnavailable
+        }
 
         let code = String(format: "%06d", Int.random(in: 100000...999999))
         let expiresAt = Date().addingTimeInterval(3600) // 1 hour
@@ -200,6 +203,9 @@ class SocialManager {
     func connectWithInviteCode(_ code: String) async throws -> Connection {
         guard let profile = currentProfile else {
             throw SocialError.noProfile
+        }
+        guard isCloudKitAvailable else {
+            throw SocialError.cloudKitUnavailable
         }
 
         // Find invite code
@@ -307,6 +313,9 @@ class SocialManager {
               let connection = connections.first else {
             throw SocialError.noConnection
         }
+        guard isCloudKitAvailable else {
+            throw SocialError.cloudKitUnavailable
+        }
 
         let sharedTask = SharedTask(
             taskId: task.id,
@@ -365,6 +374,9 @@ class SocialManager {
     func updateSharedTask(_ sharedTask: SharedTask) async throws {
         guard let profile = currentProfile else {
             throw SocialError.noProfile
+        }
+        guard isCloudKitAvailable else {
+            throw SocialError.cloudKitUnavailable
         }
 
         let recordID = CKRecord.ID(recordName: sharedTask.id)
@@ -434,6 +446,10 @@ class SocialManager {
     // MARK: - Activity Feed
 
     func createActivity(_ activity: ActivityItem) async throws {
+        guard isCloudKitAvailable else {
+            throw SocialError.cloudKitUnavailable
+        }
+
         let record = CKRecord(recordType: RecordType.activity)
         record["connectionId"] = activity.connectionId as CKRecordValue
         record["profileId"] = activity.profileId as CKRecordValue
@@ -482,6 +498,9 @@ class SocialManager {
     func updatePresence(isOnline: Bool, currentActivity: String? = nil, statusMessage: String? = nil) async throws {
         guard let profile = currentProfile else {
             throw SocialError.noProfile
+        }
+        guard isCloudKitAvailable else {
+            throw SocialError.cloudKitUnavailable
         }
 
         let presence = SocialPresenceStatus(
@@ -579,6 +598,10 @@ class SocialManager {
     // MARK: - Helper Methods
 
     private func fetchProfileById(_ profileId: String) async throws -> SocialProfile? {
+        guard isCloudKitAvailable else {
+            throw SocialError.cloudKitUnavailable
+        }
+
         let recordID = CKRecord.ID(recordName: profileId)
         let record = try await privateDatabase.record(for: recordID)
         return profileFromRecord(record)

@@ -234,6 +234,13 @@ struct FeatureCard: Identifiable {
             color: .cyan,
             destination: .messages,
             description: "Team collaboration"
+        ),
+        FeatureCard(
+            title: "Social Circles",
+            icon: "person.3.sequence.fill",
+            color: .orange,
+            destination: .social,
+            description: "Group pulse board"
         )
     ]
 
@@ -268,6 +275,7 @@ enum FeatureDestination {
     case calendar
     case chat
     case settings
+    case social
 }
 
 // MARK: - Feature Card View
@@ -338,6 +346,8 @@ struct FeatureCardView: View {
             ChatView()
         case .settings:
             SettingsView()
+        case .social:
+            SocialCirclesView()
         }
     }
 }

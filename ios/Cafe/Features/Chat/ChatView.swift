@@ -149,6 +149,16 @@ struct MessageBubble: View {
 
             // Message content
             VStack(alignment: message.role == .user ? .trailing : .leading, spacing: 4) {
+                if message.role == .assistant, let model = message.modelIdentifier {
+                    Label {
+                        Text(model)
+                            .font(.caption2)
+                    } icon: {
+                        Image(systemName: "cpu")
+                    }
+                    .foregroundStyle(.secondary)
+                }
+
                 Text(message.content)
                     .font(.body)
                     .foregroundColor(message.role == .user ? .white : .primary)

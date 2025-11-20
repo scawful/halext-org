@@ -43,6 +43,8 @@ class AppState {
     // AI Models Cache
     var aiModels: AIModelsResponse?
     var isLoadingModels: Bool = false
+    var aiProviderInfo: AIProviderInfo?
+    var isLoadingProviderInfo: Bool = false
 
     init() {
         // Setup notification categories
@@ -210,6 +212,7 @@ class AppState {
 
             // Load AI models after user is loaded
             await loadAIModels()
+            await loadAIProviderInfo()
         } catch {
             print("❌ Failed to load current user:", error)
             // If fetching user fails, token might be invalid
@@ -241,5 +244,18 @@ class AppState {
     @MainActor
     func refreshAIModels() async {
         await loadAIModels()
+    }
+
+    @MainActor
+    func loadAIProviderInfo() async {
+        isLoadingProviderInfo = true
+        defer { isLoadingProviderInfo = false }
+
+        do {
+            print("🛡️ Loading AI provider info...")
+            aiProviderInfo = try await APIClient.shared.getAIInfo()
+        } catch {
+            print("❌ Failed to load AI provider info:", error)
+        }
     }
 }

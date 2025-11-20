@@ -11,16 +11,18 @@ struct AiChatMessage: Codable, Identifiable, Equatable {
     let id: UUID
     let role: Role
     let content: String
+    var modelIdentifier: String?
 
     enum Role: String, Codable {
         case user
         case assistant
     }
 
-    init(id: UUID = UUID(), role: Role, content: String) {
+    init(id: UUID = UUID(), role: Role, content: String, modelIdentifier: String? = nil) {
         self.id = id
         self.role = role
         self.content = content
+        self.modelIdentifier = modelIdentifier
     }
 
     /// Convert to API-compatible ChatMessage

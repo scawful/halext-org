@@ -30,6 +30,31 @@ struct SocialDashboardView: View {
     }
 
     var body: some View {
+        Group {
+            if socialManager.isCloudKitAvailable {
+                legacyDashboard
+            } else {
+                NavigationStack {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("CloudKit social sync is disabled in this build.")
+                            .font(.headline)
+                            .foregroundColor(.secondary)
+                            .padding(.top)
+
+                        Text("Use Social Circles (backend-backed) to manage your group chats and vibes. Once iCloud support returns, the legacy dashboard will be re-enabled automatically.")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+
+                        SocialCirclesView()
+                    }
+                    .padding(.horizontal)
+                    .navigationTitle("Social Circles")
+                }
+            }
+        }
+    }
+
+    private var legacyDashboard: some View {
         NavigationStack {
             VStack(spacing: 0) {
                 // Partner Status Widget

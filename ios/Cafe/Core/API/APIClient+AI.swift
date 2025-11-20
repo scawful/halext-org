@@ -273,8 +273,21 @@ extension APIClient {
 
 struct AIProviderInfo: Codable {
     let provider: String
-    let version: String?
-    let capabilities: [String]
+    let model: String
+    let defaultModelId: String?
+    let availableProviders: [String]
+    let ollamaUrl: String?
+    let openwebuiUrl: String?
+    let openwebuiPublicUrl: String?
+
+    enum CodingKeys: String, CodingKey {
+        case provider, model
+        case defaultModelId = "default_model_id"
+        case availableProviders = "available_providers"
+        case ollamaUrl = "ollama_url"
+        case openwebuiUrl = "openwebui_url"
+        case openwebuiPublicUrl = "openwebui_public_url"
+    }
 }
 
 struct AIModelsResponse: Codable {

@@ -24,6 +24,8 @@ struct AISettingsView: View {
             if let modelsResponse = appState.aiModels {
                 modelInfoSection(modelsResponse: modelsResponse)
             }
+
+            providerStatusSection
         }
         .navigationTitle("AI Settings")
         .navigationBarTitleDisplayMode(.inline)
@@ -33,6 +35,9 @@ struct AISettingsView: View {
         .task {
             if appState.aiModels == nil {
                 await appState.loadAIModels()
+            }
+            if appState.aiProviderInfo == nil {
+                await appState.loadAIProviderInfo()
             }
         }
     }
@@ -82,6 +87,57 @@ struct AISettingsView: View {
             Label("Model Selection", systemImage: "cpu")
         } footer: {
             Text("Choose which AI model to use for chat, suggestions, and other AI features. The default model is automatically selected based on availability and performance.")
+        }
+    }
+
+    private var providerStatusSection: some View {
+        Section {
+            if appState.isLoadingProviderInfo {
+                ProgressView("Loading provider info...")
+            } else if let info = appState.aiProviderInfo {
+                LabeledContent("Current Provider", value: info.provider.capitalized)
+                LabeledContent("Active Model", value: info.model)
+
+                if let defaultId = info.defaultModelId {
+                    LabeledContent("Default Model ID") {
+                        Text(defaultId)
+                            .font(.caption)
+                    }
+                }
+
+                if !info.availableProviders.isEmpty {
+                    LabeledContent("Available Providers") {
+                        Text(info.availableProviders.joined(separator: ", "))
+                            .font(.caption)
+                    }
+                }
+
+                if let openwebui = info.openwebuiPublicUrl ?? info.openwebuiUrl {
+                    LabeledContent("OpenWebUI") {
+                        Text(openwebui)
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                if let ollama = info.ollamaUrl {
+                    LabeledContent("Ollama Endpoint") {
+                        Text(ollama)
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            } else {
+                Button("Reload Provider Info") {
+                    _Concurrency.Task {
+                        await appState.loadAIProviderInfo()
+                    }
+                }
+            }
+        } header: {
+            Label("Provider Status", systemImage: "shield.checkered")
+        } footer: {
+            Text("Provider details reflect how the backend is routing AI traffic and whether optional services (OpenWebUI, Ollama) are reachable.")
         }
     }
 

@@ -185,50 +185,46 @@ class APIClient {
     }
 
     /// Stream chat message responses token by token
-    func streamChatMessage(prompt: String, history: [ChatMessage] = [], model: String? = nil) async throws -> AsyncThrowingStream<String, Error> {
+    func streamChatMessage(prompt: String, history: [ChatMessage] = [], model: String? = nil) async throws -> ChatStreamResult {
         let chatRequest = AIChatRequest(prompt: prompt, history: history, model: model)
         var request = try authorizedRequest(path: "/ai/chat/stream", method: "POST")
         request.httpBody = try JSONEncoder().encode(chatRequest)
         request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
         request.timeoutInterval = 120 // Longer timeout for streaming
 
-        return AsyncThrowingStream { continuation in
-            _Concurrency.Task {
+        let (bytes, response) = try await URLSession.shared.bytes(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.invalidResponse
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            if httpResponse.statusCode == 401 {
+                throw APIError.unauthorized
+            }
+            throw APIError.httpError(httpResponse.statusCode)
+        }
+
+        let resolvedModel = httpResponse.value(forHTTPHeaderField: "X-Halext-AI-Model")
+
+        let stream = AsyncThrowingStream<String, Error> { continuation in
+            _Concurrency.Task.detached {
                 do {
-                    let (bytes, response) = try await URLSession.shared.bytes(for: request)
-
-                    guard let httpResponse = response as? HTTPURLResponse else {
-                        continuation.finish(throwing: APIError.invalidResponse)
-                        return
-                    }
-
-                    guard (200...299).contains(httpResponse.statusCode) else {
-                        if httpResponse.statusCode == 401 {
-                            continuation.finish(throwing: APIError.unauthorized)
-                        } else {
-                            continuation.finish(throwing: APIError.httpError(httpResponse.statusCode))
-                        }
-                        return
-                    }
-
                     var buffer = ""
 
                     for try await byte in bytes {
                         let char = Character(UnicodeScalar(byte))
 
-                        // Handle Server-Sent Events format or newline-delimited JSON
                         if char == "\n" {
                             let line = buffer.trimmingCharacters(in: .whitespacesAndNewlines)
 
                             if line.hasPrefix("data: ") {
-                                // SSE format: "data: {json}"
                                 let jsonString = String(line.dropFirst(6))
                                 if let data = jsonString.data(using: .utf8),
                                    let chunk = try? JSONDecoder().decode(StreamChunk.self, from: data) {
                                     continuation.yield(chunk.content)
                                 }
                             } else if !line.isEmpty && line.first == "{" {
-                                // Plain JSON chunks
                                 if let data = line.data(using: .utf8),
                                    let chunk = try? JSONDecoder().decode(StreamChunk.self, from: data) {
                                     continuation.yield(chunk.content)
@@ -247,6 +243,8 @@ class APIClient {
                 }
             }
         }
+
+        return ChatStreamResult(stream: stream, modelIdentifier: resolvedModel)
     }
 
     func getTaskSuggestions(title: String, description: String? = nil) async throws -> AITaskSuggestions {
@@ -356,4 +354,9 @@ enum APIError: LocalizedError, Equatable {
 struct EmptyResponse: Codable {}
 struct ErrorResponse: Codable {
     let detail: String
+}
+
+struct ChatStreamResult {
+    let stream: AsyncThrowingStream<String, Error>
+    let modelIdentifier: String?
 }

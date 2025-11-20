@@ -34,7 +34,9 @@ class ChatViewModel {
 
         do {
             var assistantResponse = ""
-            let stream = try await api.streamChatMessage(prompt: userMessage.content, history: history, model: modelId)
+            let streamResult = try await api.streamChatMessage(prompt: userMessage.content, history: history, model: modelId)
+            let stream = streamResult.stream
+            let resolvedModel = streamResult.modelIdentifier ?? modelId
 
             // Add a placeholder for the streaming message
             let assistantMessageId = UUID()
@@ -44,7 +46,12 @@ class ChatViewModel {
             for try await chunk in stream {
                 assistantResponse += chunk
                 if let index = messages.firstIndex(where: { $0.id == assistantMessageId }) {
-                    messages[index] = AiChatMessage(id: assistantMessageId, role: .assistant, content: assistantResponse)
+                    messages[index] = AiChatMessage(
+                        id: assistantMessageId,
+                        role: .assistant,
+                        content: assistantResponse,
+                        modelIdentifier: resolvedModel
+                    )
                 }
             }
         } catch {
