@@ -46,24 +46,52 @@ interface ServerProjectsPanelProps {
 
 const PROJECT_LINKS = [
   {
-    label: 'Documentation Hub',
-    url: 'https://github.com/halext-org/halext-org/tree/main/docs',
-    description: 'Jump directly into the reorganized docs/ tree.',
-  },
-  {
-    label: 'Server Field Guide',
+    label: 'Ops Field Guide',
     url: 'https://github.com/halext-org/halext-org/blob/main/docs/ops/SERVER_FIELD_GUIDE.md',
-    description: 'Nginx, services, and SSH runbook.',
+    description: 'Nginx, services, SSH, and recovery runbook.',
   },
   {
-    label: 'AI Routing Plan',
-    url: 'https://github.com/halext-org/halext-org/blob/main/docs/ai/AI_ROUTING_IMPLEMENTATION_PLAN.md',
-    description: 'Current rollout checklist for distributed models.',
+    label: 'Admin Roadmap',
+    url: 'https://github.com/halext-org/halext-org/blob/main/docs/ops/ADMIN_ROADMAP.md',
+    description: 'Current admin UX + iOS action items.',
+  },
+  {
+    label: 'AI Provider Keys',
+    url: 'https://github.com/halext-org/halext-org/blob/main/docs/ops/AI_PROVIDER_KEYS.md',
+    description: 'Store OpenAI/Gemini keys and offload VM load.',
+  },
+  {
+    label: 'Backend Recovery',
+    url: 'https://github.com/halext-org/halext-org/blob/main/docs/ops/BACKEND_RECOVERY.md',
+    description: 'Login/session fixes and systemd checklist.',
   },
   {
     label: 'Scripts Index',
     url: 'https://github.com/halext-org/halext-org/blob/main/scripts/README.md',
     description: 'One-stop reference for server/dev automation.',
+  },
+]
+
+const PORTAL_LINKS = [
+  {
+    label: 'Content Portals',
+    url: 'https://github.com/halext-org/halext-org/blob/main/docs/ops/CONTENT_PORTALS.md',
+    description: 'Manage Labs pages, KB links, ROM patches, assets.',
+  },
+  {
+    label: 'Halext Labs',
+    url: 'https://halext.org/labs/',
+    description: 'Public Labs landing pages (manage via Site Pages).',
+  },
+  {
+    label: 'AlttPHacking KB',
+    url: 'https://alttphacking.com/',
+    description: 'Knowledge base entry point; link from Site Pages/Blog.',
+  },
+  {
+    label: 'Blog & Media',
+    url: 'https://org.halext.org',
+    description: 'Use Blog/Media tabs to publish posts and assets.',
   },
 ]
 
@@ -237,6 +265,23 @@ export const ServerProjectsPanel = ({ token }: ServerProjectsPanelProps) => {
         <h3 className="text-lg font-semibold text-purple-200 mb-3">Project Shortcuts</h3>
         <div className="quick-links-grid">
           {PROJECT_LINKS.map((link) => (
+            <a key={link.label} href={link.url} target="_blank" rel="noreferrer" className="quick-link-card">
+              <div className="quick-link-icon">
+                <MdLink size={18} />
+              </div>
+              <div>
+                <p className="quick-link-title">{link.label}</p>
+                <p className="quick-link-desc">{link.description}</p>
+              </div>
+            </a>
+          ))}
+        </div>
+      </div>
+
+      <div className="quick-links">
+        <h3 className="text-lg font-semibold text-purple-200 mb-3">Content & Portals</h3>
+        <div className="quick-links-grid">
+          {PORTAL_LINKS.map((link) => (
             <a key={link.label} href={link.url} target="_blank" rel="noreferrer" className="quick-link-card">
               <div className="quick-link-icon">
                 <MdLink size={18} />

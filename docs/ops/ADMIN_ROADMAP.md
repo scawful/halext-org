@@ -1,7 +1,7 @@
 # Admin UX & Roadmap
 
 ## Immediate actions
-- **iOS app update:** Add support for the new Admin → AI & Cloud credential flow and the customizable admin menu. Fix the iCloudKit-backed social features that currently crash the dashboard; ship a hotfix release before exposing new admin controls.
+- **iOS app update:** Add support for the new Admin → AI & Cloud credential flow and the customizable admin menu. Fix the iCloudKit-backed social features that currently crash the dashboard; ship a hotfix release before exposing new admin controls. Ensure the AI model list honors the cloud key state and prefers OpenAI/Gemini when present.
 - **OpenWebUI safety:** Keep `OPENWEBUI_SYNC_ENABLED` off unless configured; when enabled, ensure the service is behind the Nginx proxy/TLS and that admin credentials are rotated. SSO endpoints now hard-require sync to be enabled.
 - **Backend reload:** Restart `halext-api` after backend changes so OpenWebUI guards and cloud-key loading take effect.
 
