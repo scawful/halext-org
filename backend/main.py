@@ -16,6 +16,7 @@ from app.openwebui_sync import OpenWebUISync
 from app.admin_routes import router as admin_router
 from app.ai_routes import router as ai_router
 from app.content_routes import router as content_router
+from app.ai_usage_logger import log_ai_usage, estimate_token_count
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -491,6 +492,30 @@ def create_conversation(
     )
     return _serialize_conversation(db_conversation)
 
+@app.put("/conversations/{conversation_id}", response_model=schemas.ConversationSummary)
+def update_conversation(
+    conversation_id: int,
+    update: schemas.ConversationBase,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    conversation = crud.get_conversation_for_user(db=db, conversation_id=conversation_id, user_id=current_user.id)
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    if conversation.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the owner can modify conversation settings")
+
+    # Update fields
+    conversation.title = update.title
+    conversation.mode = update.mode
+    conversation.with_ai = update.with_ai
+    conversation.default_model_id = update.default_model_id
+
+    db.add(conversation)
+    db.commit()
+    db.refresh(conversation)
+    return _serialize_conversation(conversation)
+
 @app.get("/conversations/{conversation_id}/messages", response_model=List[schemas.ChatMessage])
 def get_conversation_messages(
     conversation_id: int,
@@ -527,13 +552,36 @@ async def send_conversation_message(
             {"role": "assistant" if msg.author_type == "ai" else "user", "content": msg.content}
             for msg in history_messages
         ]
+        # Use model from: 1) message override, 2) conversation default, 3) system default
+        model_to_use = message.model or conversation.default_model_id
+        import time
+        start_time = time.time()
+        
         ai_reply, route = await ai_gateway.generate_reply(
             message.content,
             history_payload,
+            model_identifier=model_to_use,
             user_id=current_user.id,
             db=db,
             include_context=True,
         )
+        
+        # Log AI usage
+        latency_ms = int((time.time() - start_time) * 1000)
+        try:
+            log_ai_usage(
+                db=db,
+                user_id=current_user.id,
+                model_identifier=route.identifier,
+                endpoint="/conversations/{id}/messages",
+                prompt_tokens=estimate_token_count(message.content),
+                response_tokens=estimate_token_count(ai_reply),
+                conversation_id=conversation_id,
+                latency_ms=latency_ms,
+            )
+        except Exception as e:
+            print(f"Warning: Failed to log AI usage: {e}")
+        
         ai_message = crud.add_message_to_conversation(
             db=db,
             conversation_id=conversation_id,
@@ -577,6 +625,9 @@ async def ai_chat(
     db: Session = Depends(get_db)
 ):
     """Generate AI chat response"""
+    import time
+    start_time = time.time()
+    
     response, route = await ai_gateway.generate_reply(
         request.prompt,
         request.history,
@@ -585,6 +636,22 @@ async def ai_chat(
         db=db,
         include_context=True,
     )
+    
+    # Log AI usage
+    latency_ms = int((time.time() - start_time) * 1000)
+    try:
+        log_ai_usage(
+            db=db,
+            user_id=current_user.id,
+            model_identifier=route.identifier,
+            endpoint="/ai/chat",
+            prompt_tokens=estimate_token_count(request.prompt),
+            response_tokens=estimate_token_count(response),
+            latency_ms=latency_ms,
+        )
+    except Exception as e:
+        print(f"Warning: Failed to log AI usage: {e}")
+    
     return schemas.AiChatResponse(
         response=response,
         model=route.identifier,
@@ -639,10 +706,11 @@ async def generate_embeddings(
 @app.post("/ai/tasks/suggest", response_model=schemas.AiTaskSuggestionsResponse)
 async def suggest_task_enhancements(
     request: schemas.AiTaskSuggestionsRequest,
-    current_user: models.User = Depends(auth.get_current_user)
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
 ):
     """Get AI suggestions for task breakdown, labels, time estimate, and priority"""
-    helper = AiTaskHelper(ai_gateway, user_id=current_user.id)
+    helper = AiTaskHelper(ai_gateway, user_id=current_user.id, db=db)
 
     # Run all suggestions in parallel
     import asyncio
@@ -650,7 +718,7 @@ async def suggest_task_enhancements(
         helper.suggest_subtasks(request.title, request.description),
         helper.suggest_labels(request.title, request.description),
         helper.estimate_time(request.title, request.description),
-        helper.suggest_priority(request.title, request.description)
+        helper.suggest_priority(request.title, request.description, model_identifier=request.model)
     )
 
     return schemas.AiTaskSuggestionsResponse(
@@ -664,31 +732,34 @@ async def suggest_task_enhancements(
 @app.post("/ai/tasks/estimate-time", response_model=schemas.AiTimeEstimateResponse)
 async def estimate_task_time(
     request: schemas.AiTaskSuggestionsRequest,
-    current_user: models.User = Depends(auth.get_current_user)
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
 ):
     """Estimate time required for a task"""
-    helper = AiTaskHelper(ai_gateway, user_id=current_user.id)
-    result = await helper.estimate_time(request.title, request.description)
+    helper = AiTaskHelper(ai_gateway, user_id=current_user.id, db=db)
+    result = await helper.estimate_time(request.title, request.description, request.model)
     return schemas.AiTimeEstimateResponse(**result)
 
 @app.post("/ai/tasks/suggest-priority", response_model=schemas.AiPriorityResponse)
 async def suggest_task_priority(
     request: schemas.AiTaskSuggestionsRequest,
-    current_user: models.User = Depends(auth.get_current_user)
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
 ):
     """Suggest priority for a task"""
-    helper = AiTaskHelper(ai_gateway, user_id=current_user.id)
-    result = await helper.suggest_priority(request.title, request.description)
+    helper = AiTaskHelper(ai_gateway, user_id=current_user.id, db=db)
+    result = await helper.suggest_priority(request.title, request.description, model_identifier=request.model)
     return schemas.AiPriorityResponse(**result)
 
 @app.post("/ai/tasks/suggest-labels", response_model=List[str])
 async def suggest_task_labels(
     request: schemas.AiTaskSuggestionsRequest,
-    current_user: models.User = Depends(auth.get_current_user)
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
 ):
     """Suggest labels for a task"""
-    helper = AiTaskHelper(ai_gateway, user_id=current_user.id)
-    return await helper.suggest_labels(request.title, request.description)
+    helper = AiTaskHelper(ai_gateway, user_id=current_user.id, db=db)
+    return await helper.suggest_labels(request.title, request.description, request.model)
 
 # AI Event Features
 @app.post("/ai/events/analyze", response_model=schemas.AiEventAnalysisResponse)
@@ -698,7 +769,7 @@ async def analyze_event(
     db: Session = Depends(get_db)
 ):
     """Analyze event and provide AI suggestions"""
-    helper = AiEventHelper(ai_gateway, user_id=current_user.id)
+    helper = AiEventHelper(ai_gateway, user_id=current_user.id, db=db)
 
     # Get existing events for conflict detection
     existing_events = crud.get_user_events(db, current_user.id)
@@ -717,8 +788,8 @@ async def analyze_event(
     duration_minutes = int((request.end_time - request.start_time).total_seconds() / 60)
 
     summary, prep_steps, optimal_times = await asyncio.gather(
-        helper.summarize_event(request.title, request.description, duration_minutes),
-        helper.suggest_preparation(request.title, request.description, request.event_type),
+        helper.summarize_event(request.title, request.description, duration_minutes, request.model),
+        helper.suggest_preparation(request.title, request.description, request.event_type, request.model),
         helper.suggest_optimal_time(request.title, duration_minutes, request.start_time, events_data)
     )
 
@@ -740,16 +811,17 @@ async def analyze_event(
 @app.post("/ai/notes/summarize", response_model=schemas.AiNoteSummaryResponse)
 async def summarize_note(
     request: schemas.AiNoteSummaryRequest,
-    current_user: models.User = Depends(auth.get_current_user)
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
 ):
     """Summarize note and extract information"""
-    helper = AiNoteHelper(ai_gateway, user_id=current_user.id)
+    helper = AiNoteHelper(ai_gateway, user_id=current_user.id, db=db)
 
     import asyncio
     summary, tags, tasks = await asyncio.gather(
-        helper.summarize_note(request.content, request.max_length),
-        helper.generate_tags(request.content),
-        helper.extract_tasks(request.content)
+        helper.summarize_note(request.content, request.max_length, request.model),
+        helper.generate_tags(request.content, request.model),
+        helper.extract_tasks(request.content, request.model)
     )
 
     return schemas.AiNoteSummaryResponse(
@@ -767,7 +839,8 @@ def get_openwebui_sync_status(current_user: models.User = Depends(auth.get_curre
 
 @app.post("/integrations/openwebui/sync/user", response_model=schemas.OpenWebUISyncResponse)
 async def sync_user_to_openwebui(
-    current_user: models.User = Depends(auth.get_current_user)
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
 ):
     """Sync current user to OpenWebUI"""
     result = await openwebui_sync.sync_user_from_halext(
@@ -788,7 +861,8 @@ async def sync_user_to_openwebui(
 @app.post("/integrations/openwebui/sso", response_model=schemas.OpenWebUISSOResponse)
 async def get_openwebui_sso_link(
     request: schemas.OpenWebUISSORequest,
-    current_user: models.User = Depends(auth.get_current_user)
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
 ):
     """Generate SSO link for OpenWebUI"""
     from datetime import timedelta
@@ -819,7 +893,8 @@ async def get_openwebui_sso_link(
 @app.post("/ai/generate-tasks", response_model=schemas.AiGenerateTasksResponse)
 async def generate_smart_tasks(
     request: schemas.AiGenerateTasksRequest,
-    current_user: models.User = Depends(auth.get_current_user)
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
 ):
     """Generate tasks, events, and smart lists from natural language prompt"""
     helper = AiSmartGenerator(ai_gateway, user_id=current_user.id)

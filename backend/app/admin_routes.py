@@ -2,17 +2,109 @@
 Admin API Routes for AI Client Management
 Requires admin privileges
 """
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+import os
+import platform
+import subprocess
+import time
+from datetime import datetime
+from pathlib import Path
 from typing import List, Optional
-from pydantic import BaseModel
 
-from . import models
+import psutil
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+from . import models, schemas
 from .admin_utils import get_current_admin_user, get_db
 from .ai_client_manager import ai_client_manager
 
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+
+SERVICE_NAMES = ["halext-api", "nginx", "postgresql", "openwebui", "ollama"]
+
+
+def _format_duration(seconds: float) -> str:
+    minutes, sec = divmod(int(seconds), 60)
+    hours, minutes = divmod(minutes, 60)
+    days, hours = divmod(hours, 24)
+    parts = []
+    if days:
+        parts.append(f"{days}d")
+    if days or hours:
+        parts.append(f"{hours}h")
+    parts.append(f"{minutes}m")
+    parts.append(f"{sec}s")
+    return " ".join(parts)
+
+
+def _check_service_status(service: str) -> str:
+    try:
+        result = subprocess.run(
+            ["systemctl", "is-active", service],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode == 0:
+            return result.stdout.strip() or "active"
+        return result.stdout.strip() or result.stderr.strip() or "unknown"
+    except FileNotFoundError:
+        # systemctl not available (e.g., during tests)
+        return "unavailable"
+    except Exception:
+        return "unknown"
+
+
+def _get_git_info() -> dict:
+    project_root = Path(__file__).resolve().parent.parent
+    info = {}
+    try:
+        branch = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            cwd=project_root,
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=True,
+        ).stdout.strip()
+        commit = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=project_root,
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=True,
+        ).stdout.strip()
+        short_commit = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=project_root,
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=True,
+        ).stdout.strip()
+        info.update(
+            {
+                "branch": branch,
+                "commit": commit,
+                "short_commit": short_commit,
+            }
+        )
+        last_commit = subprocess.run(
+            ["git", "log", "-1", "--format=%cI"],
+            cwd=project_root,
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=True,
+        ).stdout.strip()
+        info["last_commit_date"] = last_commit
+    except Exception:
+        # Git not available; leave info empty
+        pass
+    return info
 
 
 # Schemas
@@ -224,6 +316,64 @@ async def get_client_info(
 
     info = await ai_client_manager.get_node_info(client)
     return info
+
+
+@router.get("/server/status", response_model=schemas.ServerStatusResponse)
+async def get_server_status(
+    admin_user: models.User = Depends(get_current_admin_user),
+):
+    """Return server, git, and service information for admins"""
+    generated_at = datetime.utcnow()
+    hostname = platform.node()
+    uptime_seconds = max(0.0, time.time() - psutil.boot_time())
+
+    load_avg = {"one": 0.0, "five": 0.0, "fifteen": 0.0}
+    if hasattr(os, "getloadavg"):
+        try:
+            load1, load5, load15 = os.getloadavg()
+            load_avg = {
+                "one": round(load1, 2),
+                "five": round(load5, 2),
+                "fifteen": round(load15, 2),
+            }
+        except OSError:
+            pass
+
+    vmem = psutil.virtual_memory()
+    disk = psutil.disk_usage("/")
+
+    services = [
+        schemas.ServiceStatus(
+            name=service,
+            status=_check_service_status(service),
+            last_checked=generated_at,
+        )
+        for service in SERVICE_NAMES
+    ]
+
+    git_info = _get_git_info()
+
+    return schemas.ServerStatusResponse(
+        hostname=hostname,
+        uptime_seconds=uptime_seconds,
+        uptime_human=_format_duration(uptime_seconds),
+        load_avg=load_avg,
+        memory=schemas.ResourceUsage(
+            total=int(vmem.total),
+            used=int(vmem.used),
+            free=int(vmem.available),
+            percent=round(vmem.percent, 2),
+        ),
+        disk=schemas.ResourceUsage(
+            total=int(disk.total),
+            used=int(disk.used),
+            free=int(disk.free),
+            percent=round(disk.percent, 2),
+        ),
+        services=services,
+        git=git_info,
+        generated_at=generated_at,
+    )
 
 
 # Health check all nodes

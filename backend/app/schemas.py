@@ -127,6 +127,7 @@ class ConversationBase(BaseModel):
     title: str
     mode: str = "solo"
     with_ai: bool = True
+    default_model_id: Optional[str] = None
 
 class ConversationCreate(ConversationBase):
     participant_usernames: List[str] = Field(default_factory=list)
@@ -147,7 +148,7 @@ class ChatMessageBase(BaseModel):
     content: str
 
 class ChatMessageCreate(ChatMessageBase):
-    pass
+    model: Optional[str] = None  # Optional model override for this message
 
 class ChatMessage(ChatMessageBase):
     id: int
@@ -392,10 +393,36 @@ class AiProviderInfo(BaseModel):
     openwebui_url: Optional[str] = None
     openwebui_public_url: Optional[str] = None
 
+
+class ServiceStatus(BaseModel):
+    name: str
+    status: str
+    last_checked: datetime
+
+
+class ResourceUsage(BaseModel):
+    total: int
+    used: int
+    free: int
+    percent: float
+
+
+class ServerStatusResponse(BaseModel):
+    hostname: str
+    uptime_seconds: float
+    uptime_human: str
+    load_avg: Dict[str, float]
+    memory: ResourceUsage
+    disk: ResourceUsage
+    services: List[ServiceStatus]
+    git: Dict[str, Optional[str]]
+    generated_at: datetime
+
 # AI Task Features
 class AiTaskSuggestionsRequest(BaseModel):
     title: str
     description: Optional[str] = None
+    model: Optional[str] = None
 
 class AiTaskSuggestionsResponse(BaseModel):
     subtasks: List[str]
@@ -420,6 +447,7 @@ class AiEventAnalysisRequest(BaseModel):
     start_time: datetime
     end_time: datetime
     event_type: Optional[str] = None
+    model: Optional[str] = None
 
 class AiEventAnalysisResponse(BaseModel):
     summary: str
@@ -431,6 +459,7 @@ class AiEventAnalysisResponse(BaseModel):
 class AiNoteSummaryRequest(BaseModel):
     content: str
     max_length: Optional[int] = 200
+    model: Optional[str] = None
 
 class AiNoteSummaryResponse(BaseModel):
     summary: str

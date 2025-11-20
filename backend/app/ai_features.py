@@ -9,11 +9,12 @@ from app.ai import AiGateway
 class AiTaskHelper:
     """AI assistant for task management"""
 
-    def __init__(self, ai_gateway: AiGateway, user_id: Optional[int] = None):
+    def __init__(self, ai_gateway: AiGateway, user_id: Optional[int] = None, db=None):
         self.ai = ai_gateway
         self.user_id = user_id
+        self.db = db
 
-    async def suggest_subtasks(self, task_title: str, task_description: Optional[str] = None) -> List[str]:
+    async def suggest_subtasks(self, task_title: str, task_description: Optional[str] = None, model_identifier: Optional[str] = None) -> List[str]:
         """Break down a task into suggested subtasks"""
         prompt = f"""Break down this task into 3-5 concrete, actionable subtasks:
 
@@ -22,12 +23,12 @@ Task: {task_title}
 
 Return only the subtask titles, one per line, without numbers or bullets."""
 
-        response = await self.ai.generate_reply(prompt, user_id=self.user_id)
+        response = await self.ai.generate_reply(prompt, user_id=self.user_id, model_identifier=model_identifier, db=self.db)
         # Parse response into list of subtasks
         subtasks = [line.strip() for line in response.split('\n') if line.strip() and not line.strip().startswith('#')]
         return subtasks[:5]  # Limit to 5
 
-    async def estimate_time(self, task_title: str, task_description: Optional[str] = None) -> Dict[str, Any]:
+    async def estimate_time(self, task_title: str, task_description: Optional[str] = None, model_identifier: Optional[str] = None) -> Dict[str, Any]:
         """Estimate time required for a task"""
         prompt = f"""Estimate the time required to complete this task. Provide:
 1. Estimated hours (as a number)
@@ -42,7 +43,7 @@ Hours: X
 Confidence: [low/medium/high]
 Factors: [brief explanation]"""
 
-        response = await self.ai.generate_reply(prompt, user_id=self.user_id)
+        response = await self.ai.generate_reply(prompt, user_id=self.user_id, model_identifier=model_identifier, db=self.db)
 
         # Parse the response
         hours = 2.0  # default
@@ -66,7 +67,7 @@ Factors: [brief explanation]"""
             "factors": factors
         }
 
-    async def suggest_priority(self, task_title: str, task_description: Optional[str] = None, due_date: Optional[datetime] = None) -> Dict[str, Any]:
+    async def suggest_priority(self, task_title: str, task_description: Optional[str] = None, due_date: Optional[datetime] = None, model_identifier: Optional[str] = None) -> Dict[str, Any]:
         """Suggest task priority based on content and due date"""
         due_info = ""
         if due_date:
@@ -82,7 +83,7 @@ Return in this format:
 Priority: [high/medium/low]
 Reasoning: [brief explanation]"""
 
-        response = await self.ai.generate_reply(prompt, user_id=self.user_id)
+        response = await self.ai.generate_reply(prompt, user_id=self.user_id, model_identifier=model_identifier, db=self.db)
 
         priority = "medium"
         reasoning = response
@@ -101,7 +102,7 @@ Reasoning: [brief explanation]"""
             "reasoning": reasoning
         }
 
-    async def suggest_labels(self, task_title: str, task_description: Optional[str] = None) -> List[str]:
+    async def suggest_labels(self, task_title: str, task_description: Optional[str] = None, model_identifier: Optional[str] = None) -> List[str]:
         """Suggest appropriate labels for a task"""
         prompt = f"""Suggest 2-4 relevant labels/tags for this task. Choose from common categories like:
 work, personal, urgent, research, development, design, meeting, email, documentation, etc.
@@ -111,7 +112,7 @@ Task: {task_title}
 
 Return only the labels, comma-separated."""
 
-        response = await self.ai.generate_reply(prompt, user_id=self.user_id)
+        response = await self.ai.generate_reply(prompt, user_id=self.user_id, model_identifier=model_identifier, db=self.db)
         # Parse labels
         labels = [label.strip().lower() for label in response.replace('\n', ',').split(',') if label.strip()]
         return labels[:4]  # Limit to 4
@@ -120,11 +121,12 @@ Return only the labels, comma-separated."""
 class AiEventHelper:
     """AI assistant for event management"""
 
-    def __init__(self, ai_gateway: AiGateway, user_id: Optional[int] = None):
+    def __init__(self, ai_gateway: AiGateway, user_id: Optional[int] = None, db=None):
         self.ai = ai_gateway
         self.user_id = user_id
+        self.db = db
 
-    async def summarize_event(self, event_title: str, event_description: Optional[str] = None, duration_minutes: Optional[int] = None) -> str:
+    async def summarize_event(self, event_title: str, event_description: Optional[str] = None, duration_minutes: Optional[int] = None, model_identifier: Optional[str] = None) -> str:
         """Generate a concise summary of an event"""
         duration_info = f"\nDuration: {duration_minutes} minutes" if duration_minutes else ""
 
@@ -135,9 +137,9 @@ Event: {event_title}
 
 Return only the summary."""
 
-        return await self.ai.generate_reply(prompt, user_id=self.user_id)
+        return await self.ai.generate_reply(prompt, user_id=self.user_id, model_identifier=model_identifier, db=self.db)
 
-    async def suggest_preparation(self, event_title: str, event_description: Optional[str] = None, event_type: Optional[str] = None) -> List[str]:
+    async def suggest_preparation(self, event_title: str, event_description: Optional[str] = None, event_type: Optional[str] = None, model_identifier: Optional[str] = None) -> List[str]:
         """Suggest preparation steps for an event"""
         type_info = f"\nType: {event_type}" if event_type else ""
 
@@ -148,7 +150,7 @@ Event: {event_title}
 
 Return only the preparation steps, one per line."""
 
-        response = await self.ai.generate_reply(prompt, user_id=self.user_id)
+        response = await self.ai.generate_reply(prompt, user_id=self.user_id, model_identifier=model_identifier, db=self.db)
         steps = [line.strip() for line in response.split('\n') if line.strip() and not line.strip().startswith('#')]
         return steps[:5]
 
@@ -218,11 +220,12 @@ Return only the preparation steps, one per line."""
 class AiNoteHelper:
     """AI assistant for note-taking and management"""
 
-    def __init__(self, ai_gateway: AiGateway, user_id: Optional[int] = None):
+    def __init__(self, ai_gateway: AiGateway, user_id: Optional[int] = None, db=None):
         self.ai = ai_gateway
         self.user_id = user_id
+        self.db = db
 
-    async def summarize_note(self, note_content: str, max_length: int = 200) -> str:
+    async def summarize_note(self, note_content: str, max_length: int = 200, model_identifier: Optional[str] = None) -> str:
         """Generate a summary of note content"""
         prompt = f"""Summarize this note in {max_length} characters or less:
 
@@ -230,9 +233,9 @@ class AiNoteHelper:
 
 Return only the summary."""
 
-        return await self.ai.generate_reply(prompt, user_id=self.user_id)
+        return await self.ai.generate_reply(prompt, user_id=self.user_id, model_identifier=model_identifier, db=self.db)
 
-    async def extract_tasks(self, note_content: str) -> List[str]:
+    async def extract_tasks(self, note_content: str, model_identifier: Optional[str] = None) -> List[str]:
         """Extract actionable tasks from note content"""
         prompt = f"""Extract actionable tasks from this note. Look for action items, TODOs, or things that need to be done:
 
@@ -240,11 +243,11 @@ Return only the summary."""
 
 Return only the task titles, one per line."""
 
-        response = await self.ai.generate_reply(prompt, user_id=self.user_id)
+        response = await self.ai.generate_reply(prompt, user_id=self.user_id, model_identifier=model_identifier, db=self.db)
         tasks = [line.strip() for line in response.split('\n') if line.strip() and not line.strip().startswith('#')]
         return tasks
 
-    async def suggest_formatting(self, note_content: str) -> str:
+    async def suggest_formatting(self, note_content: str, model_identifier: Optional[str] = None) -> str:
         """Suggest improved formatting for note content"""
         prompt = f"""Improve the formatting and structure of this note using markdown. Add headers, bullets, and emphasis where appropriate:
 
@@ -252,9 +255,9 @@ Return only the task titles, one per line."""
 
 Return the reformatted note."""
 
-        return await self.ai.generate_reply(prompt, user_id=self.user_id)
+        return await self.ai.generate_reply(prompt, user_id=self.user_id, model_identifier=model_identifier, db=self.db)
 
-    async def generate_tags(self, note_content: str) -> List[str]:
+    async def generate_tags(self, note_content: str, model_identifier: Optional[str] = None) -> List[str]:
         """Generate relevant tags for a note"""
         prompt = f"""Generate 3-5 relevant tags for this note based on its content:
 
@@ -262,6 +265,6 @@ Return the reformatted note."""
 
 Return only the tags, comma-separated."""
 
-        response = await self.ai.generate_reply(prompt, user_id=self.user_id)
+        response = await self.ai.generate_reply(prompt, user_id=self.user_id, model_identifier=model_identifier, db=self.db)
         tags = [tag.strip().lower() for tag in response.replace('\n', ',').split(',') if tag.strip()]
         return tags[:5]

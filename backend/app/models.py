@@ -197,6 +197,7 @@ class Conversation(Base):
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     mode = Column(String, default="solo")  # solo, partner, group
     with_ai = Column(Boolean, default=True)
+    default_model_id = Column(String, nullable=True)  # AI model to use for this conversation
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
@@ -310,3 +311,26 @@ class SiteSetting(Base):
     key = Column(String, unique=True, nullable=False, index=True)
     value = Column(JSON, default=dict)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class AIUsageLog(Base):
+    """Log of AI API usage for analytics and cost tracking"""
+    __tablename__ = "ai_usage_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    conversation_id = Column(Integer, ForeignKey("conversations.id"), nullable=True, index=True)
+    model_identifier = Column(String, nullable=False, index=True)  # e.g., "client:1:llama3.1"
+    endpoint = Column(String, nullable=False)  # e.g., "/ai/chat", "/ai/tasks/suggest"
+    prompt_tokens = Column(Integer, default=0)
+    response_tokens = Column(Integer, default=0)
+    total_tokens = Column(Integer, default=0)
+    latency_ms = Column(Integer, nullable=True)  # Response time in milliseconds
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    # Relationships
+    user = relationship("User")
+    conversation = relationship("Conversation")
+
+    def __repr__(self):
+        return f"<AIUsageLog(user_id={self.user_id}, model='{self.model_identifier}', endpoint='{self.endpoint}')>"

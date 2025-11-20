@@ -14,6 +14,7 @@ import {
 } from 'react-icons/md'
 import './AdminSection.css'
 import { API_BASE_URL } from '../../utils/helpers'
+import { ServerProjectsPanel } from './ServerProjectsPanel'
 
 interface AIClient {
   id: number
@@ -80,6 +81,7 @@ interface AdminSectionProps {
 }
 
 const TAB_OPTIONS = [
+  { id: 'server', label: 'Server & Projects', icon: <MdSettingsRemote size={18} /> },
   { id: 'ai', label: 'AI Clients', icon: <MdComputer size={18} /> },
   { id: 'site', label: 'Site Pages', icon: <MdWeb size={18} /> },
   { id: 'photos', label: 'Photo Albums', icon: <MdPhotoLibrary size={18} /> },
@@ -1039,6 +1041,8 @@ export const AdminSection = ({ token }: AdminSectionProps) => {
 
   const renderActiveTab = () => {
     switch (activeTab) {
+      case 'server':
+        return <ServerProjectsPanel token={token} />
       case 'ai':
         return renderAiClients()
       case 'site':
