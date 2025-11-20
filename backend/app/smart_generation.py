@@ -11,8 +11,9 @@ import uuid
 class AiSmartGenerator:
     """AI assistant for generating tasks, events, and smart lists from natural language"""
 
-    def __init__(self, ai_gateway: AiGateway):
+    def __init__(self, ai_gateway: AiGateway, user_id: Optional[int] = None):
         self.ai = ai_gateway
+        self.user_id = user_id
 
     async def generate_from_prompt(
         self,
@@ -54,9 +55,13 @@ User Request: {prompt}
 Generate a comprehensive response with tasks, events, and smart lists as needed. Return ONLY valid JSON matching the schema."""
 
         # Call AI to generate the response
-        response = await self.ai.generate_reply(user_prompt, [
-            {"role": "system", "content": system_prompt}
-        ])
+        response = await self.ai.generate_reply(
+            user_prompt,
+            [
+                {"role": "system", "content": system_prompt}
+            ],
+            user_id=self.user_id
+        )
 
         # Parse the AI response
         parsed = self._parse_ai_response(response, prompt, current_date)

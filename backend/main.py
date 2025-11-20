@@ -527,14 +527,20 @@ async def send_conversation_message(
             {"role": "assistant" if msg.author_type == "ai" else "user", "content": msg.content}
             for msg in history_messages
         ]
-        ai_reply = await ai_gateway.generate_reply(message.content, history_payload)
+        ai_reply, route = await ai_gateway.generate_reply(
+            message.content,
+            history_payload,
+            user_id=current_user.id,
+            db=db,
+            include_context=True,
+        )
         ai_message = crud.add_message_to_conversation(
             db=db,
             conversation_id=conversation_id,
             content=ai_reply,
             author_id=None,
             author_type="ai",
-            model_used=ai_gateway.model,
+            model_used=route.identifier,
         )
         responses.append(ai_message)
     return responses
@@ -551,57 +557,81 @@ def get_ai_provider_info():
     return schemas.AiProviderInfo(**ai_gateway.get_provider_info())
 
 @app.get("/ai/models", response_model=schemas.AiModelsResponse)
-async def list_ai_models(current_user: models.User = Depends(auth.get_current_user)):
+async def list_ai_models(
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
     """List available AI models"""
-    models_list = await ai_gateway.get_models()
+    models_list = await ai_gateway.get_models(db=db, user_id=current_user.id)
     return schemas.AiModelsResponse(
         models=[schemas.AiModelInfo(**m) for m in models_list],
         provider=ai_gateway.provider,
-        current_model=ai_gateway.model
+        current_model=ai_gateway.model,
+        default_model_id=ai_gateway.default_model_identifier,
     )
 
 @app.post("/ai/chat", response_model=schemas.AiChatResponse)
 async def ai_chat(
     request: schemas.AiChatRequest,
-    current_user: models.User = Depends(auth.get_current_user)
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
 ):
     """Generate AI chat response"""
-    response = await ai_gateway.generate_reply(request.prompt, request.history)
+    response, route = await ai_gateway.generate_reply(
+        request.prompt,
+        request.history,
+        model_identifier=request.model,
+        user_id=current_user.id,
+        db=db,
+        include_context=True,
+    )
     return schemas.AiChatResponse(
         response=response,
-        model=request.model or ai_gateway.model,
-        provider=ai_gateway.provider
+        model=route.identifier,
+        provider=route.key,
     )
 
 @app.post("/ai/stream")
 async def ai_chat_stream(
     request: schemas.AiChatRequest,
-    current_user: models.User = Depends(auth.get_current_user)
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
 ):
     """Stream AI chat response (Server-Sent Events)"""
     from fastapi.responses import StreamingResponse
 
+    stream, route = await ai_gateway.generate_stream(
+        request.prompt,
+        request.history,
+        model_identifier=request.model,
+        user_id=current_user.id,
+        db=db,
+    )
+
     async def generate():
-        async for chunk in ai_gateway.generate_stream(
-            request.prompt,
-            request.history,
-            request.model
-        ):
+        async for chunk in stream:
             yield f"data: {chunk}\n\n"
         yield "data: [DONE]\n\n"
 
-    return StreamingResponse(generate(), media_type="text/event-stream")
+    headers = {"X-Halext-AI-Model": route.identifier}
+    return StreamingResponse(generate(), media_type="text/event-stream", headers=headers)
 
 @app.post("/ai/embeddings", response_model=schemas.AiEmbeddingsResponse)
 async def generate_embeddings(
     request: schemas.AiEmbeddingsRequest,
-    current_user: models.User = Depends(auth.get_current_user)
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
 ):
     """Generate embeddings for text"""
-    embeddings = await ai_gateway.generate_embeddings(request.text, request.model)
+    embeddings = await ai_gateway.generate_embeddings(
+        request.text,
+        request.model,
+        user_id=current_user.id,
+        db=db,
+    )
     return schemas.AiEmbeddingsResponse(
         embeddings=embeddings,
-        model=request.model or ai_gateway.model,
+        model=request.model or ai_gateway.default_model_identifier,
         dimension=len(embeddings)
     )
 
@@ -612,7 +642,7 @@ async def suggest_task_enhancements(
     current_user: models.User = Depends(auth.get_current_user)
 ):
     """Get AI suggestions for task breakdown, labels, time estimate, and priority"""
-    helper = AiTaskHelper(ai_gateway)
+    helper = AiTaskHelper(ai_gateway, user_id=current_user.id)
 
     # Run all suggestions in parallel
     import asyncio
@@ -637,7 +667,7 @@ async def estimate_task_time(
     current_user: models.User = Depends(auth.get_current_user)
 ):
     """Estimate time required for a task"""
-    helper = AiTaskHelper(ai_gateway)
+    helper = AiTaskHelper(ai_gateway, user_id=current_user.id)
     result = await helper.estimate_time(request.title, request.description)
     return schemas.AiTimeEstimateResponse(**result)
 
@@ -647,7 +677,7 @@ async def suggest_task_priority(
     current_user: models.User = Depends(auth.get_current_user)
 ):
     """Suggest priority for a task"""
-    helper = AiTaskHelper(ai_gateway)
+    helper = AiTaskHelper(ai_gateway, user_id=current_user.id)
     result = await helper.suggest_priority(request.title, request.description)
     return schemas.AiPriorityResponse(**result)
 
@@ -657,7 +687,7 @@ async def suggest_task_labels(
     current_user: models.User = Depends(auth.get_current_user)
 ):
     """Suggest labels for a task"""
-    helper = AiTaskHelper(ai_gateway)
+    helper = AiTaskHelper(ai_gateway, user_id=current_user.id)
     return await helper.suggest_labels(request.title, request.description)
 
 # AI Event Features
@@ -668,7 +698,7 @@ async def analyze_event(
     db: Session = Depends(get_db)
 ):
     """Analyze event and provide AI suggestions"""
-    helper = AiEventHelper(ai_gateway)
+    helper = AiEventHelper(ai_gateway, user_id=current_user.id)
 
     # Get existing events for conflict detection
     existing_events = crud.get_user_events(db, current_user.id)
@@ -713,7 +743,7 @@ async def summarize_note(
     current_user: models.User = Depends(auth.get_current_user)
 ):
     """Summarize note and extract information"""
-    helper = AiNoteHelper(ai_gateway)
+    helper = AiNoteHelper(ai_gateway, user_id=current_user.id)
 
     import asyncio
     summary, tags, tasks = await asyncio.gather(
@@ -792,7 +822,7 @@ async def generate_smart_tasks(
     current_user: models.User = Depends(auth.get_current_user)
 ):
     """Generate tasks, events, and smart lists from natural language prompt"""
-    helper = AiSmartGenerator(ai_gateway)
+    helper = AiSmartGenerator(ai_gateway, user_id=current_user.id)
 
     result = await helper.generate_from_prompt(
         prompt=request.prompt,
@@ -811,7 +841,7 @@ async def generate_recipes(
     current_user: models.User = Depends(auth.get_current_user)
 ):
     """Generate recipes from available ingredients"""
-    helper = AiRecipeGenerator(ai_gateway)
+    helper = AiRecipeGenerator(ai_gateway, user_id=current_user.id)
 
     result = await helper.generate_recipes(
         ingredients=request.ingredients,
@@ -831,7 +861,7 @@ async def generate_meal_plan(
     current_user: models.User = Depends(auth.get_current_user)
 ):
     """Generate a meal plan for multiple days"""
-    helper = AiRecipeGenerator(ai_gateway)
+    helper = AiRecipeGenerator(ai_gateway, user_id=current_user.id)
 
     result = await helper.generate_meal_plan(
         ingredients=request.ingredients,
@@ -849,7 +879,7 @@ async def suggest_ingredient_substitutions(
     current_user: models.User = Depends(auth.get_current_user)
 ):
     """Suggest ingredient substitutions and alternative recipes"""
-    helper = AiRecipeGenerator(ai_gateway)
+    helper = AiRecipeGenerator(ai_gateway, user_id=current_user.id)
 
     result = await helper.suggest_substitutions(
         ingredients=request.ingredients,
@@ -864,7 +894,7 @@ async def analyze_ingredients(
     current_user: models.User = Depends(auth.get_current_user)
 ):
     """Analyze and categorize ingredients"""
-    helper = AiRecipeGenerator(ai_gateway)
+    helper = AiRecipeGenerator(ai_gateway, user_id=current_user.id)
 
     result = await helper.analyze_ingredients(
         ingredients=request.ingredients

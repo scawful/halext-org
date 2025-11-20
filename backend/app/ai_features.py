@@ -9,8 +9,9 @@ from app.ai import AiGateway
 class AiTaskHelper:
     """AI assistant for task management"""
 
-    def __init__(self, ai_gateway: AiGateway):
+    def __init__(self, ai_gateway: AiGateway, user_id: Optional[int] = None):
         self.ai = ai_gateway
+        self.user_id = user_id
 
     async def suggest_subtasks(self, task_title: str, task_description: Optional[str] = None) -> List[str]:
         """Break down a task into suggested subtasks"""
@@ -21,7 +22,7 @@ Task: {task_title}
 
 Return only the subtask titles, one per line, without numbers or bullets."""
 
-        response = await self.ai.generate_reply(prompt)
+        response = await self.ai.generate_reply(prompt, user_id=self.user_id)
         # Parse response into list of subtasks
         subtasks = [line.strip() for line in response.split('\n') if line.strip() and not line.strip().startswith('#')]
         return subtasks[:5]  # Limit to 5
@@ -41,7 +42,7 @@ Hours: X
 Confidence: [low/medium/high]
 Factors: [brief explanation]"""
 
-        response = await self.ai.generate_reply(prompt)
+        response = await self.ai.generate_reply(prompt, user_id=self.user_id)
 
         # Parse the response
         hours = 2.0  # default
@@ -81,7 +82,7 @@ Return in this format:
 Priority: [high/medium/low]
 Reasoning: [brief explanation]"""
 
-        response = await self.ai.generate_reply(prompt)
+        response = await self.ai.generate_reply(prompt, user_id=self.user_id)
 
         priority = "medium"
         reasoning = response
@@ -110,7 +111,7 @@ Task: {task_title}
 
 Return only the labels, comma-separated."""
 
-        response = await self.ai.generate_reply(prompt)
+        response = await self.ai.generate_reply(prompt, user_id=self.user_id)
         # Parse labels
         labels = [label.strip().lower() for label in response.replace('\n', ',').split(',') if label.strip()]
         return labels[:4]  # Limit to 4
@@ -119,8 +120,9 @@ Return only the labels, comma-separated."""
 class AiEventHelper:
     """AI assistant for event management"""
 
-    def __init__(self, ai_gateway: AiGateway):
+    def __init__(self, ai_gateway: AiGateway, user_id: Optional[int] = None):
         self.ai = ai_gateway
+        self.user_id = user_id
 
     async def summarize_event(self, event_title: str, event_description: Optional[str] = None, duration_minutes: Optional[int] = None) -> str:
         """Generate a concise summary of an event"""
@@ -133,7 +135,7 @@ Event: {event_title}
 
 Return only the summary."""
 
-        return await self.ai.generate_reply(prompt)
+        return await self.ai.generate_reply(prompt, user_id=self.user_id)
 
     async def suggest_preparation(self, event_title: str, event_description: Optional[str] = None, event_type: Optional[str] = None) -> List[str]:
         """Suggest preparation steps for an event"""
@@ -146,7 +148,7 @@ Event: {event_title}
 
 Return only the preparation steps, one per line."""
 
-        response = await self.ai.generate_reply(prompt)
+        response = await self.ai.generate_reply(prompt, user_id=self.user_id)
         steps = [line.strip() for line in response.split('\n') if line.strip() and not line.strip().startswith('#')]
         return steps[:5]
 
@@ -216,8 +218,9 @@ Return only the preparation steps, one per line."""
 class AiNoteHelper:
     """AI assistant for note-taking and management"""
 
-    def __init__(self, ai_gateway: AiGateway):
+    def __init__(self, ai_gateway: AiGateway, user_id: Optional[int] = None):
         self.ai = ai_gateway
+        self.user_id = user_id
 
     async def summarize_note(self, note_content: str, max_length: int = 200) -> str:
         """Generate a summary of note content"""
@@ -227,7 +230,7 @@ class AiNoteHelper:
 
 Return only the summary."""
 
-        return await self.ai.generate_reply(prompt)
+        return await self.ai.generate_reply(prompt, user_id=self.user_id)
 
     async def extract_tasks(self, note_content: str) -> List[str]:
         """Extract actionable tasks from note content"""
@@ -237,7 +240,7 @@ Return only the summary."""
 
 Return only the task titles, one per line."""
 
-        response = await self.ai.generate_reply(prompt)
+        response = await self.ai.generate_reply(prompt, user_id=self.user_id)
         tasks = [line.strip() for line in response.split('\n') if line.strip() and not line.strip().startswith('#')]
         return tasks
 
@@ -249,7 +252,7 @@ Return only the task titles, one per line."""
 
 Return the reformatted note."""
 
-        return await self.ai.generate_reply(prompt)
+        return await self.ai.generate_reply(prompt, user_id=self.user_id)
 
     async def generate_tags(self, note_content: str) -> List[str]:
         """Generate relevant tags for a note"""
@@ -259,6 +262,6 @@ Return the reformatted note."""
 
 Return only the tags, comma-separated."""
 
-        response = await self.ai.generate_reply(prompt)
+        response = await self.ai.generate_reply(prompt, user_id=self.user_id)
         tags = [tag.strip().lower() for tag in response.replace('\n', ',').split(',') if tag.strip()]
         return tags[:5]

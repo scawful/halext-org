@@ -11,8 +11,9 @@ from app.ai import AiGateway
 class AiRecipeGenerator:
     """AI assistant for generating recipes from ingredients"""
 
-    def __init__(self, ai_gateway: AiGateway):
+    def __init__(self, ai_gateway: AiGateway, user_id: Optional[int] = None):
         self.ai = ai_gateway
+        self.user_id = user_id
 
     async def generate_recipes(
         self,
@@ -50,7 +51,7 @@ class AiRecipeGenerator:
         )
 
         # Call AI
-        response = await self.ai.generate_reply(prompt)
+        response = await self.ai.generate_reply(prompt, user_id=self.user_id)
 
         # Parse response
         parsed = self._parse_recipe_response(response, ingredients)
@@ -86,7 +87,7 @@ class AiRecipeGenerator:
             meals_per_day
         )
 
-        response = await self.ai.generate_reply(prompt)
+        response = await self.ai.generate_reply(prompt, user_id=self.user_id)
         parsed = self._parse_meal_plan_response(response, days)
 
         return parsed
@@ -107,7 +108,7 @@ class AiRecipeGenerator:
             Dictionary with recipes and substitution suggestions
         """
         prompt = self._create_substitution_prompt(ingredients, recipe_type)
-        response = await self.ai.generate_reply(prompt)
+        response = await self.ai.generate_reply(prompt, user_id=self.user_id)
         parsed = self._parse_recipe_response(response, ingredients, include_substitutions=True)
 
         return parsed
@@ -126,7 +127,7 @@ class AiRecipeGenerator:
             Dictionary with categorized ingredients and suggestions
         """
         prompt = self._create_analysis_prompt(ingredients)
-        response = await self.ai.generate_reply(prompt)
+        response = await self.ai.generate_reply(prompt, user_id=self.user_id)
         parsed = self._parse_analysis_response(response)
 
         return parsed

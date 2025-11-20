@@ -129,6 +129,30 @@ AI_MODEL=llama3.1
 - User authentication
 - SSO with Cafe (via OpenWebUISync)
 
+## Unified Model Router (2024 rollout)
+
+The backend now exposes every available model—OpenAI, Gemini, OpenWebUI, and remote Ollama nodes—through a single catalog and routing layer:
+
+- `GET /ai/models` returns normalized entries with a deterministic `id`. Examples:
+  - `openai:gpt-4o-mini`
+  - `gemini:gemini-1.5-pro`
+  - `openwebui:llama3.1`
+  - `client:3:llama3.1` *(client node id 3 running on Mac Studio)*
+- `POST /ai/chat` and `/ai/stream` accept an optional `model` field. Pass the identifier above to force a provider (e.g., `client:5:qwen2.5-coder:14b` to hit the Windows GPU box).
+- `AI_DEFAULT_MODEL` can override the default route; set it to any identifier from `/ai/models`.
+- Each response (REST + SSE) returns the resolved identifier so we can track which worker handled the request.
+
+### Remote client registration
+
+1. Add your node in the Admin panel (or `POST /admin/ai-clients`):
+   - `node_type=ollama`
+   - `hostname=100.x.x.x` (Tailscale), `port=11434`
+   - Mark `is_public=true` if every user can hit it; otherwise only the owner can.
+2. Run the connection test so the backend captures `last_seen_at` and model inventory.
+3. Models appear in `/ai/models` within a few seconds and can be addressed as `client:<node_id>:<model>`.
+
+The router automatically filters nodes per user (owner + public) and falls back to mock output when keys or nodes are unavailable.
+
 ## API Key Management
 
 ### User Flow

@@ -356,15 +356,23 @@ class AiChatResponse(BaseModel):
     provider: str
 
 class AiModelInfo(BaseModel):
+    id: str
     name: str
-    size: Any
     provider: str
+    size: Optional[Any] = None
+    source: Optional[str] = None
+    node_id: Optional[int] = None
+    node_name: Optional[str] = None
+    endpoint: Optional[str] = None
+    latency_ms: Optional[int] = None
+    metadata: Dict[str, Any] = Field(default_factory=dict)
     modified_at: Optional[str] = None
 
 class AiModelsResponse(BaseModel):
     models: List[AiModelInfo]
     provider: str
     current_model: str
+    default_model_id: Optional[str] = None
 
 class AiEmbeddingsRequest(BaseModel):
     text: str
@@ -378,6 +386,8 @@ class AiEmbeddingsResponse(BaseModel):
 class AiProviderInfo(BaseModel):
     provider: str
     model: str
+    default_model_id: Optional[str] = None
+    available_providers: List[str] = Field(default_factory=list)
     ollama_url: Optional[str] = None
     openwebui_url: Optional[str] = None
     openwebui_public_url: Optional[str] = None

@@ -38,9 +38,32 @@ export interface AiChatMessage {
 export interface AiProviderInfo {
   provider: string
   model: string
+  default_model_id?: string
+  available_providers?: string[]
   ollama_url?: string
   openwebui_url?: string
   openwebui_public_url?: string
+}
+
+export interface AiModelInfo {
+  id: string
+  name: string
+  provider: string
+  source?: string
+  size?: number | string | null
+  node_id?: number
+  node_name?: string
+  endpoint?: string
+  latency_ms?: number
+  metadata?: Record<string, unknown>
+  modified_at?: string
+}
+
+export interface AiModelsResponse {
+  models: AiModelInfo[]
+  provider: string
+  current_model: string
+  default_model_id?: string
 }
 
 export interface OpenWebUISyncStatus {
