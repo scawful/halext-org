@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from . import models, schemas
+from . import models, schemas, crud
 from .admin_utils import get_current_admin_user, get_db
 from .ai_client_manager import ai_client_manager
 
@@ -374,6 +374,43 @@ async def get_server_status(
         git=git_info,
         generated_at=generated_at,
     )
+
+
+@router.get("/ai/credentials", response_model=List[schemas.ProviderCredentialStatus])
+async def list_provider_credentials(
+    admin_user: models.User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db),
+):
+    """Return masked AI provider credentials for admin view."""
+    items = crud.list_provider_credentials(db, owner_id=admin_user.id)
+    return [schemas.ProviderCredentialStatus(**item) for item in items]
+
+
+@router.post("/ai/credentials", response_model=schemas.ProviderCredentialStatus)
+async def upsert_provider_credentials(
+    payload: schemas.ProviderCredentialUpdate,
+    admin_user: models.User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db),
+):
+    """Store encrypted OpenAI/Gemini credentials and mark them as default."""
+    provider = payload.provider.lower().strip()
+    if provider not in {"openai", "gemini"}:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported provider")
+
+    crud.set_provider_credentials(
+        db,
+        owner_id=admin_user.id,
+        provider_type=provider,
+        api_key=payload.api_key,
+        model=payload.model,
+        key_name=payload.key_name,
+    )
+
+    items = crud.list_provider_credentials(db, owner_id=admin_user.id)
+    current = next((item for item in items if item["provider"] == provider), None)
+    if not current:
+        raise HTTPException(status_code=500, detail="Failed to store credentials")
+    return schemas.ProviderCredentialStatus(**current)
 
 
 # Health check all nodes

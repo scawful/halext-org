@@ -66,6 +66,21 @@ export interface AiModelsResponse {
   default_model_id?: string
 }
 
+export interface ProviderCredentialStatus {
+  provider: string
+  has_key: boolean
+  masked_key?: string
+  key_name?: string
+  model?: string | null
+}
+
+export interface ProviderCredentialUpdate {
+  provider: string
+  api_key: string
+  model?: string
+  key_name?: string
+}
+
 export interface OpenWebUISyncStatus {
   enabled: boolean
   configured: boolean
@@ -107,6 +122,41 @@ export async function getAiModels(token: string): Promise<AiModelsResponse> {
     },
   })
   if (!response.ok) throw new Error('Failed to get AI models')
+  return response.json()
+}
+
+/**
+ * Admin: fetch masked provider credentials
+ */
+export async function getProviderCredentials(token: string): Promise<ProviderCredentialStatus[]> {
+  const response = await fetch(`${API_BASE_URL}/admin/ai/credentials`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  })
+  if (!response.ok) throw new Error('Failed to load provider credentials')
+  return response.json()
+}
+
+/**
+ * Admin: store encrypted OpenAI/Gemini credentials
+ */
+export async function saveProviderCredential(
+  token: string,
+  payload: ProviderCredentialUpdate
+): Promise<ProviderCredentialStatus> {
+  const response = await fetch(`${API_BASE_URL}/admin/ai/credentials`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  })
+  if (!response.ok) {
+    const detail = await response.text()
+    throw new Error(detail || 'Failed to save provider credential')
+  }
   return response.json()
 }
 

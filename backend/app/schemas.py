@@ -394,6 +394,21 @@ class AiProviderInfo(BaseModel):
     openwebui_public_url: Optional[str] = None
 
 
+class ProviderCredentialStatus(BaseModel):
+    provider: str
+    has_key: bool = False
+    masked_key: Optional[str] = None
+    key_name: Optional[str] = None
+    model: Optional[str] = None
+
+
+class ProviderCredentialUpdate(BaseModel):
+    provider: str  # openai | gemini
+    api_key: str
+    model: Optional[str] = None
+    key_name: Optional[str] = None
+
+
 class ServiceStatus(BaseModel):
     name: str
     status: str

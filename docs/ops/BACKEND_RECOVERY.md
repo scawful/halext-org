@@ -54,6 +54,17 @@ curl -H "Host: org.halext.org" http://127.0.0.1/api/health
 ```
 When the service returns `200 OK` and `/token` works via curl, the web and mobile clients should accept the same credentials (ensure they send the fresh `ACCESS_CODE` header).
 
+## 6. Clear stray dev servers and duplicate clones
+- Port conflicts on `127.0.0.1:8000` usually come from an old dev server in `~/halext-org/backend`. Identify and stop it:
+  ```bash
+  sudo lsof -i :8000
+  sudo kill <PID_FROM_NON-/srv PATH>
+  ```
+- Remove the abandoned clone after confirming the active one is under `/srv/halext.org/halext-org`:
+  ```bash
+  rm -rf /home/halext/halext-org
+  ```
+
 ## Optional: scripted recovery
 `scripts/restore-backend-access.sh` can rotate the invite code, force `DEV_MODE=false`, seed a user, restart the service, and hit `/api/health` automatically. Run it from `/srv/halext.org/halext-org` and follow the prompts:
 ```bash

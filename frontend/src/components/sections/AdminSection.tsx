@@ -15,6 +15,7 @@ import {
 import './AdminSection.css'
 import { API_BASE_URL } from '../../utils/helpers'
 import { ServerProjectsPanel } from './ServerProjectsPanel'
+import { getProviderCredentials, saveProviderCredential, type ProviderCredentialStatus } from '../../utils/aiApi'
 
 interface AIClient {
   id: number
@@ -109,6 +110,17 @@ export const AdminSection = ({ token }: AdminSectionProps) => {
   const [showClientForm, setShowClientForm] = useState(false)
   const [testingClient, setTestingClient] = useState<number | null>(null)
   const [rebuilding, setRebuilding] = useState(false)
+  const [providerCreds, setProviderCreds] = useState<ProviderCredentialStatus[]>([])
+  const [credsLoaded, setCredsLoaded] = useState(false)
+  const [savingProvider, setSavingProvider] = useState<string | null>(null)
+  const [credentialForms, setCredentialForms] = useState<Record<string, { api_key: string; model: string }>>({
+    openai: { api_key: '', model: 'gpt-4o-mini' },
+    gemini: { api_key: '', model: 'gemini-1.5-flash' },
+  })
+  const providerDefaults: Record<string, string> = {
+    openai: 'gpt-4o-mini',
+    gemini: 'gemini-1.5-flash',
+  }
 
   // Site pages
   const [sitePages, setSitePages] = useState<SitePage[]>([])
@@ -181,6 +193,28 @@ export const AdminSection = ({ token }: AdminSectionProps) => {
     }
   }
 
+  const fetchCredentials = async () => {
+    try {
+      const data = await getProviderCredentials(token)
+      setProviderCreds(data)
+      setCredsLoaded(true)
+      setCredentialForms((prev) => {
+        const next = { ...prev }
+        data.forEach((item) => {
+          const provider = item.provider.toLowerCase()
+          const fallback = providerDefaults[provider] || ''
+          next[provider] = {
+            api_key: '',
+            model: item.model || fallback,
+          }
+        })
+        return next
+      })
+    } catch (error) {
+      console.error('Failed to load provider credentials', error)
+    }
+  }
+
   const fetchSitePages = async () => {
     const response = await fetch(`${API_BASE_URL}/content/admin/pages`, { headers: authHeaders })
     if (response.ok) {
@@ -226,6 +260,43 @@ export const AdminSection = ({ token }: AdminSectionProps) => {
     }
   }
 
+  const handleSaveCredential = async (provider: 'openai' | 'gemini') => {
+    const form = credentialForms[provider] || { api_key: '', model: providerDefaults[provider] }
+    if (!form.api_key.trim()) {
+      alert('Enter an API key first')
+      return
+    }
+
+    setSavingProvider(provider)
+    try {
+      const result = await saveProviderCredential(token, {
+        provider,
+        api_key: form.api_key.trim(),
+        model: form.model || providerDefaults[provider],
+      })
+      setProviderCreds((prev) => {
+        const next = prev.slice()
+        const idx = next.findIndex((item) => item.provider === provider)
+        if (idx >= 0) {
+          next[idx] = result
+        } else {
+          next.push(result)
+        }
+        return next
+      })
+      setCredentialForms((prev) => ({
+        ...prev,
+        [provider]: { ...prev[provider], api_key: '' },
+      }))
+      alert(`${provider.toUpperCase()} credentials saved`)
+    } catch (error) {
+      console.error('Failed to save provider credential', error)
+      alert('Failed to save credentials. Check console for details.')
+    } finally {
+      setSavingProvider(null)
+    }
+  }
+
   const handleSaveBlogTheme = async () => {
     const response = await fetch(`${API_BASE_URL}/content/admin/blog-theme`, {
       method: 'PUT',
@@ -244,6 +315,9 @@ export const AdminSection = ({ token }: AdminSectionProps) => {
     if (activeTab === 'ai' && !clientsLoaded) {
       fetchClients()
     }
+    if (activeTab === 'ai' && !credsLoaded) {
+      fetchCredentials()
+    }
     if (activeTab === 'site' && !siteLoaded) {
       fetchSitePages()
     }
@@ -259,7 +333,7 @@ export const AdminSection = ({ token }: AdminSectionProps) => {
     if (activeTab === 'media' && !mediaLoaded) {
       fetchMedia()
     }
-  }, [activeTab, clientsLoaded, siteLoaded, photosLoaded, blogLoaded, mediaLoaded, themeLoaded])
+  }, [activeTab, clientsLoaded, credsLoaded, siteLoaded, photosLoaded, blogLoaded, mediaLoaded, themeLoaded])
 
   const handleAddClient = async (event: FormEvent) => {
     event.preventDefault()
@@ -584,7 +658,13 @@ export const AdminSection = ({ token }: AdminSectionProps) => {
           <p className="text-sm text-gray-400 mt-1">Manage distributed AI nodes (Ollama, OpenWebUI)</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => fetchClients()} className="btn-secondary">
+          <button
+            onClick={() => {
+              fetchClients()
+              fetchCredentials()
+            }}
+            className="btn-secondary"
+          >
             <MdRefresh size={18} /> Refresh
           </button>
           <button onClick={handleRebuildFrontend} className="btn-secondary" disabled={rebuilding}>
@@ -594,6 +674,64 @@ export const AdminSection = ({ token }: AdminSectionProps) => {
             <MdAdd size={18} /> Add Client
           </button>
         </div>
+      </div>
+      <div className="grid md:grid-cols-2 gap-4 mt-4">
+        {['openai', 'gemini'].map((provider) => {
+          const status = providerCreds.find((item) => item.provider === provider)
+          const form = credentialForms[provider] || { api_key: '', model: providerDefaults[provider] }
+          return (
+            <div key={provider} className="client-card">
+              <div className="client-card-header">
+                <div>
+                  <p className="text-sm uppercase text-gray-400">{provider.toUpperCase()}</p>
+                  <h3 className="text-lg font-semibold text-purple-200">Cloud API Credentials</h3>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {status?.has_key
+                      ? `Stored: ${status.masked_key || '********'}`
+                      : 'No key saved yet'}
+                  </p>
+                </div>
+              </div>
+              <div className="client-card-body space-y-3">
+                <label className="form-field">
+                  <span>{provider.toUpperCase()} API Key</span>
+                  <input
+                    type="password"
+                    value={form.api_key}
+                    placeholder={status?.has_key ? 'Update stored key' : 'sk-... or AI...'}
+                    onChange={(e) =>
+                      setCredentialForms((prev) => ({
+                        ...prev,
+                        [provider]: { ...form, api_key: e.target.value },
+                      }))
+                    }
+                  />
+                </label>
+                <label className="form-field">
+                  <span>Default Model</span>
+                  <input
+                    value={form.model}
+                    onChange={(e) =>
+                      setCredentialForms((prev) => ({
+                        ...prev,
+                        [provider]: { ...form, model: e.target.value },
+                      }))
+                    }
+                    placeholder={providerDefaults[provider]}
+                  />
+                </label>
+                <button
+                  className="btn-primary"
+                  type="button"
+                  onClick={() => handleSaveCredential(provider as 'openai' | 'gemini')}
+                  disabled={savingProvider === provider}
+                >
+                  {savingProvider === provider ? 'Saving...' : 'Save & Activate'}
+                </button>
+              </div>
+            </div>
+          )
+        })}
       </div>
       {showClientForm && (
         <form onSubmit={handleAddClient} className="client-form-card space-y-4">

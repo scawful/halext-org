@@ -5,6 +5,7 @@ from typing import Optional, List
 from . import models, schemas
 from passlib.context import CryptContext
 from .presets import DEFAULT_LAYOUT_PRESETS
+from .encryption import encrypt_api_key, decrypt_api_key, mask_api_key
 
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
@@ -334,3 +335,159 @@ def get_messages_for_conversation(db: Session, conversation_id: int, limit: int 
         .limit(limit)
         .all()
     )
+
+# AI Provider Credentials
+def _get_default_provider_config(db: Session, provider_type: str, owner_id: Optional[int] = None):
+    query = db.query(models.AIProviderConfig).filter(
+        models.AIProviderConfig.provider_type == provider_type,
+        models.AIProviderConfig.is_default == True,
+    )
+    if owner_id:
+        query = query.filter(models.AIProviderConfig.owner_id == owner_id)
+    return query.first()
+
+
+def set_provider_credentials(
+    db: Session,
+    *,
+    owner_id: int,
+    provider_type: str,
+    api_key: str,
+    model: Optional[str] = None,
+    key_name: Optional[str] = None,
+):
+    """
+    Store or update provider credentials (encrypted) and mark them as default for the owner.
+    """
+    provider = provider_type.lower().strip()
+    encrypted = encrypt_api_key(api_key.strip())
+    display_name = key_name or f"{provider}-default"
+
+    # Reuse an existing default config if present; otherwise, reuse any config for this provider/owner
+    config = _get_default_provider_config(db, provider, owner_id=owner_id)
+    if config is None:
+        config = (
+            db.query(models.AIProviderConfig)
+            .filter(
+                models.AIProviderConfig.provider_type == provider,
+                models.AIProviderConfig.owner_id == owner_id,
+            )
+            .first()
+        )
+    api_key_row = config.api_key if config else None
+
+    # Deactivate other defaults for this provider/owner
+    deactivate_q = db.query(models.AIProviderConfig).filter(
+        models.AIProviderConfig.provider_type == provider,
+        models.AIProviderConfig.owner_id == owner_id,
+    )
+    if config and config.id:
+        deactivate_q = deactivate_q.filter(models.AIProviderConfig.id != config.id)
+    deactivate_q.update({"is_default": False})
+
+    if config is None:
+        api_key_row = models.APIKey(
+            owner_id=owner_id,
+            provider=provider,
+            key_name=display_name,
+            encrypted_key=encrypted,
+            is_active=True,
+        )
+        db.add(api_key_row)
+        db.flush()
+        config = models.AIProviderConfig(
+            owner_id=owner_id,
+            provider_type=provider,
+            is_default=True,
+            config={"model": model} if model else {},
+            api_key_id=api_key_row.id,
+        )
+        db.add(config)
+    else:
+        if api_key_row:
+            api_key_row.encrypted_key = encrypted
+            api_key_row.key_name = display_name
+            api_key_row.is_active = True
+            api_key_row.provider = provider
+        else:
+            api_key_row = models.APIKey(
+                owner_id=owner_id,
+                provider=provider,
+                key_name=display_name,
+                encrypted_key=encrypted,
+                is_active=True,
+            )
+            db.add(api_key_row)
+            db.flush()
+            config.api_key_id = api_key_row.id
+
+        config.is_default = True
+        existing_config = config.config or {}
+        if model:
+            existing_config["model"] = model
+        config.config = existing_config
+
+    db.commit()
+    db.refresh(config)
+    return config
+
+
+def get_provider_secret(
+    db: Session, provider_type: str, owner_id: Optional[int] = None
+) -> Optional[dict]:
+    """
+    Return decrypted credentials for the default provider config.
+    """
+    config = _get_default_provider_config(db, provider_type.lower(), owner_id=owner_id)
+    if not config or not config.api_key_id:
+        return None
+
+    api_key = db.query(models.APIKey).filter(models.APIKey.id == config.api_key_id).first()
+    if not api_key or not api_key.is_active:
+        return None
+
+    try:
+        decrypted = decrypt_api_key(api_key.encrypted_key)
+    except Exception:
+        return None
+    return {
+        "provider": provider_type.lower(),
+        "api_key": decrypted,
+        "model": (config.config or {}).get("model"),
+        "key_name": api_key.key_name,
+    }
+
+
+def list_provider_credentials(db: Session, owner_id: Optional[int] = None):
+    """
+    Return masked credentials for UI display.
+    """
+    providers = ["openai", "gemini"]
+    results = []
+    for provider in providers:
+        config = _get_default_provider_config(db, provider, owner_id=owner_id)
+        api_key = None
+        if config and config.api_key_id:
+            api_key = db.query(models.APIKey).filter(models.APIKey.id == config.api_key_id).first()
+
+        masked = None
+        key_name = None
+        if api_key and api_key.is_active:
+            try:
+                masked = mask_api_key(decrypt_api_key(api_key.encrypted_key))
+                key_name = api_key.key_name
+            except Exception:
+                masked = None
+                key_name = api_key.key_name
+
+        results.append(
+            {
+                "provider": provider,
+                "key_name": key_name,
+                "has_key": bool(masked),
+                "masked_key": masked,
+                "model": (config.config or {}).get("model") if config else None,
+            }
+        )
+
+    return results
