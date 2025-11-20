@@ -10,6 +10,7 @@ This directory collects every helper shell script used across Halext Org. The fi
 | **Server Setup & Access** | `setup-ubuntu.sh`, `setup-openwebui.sh`, `setup-ssh-key.sh`, `copy-ssh-key-to-halext.sh`, `promote-halext-user.sh`, `migrate-presets-schema.sh`, `cloudflare-certbot.sh`, `site-health-check.sh` | Bootstrap infrastructure, manage credentials, and patch servers in place.
 | **macOS Automation** | `macos-sync.sh` (`macos-sync.env.example`), `macos-ollama-setup.sh`, `macos-ollama-server-setup.sh`, `refresh-halext.sh`, `dev-backend.sh` | Keep the local launchd/dev environments aligned with production expectations.
 | **Emergency & Diagnostics** | `emergency-ubuntu-cleanup.sh` (`.example`), `emergency-kill-ollama.sh`, `full-reset.sh`, `ubuntu-diagnose-performance.sh`, `ubuntu-test-mac-ollama.sh`, `sync-halext-perms.sh`, `fix-403.sh` | Recover from out-of-memory incidents, nginx breakage, or stubborn file-permission problems.
+| **Agent Tooling** | `scripts/agents/{smoke-build.sh,run-tests.sh,ci-status.sh,stream-coordination-board.py}` | Lightweight wrappers the hive personas use for board logging, smoke builds, and morale tasks. See `scripts/agents/README.md`. |
 | **Utilities & Misc** | `rename-project.sh`, `import_pico_blog.py`, `promote-halext-user.sh`, `site-health-check.sh`, `cloudflare-certbot.sh` | One-off helpers for renames, content imports, certificate refresh, or smoke tests.
 
 ## Deploy & Sync

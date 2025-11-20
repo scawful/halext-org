@@ -127,6 +127,46 @@ struct AISettingsView: View {
                             .foregroundColor(.secondary)
                     }
                 }
+
+                if let creds = info.credentials, !creds.isEmpty {
+                    Section {
+                        ForEach(creds, id: \.provider) { credential in
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack {
+                                    Text(credential.provider.capitalized)
+                                        .font(.headline)
+                                    if credential.hasKey {
+                                        Image(systemName: "checkmark.shield.fill")
+                                            .foregroundColor(.green)
+                                    } else {
+                                        Image(systemName: "exclamationmark.triangle.fill")
+                                            .foregroundColor(.orange)
+                                    }
+                                    Spacer()
+                                }
+
+                                if let masked = credential.maskedKey, credential.hasKey {
+                                    Text(masked)
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                } else if !credential.hasKey {
+                                    Text("No API key stored")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+
+                                if let model = credential.model {
+                                    Text("Preferred model: \(model)")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            .padding(.vertical, 4)
+                        }
+                    } header: {
+                        Text("Provider Credentials")
+                    }
+                }
             } else {
                 Button("Reload Provider Info") {
                     _Concurrency.Task {

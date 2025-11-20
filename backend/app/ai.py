@@ -105,14 +105,19 @@ class AiGateway:
             gemini_model = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
             self.providers["gemini"] = GoogleGeminiProvider(gemini_key, gemini_model)
 
-    def _load_provider_from_db(self, provider_key: str, db: Optional[Session]) -> None:
+    def _load_provider_from_db(
+        self,
+        provider_key: str,
+        db: Optional[Session],
+        user_id: Optional[int] = None,
+    ) -> None:
         """Ensure cloud providers are backed by stored credentials."""
         if provider_key not in ("openai", "gemini"):
             return
 
         session, created = self._get_db_session(db)
         try:
-            secret = crud.get_provider_secret(session, provider_key)
+            secret = crud.get_provider_secret(session, provider_key, owner_id=user_id)
         finally:
             if created:
                 session.close()
@@ -137,9 +142,13 @@ class AiGateway:
             self.model = model_name
             self.default_model_identifier = f"{provider_key}:{model_name}"
 
-    def _ensure_cloud_providers(self, db: Optional[Session]) -> None:
-        self._load_provider_from_db("openai", db)
-        self._load_provider_from_db("gemini", db)
+    def _ensure_cloud_providers(
+        self,
+        db: Optional[Session],
+        user_id: Optional[int] = None,
+    ) -> None:
+        self._load_provider_from_db("openai", db, user_id=user_id)
+        self._load_provider_from_db("gemini", db, user_id=user_id)
 
     def _get_db_session(self, db: Optional[Session]) -> Tuple[Session, bool]:
         if db is not None:
@@ -184,6 +193,7 @@ class AiGateway:
         db: Optional[Session],
         user_id: Optional[int],
     ) -> _ProviderContext:
+        self._ensure_cloud_providers(db, user_id=user_id)
         provider_key, model_name, node_id = self._parse_identifier(model_identifier)
         provider: Optional[AIProvider] = None
         node: Optional[AIClientNode] = None
@@ -275,7 +285,7 @@ class AiGateway:
         db: Optional[Session] = None,
         include_context: bool = False,
     ) -> Any:
-        self._ensure_cloud_providers(db)
+        self._ensure_cloud_providers(db, user_id=user_id)
         ctx = await self._resolve_provider_context(model_identifier, db, user_id)
         provider = ctx.provider
         payload = list(history or [])
@@ -308,7 +318,7 @@ class AiGateway:
         user_id: Optional[int] = None,
         db: Optional[Session] = None,
     ) -> Tuple[AsyncGenerator[str, None], RouteInfo]:
-        self._ensure_cloud_providers(db)
+        self._ensure_cloud_providers(db, user_id=user_id)
         ctx = await self._resolve_provider_context(model_identifier, db, user_id)
         provider = ctx.provider
         payload = list(history or [])
@@ -336,7 +346,7 @@ class AiGateway:
         user_id: Optional[int] = None,
         db: Optional[Session] = None,
     ) -> List[float]:
-        self._ensure_cloud_providers(db)
+        self._ensure_cloud_providers(db, user_id=user_id)
         ctx = await self._resolve_provider_context(model_identifier, db, user_id)
 
         if ctx.key in {"client", "ollama", "ollama-local"}:
@@ -364,7 +374,7 @@ class AiGateway:
         db: Optional[Session] = None,
         user_id: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
-        self._ensure_cloud_providers(db)
+        self._ensure_cloud_providers(db, user_id=user_id)
         models: List[Dict[str, Any]] = []
 
         models.extend(await self._list_provider_models("openai"))

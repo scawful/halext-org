@@ -46,6 +46,9 @@ struct AIModelPickerView: View {
                 }
             }
             .searchable(text: $searchText, prompt: "Search models")
+            .task {
+                await ensureModelsLoaded()
+            }
         }
     }
 
@@ -99,6 +102,26 @@ struct AIModelPickerView: View {
                     }
                 }
             }
+        }
+    }
+
+    @MainActor
+    private func ensureModelsLoaded() async {
+        guard !appState.isLoadingModels else { return }
+
+        if appState.aiModels == nil {
+            #if DEBUG
+            print("🔍 AIModelPickerView appeared, loading models...")
+            #endif
+            await appState.refreshAIModels()
+            #if DEBUG
+            let count = appState.aiModels?.models.count ?? 0
+            if count == 0 {
+                print("❌ AIModelPickerView did not receive any models after refresh")
+            } else {
+                print("🔍 Loaded \(count) models in AIModelPickerView")
+            }
+            #endif
         }
     }
 

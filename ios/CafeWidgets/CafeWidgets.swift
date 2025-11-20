@@ -14,5 +14,8 @@ struct CafeWidgetsBundle: WidgetBundle {
         TodaysTasksWidget()
         CalendarWidget()
         QuickAddWidget()
+        TaskCountWidget()
+        NextEventWidget()
+        CompletedTodayWidget()
     }
 }

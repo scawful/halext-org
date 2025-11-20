@@ -194,6 +194,22 @@ class ThemeManager {
         Color(currentTheme.backgroundColor)
     }
 
+    var backgroundStyle: AnyShapeStyle {
+        if let gradient = currentTheme.backgroundGradient {
+            return AnyShapeStyle(
+                LinearGradient(
+                    colors: [
+                        Color(gradient.startColor),
+                        Color(gradient.endColor)
+                    ],
+                    startPoint: gradient.startPoint.unitPoint,
+                    endPoint: gradient.endPoint.unitPoint
+                )
+            )
+        }
+        return AnyShapeStyle(Color(currentTheme.backgroundColor))
+    }
+
     var secondaryBackgroundColor: Color {
         Color(currentTheme.secondaryBackgroundColor)
     }
@@ -251,7 +267,7 @@ extension Notification.Name {
 
 extension View {
     func themedBackground() -> some View {
-        self.background(ThemeManager.shared.backgroundColor)
+        self.background(ThemeManager.shared.backgroundStyle)
     }
 
     func themedCard() -> some View {

@@ -600,10 +600,35 @@ def openwebui_status():
     return schemas.OpenWebUiStatus(**status_payload)
 
 # AI Endpoints
+def _build_provider_info(db: Session, current_user: models.User) -> schemas.AiProviderInfo:
+    # Load any user-scoped credentials before returning provider info
+    try:
+        ai_gateway._ensure_cloud_providers(db, user_id=current_user.id)  # type: ignore[attr-defined]
+    except Exception as exc:
+        print(f"Warning: could not refresh provider credentials: {exc}")
+
+    base = ai_gateway.get_provider_info()
+    creds = crud.list_provider_credentials(db, owner_id=current_user.id)
+    base["credentials"] = [schemas.ProviderCredentialStatus(**c) for c in creds]
+    return schemas.AiProviderInfo(**base)
+
+
 @app.get("/ai/info", response_model=schemas.AiProviderInfo)
-def get_ai_provider_info():
+def get_ai_provider_info(
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
     """Get current AI provider configuration"""
-    return schemas.AiProviderInfo(**ai_gateway.get_provider_info())
+    return _build_provider_info(db, current_user)
+
+
+@app.get("/ai/provider-info", response_model=schemas.AiProviderInfo)
+def get_ai_provider_info_alias(
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Alias for provider info to support older clients/tests."""
+    return _build_provider_info(db, current_user)
 
 @app.get("/ai/models", response_model=schemas.AiModelsResponse)
 async def list_ai_models(
@@ -611,12 +636,44 @@ async def list_ai_models(
     db: Session = Depends(get_db),
 ):
     """List available AI models"""
-    models_list = await ai_gateway.get_models(db=db, user_id=current_user.id)
+    try:
+        models_list = await ai_gateway.get_models(db=db, user_id=current_user.id)
+    except Exception as exc:
+        print(f"Error listing AI models: {exc}")
+        models_list = [
+            ai_gateway._format_model_entry(  # type: ignore[attr-defined]
+                ai_gateway.provider or "mock",
+                ai_gateway.model or "llama3.1",
+                source=ai_gateway.provider or "mock",
+            )
+        ]
+    available_ids = [m["id"] for m in models_list]
+
+    # Keep defaults aligned with the models the backend can actually serve
+    default_model_id = ai_gateway.default_model_identifier
+    if (not default_model_id or default_model_id not in available_ids) and available_ids:
+        default_model_id = available_ids[0]
+
+    provider, model_name, _ = (
+        ai_gateway._parse_identifier(default_model_id)  # type: ignore[attr-defined]
+        if default_model_id
+        else (ai_gateway.provider, ai_gateway.model, None)
+    )
+
+    # Persist resolved defaults so downstream AI calls pick a reachable route
+    if default_model_id:
+        ai_gateway.default_model_identifier = default_model_id
+        ai_gateway.provider = provider
+        ai_gateway.model = model_name
+
+    credential_status = crud.list_provider_credentials(db, owner_id=current_user.id)
+
     return schemas.AiModelsResponse(
         models=[schemas.AiModelInfo(**m) for m in models_list],
-        provider=ai_gateway.provider,
-        current_model=ai_gateway.model,
-        default_model_id=ai_gateway.default_model_identifier,
+        provider=provider,
+        current_model=model_name,
+        default_model_id=default_model_id,
+        credentials=[schemas.ProviderCredentialStatus(**c) for c in credential_status],
     )
 
 @app.post("/ai/chat", response_model=schemas.AiChatResponse)

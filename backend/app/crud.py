@@ -258,7 +258,12 @@ def delete_layout_preset(db: Session, preset_id: int):
     db.query(models.LayoutPreset).filter(models.LayoutPreset.id == preset_id).delete()
     db.commit()
 
-def create_conversation(db: Session, owner_id: int, payload: schemas.ConversationCreate, participant_ids: List[int]):
+def create_conversation(
+    db: Session,
+    owner_id: int,
+    payload: schemas.ConversationCreate,
+    participant_ids: Optional[List[int]] = None,
+):
     conversation = models.Conversation(
         title=payload.title,
         owner_id=owner_id,
@@ -268,7 +273,7 @@ def create_conversation(db: Session, owner_id: int, payload: schemas.Conversatio
     db.add(conversation)
     db.flush()
 
-    all_participants = set(participant_ids)
+    all_participants = set(participant_ids or [])
     all_participants.add(owner_id)
     for participant_id in all_participants:
         role = "owner" if participant_id == owner_id else "member"

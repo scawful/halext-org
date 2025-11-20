@@ -112,7 +112,7 @@ struct ThemePreviewButton: View {
                         .fill(Color(theme.accentColor))
                         .frame(width: 16, height: 16)
                     Circle()
-                        .fill(Color(theme.backgroundColor))
+                        .fill(fillForBackground(theme))
                         .frame(width: 16, height: 16)
                         .overlay(
                             Circle()
@@ -127,10 +127,20 @@ struct ThemePreviewButton: View {
                         )
                 }
 
+                if let gradient = theme.backgroundGradient {
+                    LinearGradient(
+                        colors: [Color(gradient.startColor), Color(gradient.endColor)],
+                        startPoint: gradient.startPoint.unitPoint,
+                        endPoint: gradient.endPoint.unitPoint
+                    )
+                    .frame(height: 6)
+                    .cornerRadius(3)
+                }
+
                 Text(theme.name)
                     .font(.caption)
                     .fontWeight(isSelected ? .semibold : .regular)
-                    .foregroundColor(isSelected ? Color(theme.accentColor) : .primary)
+                    .foregroundColor(isSelected ? Color(theme.accentColor) : Color(theme.textColor))
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
             }
@@ -138,7 +148,11 @@ struct ThemePreviewButton: View {
             .padding(.horizontal, 8)
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(isSelected ? Color(theme.accentColor).opacity(0.15) : Color(.secondarySystemBackground))
+                    .fill(
+                        isSelected
+                        ? AnyShapeStyle(Color(theme.accentColor).opacity(0.15))
+                        : themeManager.backgroundStyle
+                    )
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
@@ -146,6 +160,19 @@ struct ThemePreviewButton: View {
             )
         }
         .buttonStyle(.plain)
+    }
+
+    private func fillForBackground(_ theme: Theme) -> AnyShapeStyle {
+        if let gradient = theme.backgroundGradient {
+            return AnyShapeStyle(
+                LinearGradient(
+                    colors: [Color(gradient.startColor), Color(gradient.endColor)],
+                    startPoint: gradient.startPoint.unitPoint,
+                    endPoint: gradient.endPoint.unitPoint
+                )
+            )
+        }
+        return AnyShapeStyle(Color(theme.backgroundColor))
     }
 }
 

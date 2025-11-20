@@ -17,6 +17,7 @@ struct Theme: Identifiable, Codable, Hashable {
     let secondaryBackgroundColor: CodableColor
     let textColor: CodableColor
     let secondaryTextColor: CodableColor
+    let backgroundGradient: CodableGradient? = nil
     let isDark: Bool
 
     // Derived colors
@@ -173,6 +174,23 @@ extension Theme {
         isDark: false
     )
 
+    static let sunrise = Theme(
+        id: "sunrise",
+        name: "Sunrise",
+        accentColor: CodableColor(Color(red: 0.97, green: 0.55, blue: 0.3)),
+        backgroundColor: CodableColor(Color(red: 1.0, green: 0.95, blue: 0.9)),
+        secondaryBackgroundColor: CodableColor(Color(red: 0.98, green: 0.92, blue: 0.88)),
+        textColor: CodableColor(Color(red: 0.32, green: 0.2, blue: 0.15)),
+        secondaryTextColor: CodableColor(Color(red: 0.58, green: 0.42, blue: 0.35)),
+        backgroundGradient: CodableGradient(
+            startColor: CodableColor(Color(red: 1.0, green: 0.9, blue: 0.82)),
+            endColor: CodableColor(Color(red: 0.97, green: 0.78, blue: 0.73)),
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        ),
+        isDark: false
+    )
+
     // Dark Themes
     static let dark = Theme(
         id: "dark",
@@ -218,20 +236,37 @@ extension Theme {
         isDark: true
     )
 
+    static let aurora = Theme(
+        id: "aurora",
+        name: "Aurora",
+        accentColor: CodableColor(Color(red: 0.35, green: 0.85, blue: 0.9)),
+        backgroundColor: CodableColor(Color(red: 0.07, green: 0.09, blue: 0.15)),
+        secondaryBackgroundColor: CodableColor(Color(red: 0.12, green: 0.14, blue: 0.22)),
+        textColor: CodableColor(Color(red: 0.9, green: 0.95, blue: 1.0)),
+        secondaryTextColor: CodableColor(Color(red: 0.65, green: 0.75, blue: 0.85)),
+        backgroundGradient: CodableGradient(
+            startColor: CodableColor(Color(red: 0.05, green: 0.08, blue: 0.15)),
+            endColor: CodableColor(Color(red: 0.06, green: 0.15, blue: 0.12)),
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        ),
+        isDark: true
+    )
+
     // All available themes
     static let allThemes: [Theme] = [
         .light, .ocean, .forest, .sunset, .pastel,
-        .cherryBlossom, .sakura, .lavender, .mint, .coral, .autumn, .monochromeLight,
-        .dark, .midnight, .amoled, .neon
+        .cherryBlossom, .sakura, .lavender, .mint, .coral, .autumn, .monochromeLight, .sunrise,
+        .dark, .midnight, .amoled, .neon, .aurora
     ]
 
     static let lightThemes: [Theme] = [
         .light, .ocean, .forest, .sunset, .pastel,
-        .cherryBlossom, .sakura, .lavender, .mint, .coral, .autumn, .monochromeLight
+        .cherryBlossom, .sakura, .lavender, .mint, .coral, .autumn, .monochromeLight, .sunrise
     ]
 
     static let darkThemes: [Theme] = [
-        .dark, .midnight, .amoled, .neon
+        .dark, .midnight, .amoled, .neon, .aurora
     ]
 }
 
@@ -273,6 +308,39 @@ extension Color {
     init(_ codableColor: CodableColor) {
         self.init(red: codableColor.red, green: codableColor.green, blue: codableColor.blue, opacity: codableColor.opacity)
     }
+}
+
+// MARK: - Gradient Support
+
+struct CodableGradient: Codable, Hashable {
+    enum Point: String, Codable, Hashable {
+        case top
+        case bottom
+        case leading
+        case trailing
+        case topLeading
+        case topTrailing
+        case bottomLeading
+        case bottomTrailing
+
+        var unitPoint: UnitPoint {
+            switch self {
+            case .top: return .top
+            case .bottom: return .bottom
+            case .leading: return .leading
+            case .trailing: return .trailing
+            case .topLeading: return .topLeading
+            case .topTrailing: return .topTrailing
+            case .bottomLeading: return .bottomLeading
+            case .bottomTrailing: return .bottomTrailing
+            }
+        }
+    }
+
+    let startColor: CodableColor
+    let endColor: CodableColor
+    let startPoint: Point
+    let endPoint: Point
 }
 
 // MARK: - Font Size Preference

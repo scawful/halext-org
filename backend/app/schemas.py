@@ -382,6 +382,7 @@ class AiModelsResponse(BaseModel):
     provider: str
     current_model: str
     default_model_id: Optional[str] = None
+    credentials: Optional[List[ProviderCredentialStatus]] = None
 
 class AiEmbeddingsRequest(BaseModel):
     text: str
@@ -400,6 +401,7 @@ class AiProviderInfo(BaseModel):
     ollama_url: Optional[str] = None
     openwebui_url: Optional[str] = None
     openwebui_public_url: Optional[str] = None
+    credentials: Optional[List[ProviderCredentialStatus]] = None
 
 
 class ProviderCredentialStatus(BaseModel):

@@ -8,10 +8,15 @@
 import SwiftUI
 
 struct MessagesView: View {
+    @Environment(ThemeManager.self) private var themeManager
+    @State private var socialManager = SocialManager.shared
+    @State private var presenceManager = SocialPresenceManager.shared
     @State private var conversations: [Conversation] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var showingNewMessage = false
+    @State private var jumpToAIChat = false
+    @State private var preferredContactUsername: String = "chris"
 
     var body: some View {
         NavigationStack {
@@ -22,9 +27,66 @@ struct MessagesView: View {
                     EmptyConversationsView(onNewMessage: { showingNewMessage = true })
                 } else {
                     List {
+                        // Unified AI + people quick actions
+                        Section {
+                            NavigationLink(destination: ChatView(), isActive: $jumpToAIChat) {
+                                HStack {
+                                    Image(systemName: "sparkles")
+                                        .font(.title3)
+                                        .foregroundStyle(.white)
+                                        .frame(width: 32, height: 32)
+                                        .background(
+                                            LinearGradient(
+                                                colors: [.blue, .purple],
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            )
+                                        )
+                                        .clipShape(Circle())
+
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text("Chat with AI")
+                                            .font(.headline)
+                                        Text("Use your configured model for quick answers")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+
+                                    Spacer()
+
+                                    Image(systemName: "chevron.right")
+                                        .foregroundColor(.secondary)
+                                }
+                                .padding(.vertical, 4)
+                            }
+
+                            Button {
+                                showingNewMessage = true
+                                // seed search for preferred contact
+                                NotificationCenter.default.post(
+                                    name: Notification.Name("MessagesViewSeedSearch"),
+                                    object: preferredContactUsername
+                                )
+                            } label: {
+                                HStack {
+                                    Image(systemName: "person.2.fill")
+                                        .foregroundColor(.green)
+                                    Text("Message \(preferredContactUsername.capitalized)")
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .foregroundColor(.secondary)
+                                }
+                                .padding(.vertical, 4)
+                            }
+                        }
+                        .listRowBackground(themeManager.cardBackgroundColor)
+
                         ForEach(conversations) { conversation in
                             NavigationLink(destination: GroupConversationView(conversation: conversation)) {
-                                ConversationRowView(conversation: conversation)
+                                ConversationRowView(
+                                    conversation: conversation,
+                                    presence: presence(for: conversation.otherParticipant?.id)
+                                )
                             }
                         }
                         .onDelete(perform: deleteConversations)
@@ -50,6 +112,8 @@ struct MessagesView: View {
                 })
             }
             .task {
+                presenceManager.startTrackingPresence()
+                presenceManager.startMonitoringPartnerPresence()
                 await loadConversations()
             }
         }
@@ -76,12 +140,22 @@ struct MessagesView: View {
         }
         conversations.remove(atOffsets: offsets)
     }
+
+    private func presence(for userId: Int?) -> SocialPresenceStatus? {
+        guard let userId else { return nil }
+        let profiles = socialManager.partnerProfiles.values
+        guard let profile = profiles.first(where: { $0.userId == userId }) else {
+            return nil
+        }
+        return socialManager.presenceStatuses[profile.id]
+    }
 }
 
 // MARK: - Conversation Row
 
 struct ConversationRowView: View {
     let conversation: Conversation
+    let presence: SocialPresenceStatus?
 
     var body: some View {
         HStack(spacing: 12) {
@@ -102,6 +176,10 @@ struct ConversationRowView: View {
                     Text(conversation.displayName)
                         .font(.headline)
 
+                    if let presence = presence {
+                        PresenceDot(isOnline: presence.isOnline)
+                    }
+
                     Spacer()
 
                     if let lastMessage = conversation.lastMessage {
@@ -120,10 +198,10 @@ struct ConversationRowView: View {
 
                         Spacer()
 
-                        if conversation.unreadCount > 0 {
-                            Text("\(conversation.unreadCount)")
-                                .font(.caption2)
-                                .fontWeight(.semibold)
+                    if conversation.unreadCount > 0 {
+                        Text("\(conversation.unreadCount)")
+                            .font(.caption2)
+                            .fontWeight(.semibold)
                                 .foregroundColor(.white)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
@@ -145,11 +223,11 @@ struct EmptyConversationsView: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            Image(systemName: "message")
+            Image(systemName: "bubble.left.and.bubble.right.fill")
                 .font(.system(size: 60))
                 .foregroundColor(.secondary)
 
-            Text("No Conversations")
+            Text("No Conversations Yet")
                 .font(.title2)
                 .fontWeight(.semibold)
 
@@ -170,6 +248,18 @@ struct EmptyConversationsView: View {
     }
 }
 
+// MARK: - Presence Indicator
+
+struct PresenceDot: View {
+    let isOnline: Bool
+
+    var body: some View {
+        Circle()
+            .fill(isOnline ? Color.green : Color.gray.opacity(0.5))
+            .frame(width: 10, height: 10)
+    }
+}
+
 // MARK: - New Message View
 
 struct NewMessageView: View {
@@ -180,6 +270,7 @@ struct NewMessageView: View {
     @State private var searchResults: [User] = []
     @State private var selectedUser: User?
     @State private var isSearching = false
+    @State private var notificationObserver: NSObjectProtocol?
 
     var body: some View {
         NavigationStack {
@@ -274,6 +365,23 @@ struct NewMessageView: View {
             .searchable(text: $searchText, prompt: "Search users")
             .onChange(of: searchText) { _, newValue in
                 searchUsers(query: newValue)
+            }
+            .onAppear {
+                notificationObserver = NotificationCenter.default.addObserver(
+                    forName: Notification.Name("MessagesViewSeedSearch"),
+                    object: nil,
+                    queue: .main
+                ) { notification in
+                    if let seed = notification.object as? String, searchText.isEmpty {
+                        searchText = seed
+                        searchUsers(query: seed)
+                    }
+                }
+            }
+            .onDisappear {
+                if let observer = notificationObserver {
+                    NotificationCenter.default.removeObserver(observer)
+                }
             }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

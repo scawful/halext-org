@@ -325,7 +325,10 @@ async def get_server_status(
     """Return server, git, and service information for admins"""
     generated_at = datetime.utcnow()
     hostname = platform.node()
-    uptime_seconds = max(0.0, time.time() - psutil.boot_time())
+    try:
+        uptime_seconds = max(0.0, time.time() - psutil.boot_time())
+    except Exception:
+        uptime_seconds = 0.0
 
     load_avg = {"one": 0.0, "five": 0.0, "fifteen": 0.0}
     if hasattr(os, "getloadavg"):

@@ -16,7 +16,7 @@ class NavigationBarManager {
     private let userDefaults = UserDefaults.standard
     private let visibleTabsKey = "visibleNavigationTabs"
 
-    var maxTabs: Int = 5
+    var maxTabs: Int = 7
     var minTabs: Int = 3
 
     private init() {

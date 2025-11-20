@@ -238,3 +238,58 @@ class TestAIModelsEndpoint:
         # default_model_id should be set (either from env or default)
         assert data["default_model_id"] is not None
         assert isinstance(data["default_model_id"], str)
+
+    def test_list_models_handles_gateway_error(self, client, auth_headers):
+        """Gateway errors should not return 500; fall back to mock models"""
+        with patch('main.ai_gateway.get_models', new_callable=AsyncMock) as mock_get_models:
+            mock_get_models.side_effect = Exception("boom")
+
+            response = client.get("/ai/models", headers=auth_headers)
+            assert response.status_code == 200
+            data = response.json()
+
+            assert len(data["models"]) >= 1
+            assert data["provider"] in {"mock", "openai", "gemini", "ollama"}
+            assert data["current_model"]
+
+    def test_list_models_falls_back_when_default_missing(self, client, auth_headers):
+        """Default model should fall back to the first available model when misconfigured"""
+        import main
+
+        original_default = main.ai_gateway.default_model_identifier
+        original_provider = main.ai_gateway.provider
+        original_model = main.ai_gateway.model
+
+        try:
+            main.ai_gateway.default_model_identifier = "openai:missing"
+            main.ai_gateway.provider = "openai"
+            main.ai_gateway.model = "missing"
+
+            with patch('app.ai.AiGateway.get_models', new_callable=AsyncMock) as mock_get_models:
+                mock_get_models.return_value = [
+                    {
+                        "id": "mock:llama3.1",
+                        "name": "llama3.1",
+                        "provider": "mock",
+                        "source": "mock",
+                        "size": None,
+                        "node_id": None,
+                        "node_name": None,
+                        "endpoint": None,
+                        "latency_ms": None,
+                        "metadata": {},
+                        "modified_at": None
+                    }
+                ]
+
+                response = client.get("/ai/models", headers=auth_headers)
+                assert response.status_code == 200
+                data = response.json()
+
+                assert data["default_model_id"] == "mock:llama3.1"
+                assert data["provider"] == "mock"
+                assert data["current_model"] == "llama3.1"
+        finally:
+            main.ai_gateway.default_model_identifier = original_default
+            main.ai_gateway.provider = original_provider
+            main.ai_gateway.model = original_model

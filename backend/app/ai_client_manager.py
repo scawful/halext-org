@@ -165,6 +165,12 @@ class AIClientManager:
         if httpx is None:
             return []
 
+        # Fast-path: if the node already reports its models in capabilities, use them
+        if node.capabilities and isinstance(node.capabilities, dict):
+            caps_models = node.capabilities.get("models")
+            if isinstance(caps_models, list) and caps_models:
+                return caps_models
+
         try:
             if node.node_type == "ollama":
                 url = f"{node.base_url}/api/tags"
@@ -184,6 +190,11 @@ class AIClientManager:
 
         except Exception as e:
             print(f"Error getting models from {node.name}: {e}")
+            # If capabilities were present but network failed, still return them
+            if node.capabilities and isinstance(node.capabilities, dict):
+                caps_models = node.capabilities.get("models")
+                if isinstance(caps_models, list):
+                    return caps_models
             return []
 
         return []

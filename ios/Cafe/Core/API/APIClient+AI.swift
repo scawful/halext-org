@@ -279,6 +279,7 @@ struct AIProviderInfo: Codable {
     let ollamaUrl: String?
     let openwebuiUrl: String?
     let openwebuiPublicUrl: String?
+    let credentials: [ProviderCredentialStatus]?
 
     enum CodingKeys: String, CodingKey {
         case provider, model
@@ -287,6 +288,7 @@ struct AIProviderInfo: Codable {
         case ollamaUrl = "ollama_url"
         case openwebuiUrl = "openwebui_url"
         case openwebuiPublicUrl = "openwebui_public_url"
+        case credentials
     }
 }
 
@@ -295,11 +297,29 @@ struct AIModelsResponse: Codable {
     let provider: String
     let currentModel: String
     let defaultModelId: String?
+    let credentials: [ProviderCredentialStatus]?
 
     enum CodingKeys: String, CodingKey {
         case models, provider
         case currentModel = "current_model"
         case defaultModelId = "default_model_id"
+        case credentials
+    }
+}
+
+struct ProviderCredentialStatus: Codable, Hashable {
+    let provider: String
+    let hasKey: Bool
+    let maskedKey: String?
+    let keyName: String?
+    let model: String?
+
+    enum CodingKeys: String, CodingKey {
+        case provider
+        case hasKey = "has_key"
+        case maskedKey = "masked_key"
+        case keyName = "key_name"
+        case model
     }
 }
 

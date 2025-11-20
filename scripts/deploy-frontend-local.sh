@@ -110,7 +110,7 @@ if [[ ! -d "$DIST_DIR" ]]; then
   exit 1
 fi
 
-RSYNC_ARGS=(-az --delete --info=progress2)
+RSYNC_ARGS=(-az --delete)
 if [[ $DRY_RUN -eq 1 ]]; then
   RSYNC_ARGS+=(--dry-run)
 fi

@@ -2,7 +2,7 @@
 //  MoreView.swift
 //  Cafe
 //
-//  Grid view of all app features
+//  “More” hub with overflow navigation
 //
 
 import SwiftUI
@@ -12,140 +12,106 @@ struct MoreView: View {
     @State private var showIOSFeatures = false
     @State private var showSettings = false
 
+    private let aiAndComms: [MoreLink] = [
+        MoreLink(title: "AI Chat", subtitle: "Ask anything with your selected model", icon: "sparkles", color: .purple, destination: .chat),
+        MoreLink(title: "Messages", subtitle: "Chat with teammates", icon: "bubble.left.and.bubble.right.fill", color: .blue, destination: .messages),
+        MoreLink(title: "Social Circles", subtitle: "See presence and updates", icon: "person.3.sequence.fill", color: .orange, destination: .social)
+    ]
+
+    private let productivity: [MoreLink] = [
+        MoreLink(title: "Tasks", subtitle: "Manage your to-dos", icon: "checkmark.circle", color: .green, destination: .tasks),
+        MoreLink(title: "Calendar", subtitle: "Plan events and deadlines", icon: "calendar", color: .red, destination: .calendar),
+        MoreLink(title: "Smart Lists", subtitle: "Custom filtered views", icon: "list.bullet.rectangle", color: .orange, destination: .smartLists),
+        MoreLink(title: "Templates", subtitle: "Reusable task templates", icon: "doc.text", color: .purple, destination: .templates)
+    ]
+
+    private let systemLinks: [MoreLink] = [
+        MoreLink(title: "Finance", subtitle: "Budgets and spending", icon: "dollarsign.circle", color: .teal, destination: .finance),
+        MoreLink(title: "Settings", subtitle: "App preferences", icon: "gearshape.fill", color: .gray, destination: .settings)
+    ]
+
     var body: some View {
         NavigationStack {
-            ScrollView {
-                LazyVStack(spacing: 24) {
-                    // Header with iOS Features callout
-                    VStack(spacing: 16) {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Explore More")
-                                    .font(.title2)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(themeManager.textColor)
-
-                                Text("Discover all features and integrations")
-                                    .font(.subheadline)
-                                    .foregroundColor(themeManager.secondaryTextColor)
-                            }
-                            Spacer()
-
-                            // Quick Settings Access
-                            Button(action: { showSettings = true }) {
-                                Image(systemName: "gearshape.fill")
-                                    .font(.title2)
-                                    .foregroundColor(.gray)
-                            }
-                        }
-                        .padding(.horizontal)
-
-                        // iOS Features Banner
-                        Button(action: { showIOSFeatures = true }) {
-                            HStack(spacing: 12) {
-                                Image(systemName: "sparkles")
-                                    .font(.title2)
-                                    .foregroundStyle(
-                                        LinearGradient(
-                                            colors: [.blue, .purple],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        )
+            List {
+                Section {
+                    Button(action: { showIOSFeatures = true }) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "sparkles")
+                                .font(.title2)
+                                .foregroundStyle(
+                                    LinearGradient(
+                                        colors: [.blue, .purple],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
                                     )
+                                )
+                                .frame(width: 36, height: 36)
 
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Discover iOS Features")
-                                        .font(.headline)
-                                        .foregroundColor(.primary)
-
-                                    Text("Widgets, Siri, Live Activities & more")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
-
-                                Spacer()
-
-                                Image(systemName: "chevron.right")
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Discover iOS Features")
+                                    .font(.headline)
+                                Text("Widgets, Siri, Live Activities & more")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
-                            .padding()
-                            .background(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(
-                                        LinearGradient(
-                                            colors: [
-                                                Color.blue.opacity(0.1),
-                                                Color.purple.opacity(0.1)
-                                            ],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        )
-                                    )
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(
-                                        LinearGradient(
-                                            colors: [.blue.opacity(0.3), .purple.opacity(0.3)],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        ),
-                                        lineWidth: 1
-                                    )
-                            )
+
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .foregroundColor(.secondary)
                         }
-                        .buttonStyle(.plain)
-                        .padding(.horizontal)
+                        .padding(.vertical, 6)
                     }
 
-                    // Productivity Apps
-                    FeatureCategorySection(
-                        title: "Productivity",
-                        icon: "checkmark.circle.fill",
-                        color: .green,
-                        features: FeatureCard.productivityFeatures
-                    )
-
-                    // Communication Apps
-                    FeatureCategorySection(
-                        title: "Communication",
-                        icon: "bubble.left.and.bubble.right.fill",
-                        color: .blue,
-                        features: FeatureCard.communicationFeatures
-                    )
-
-                    // Tools & Utilities
-                    FeatureCategorySection(
-                        title: "Tools & Utilities",
-                        icon: "wrench.and.screwdriver.fill",
-                        color: .orange,
-                        features: FeatureCard.toolsFeatures
-                    )
-
-                    // System & Settings
-                    FeatureCategorySection(
-                        title: "System",
-                        icon: "gearshape.fill",
-                        color: .gray,
-                        features: FeatureCard.systemFeatures
-                    )
+                    NavigationLink {
+                        SettingsView()
+                    } label: {
+                        Label("Settings", systemImage: "gearshape.fill")
+                            .foregroundColor(themeManager.textColor)
+                    }
+                } header: {
+                    Text("Quick Actions")
                 }
-                .padding(.vertical)
+
+                Section("AI & Communication") {
+                    ForEach(aiAndComms) { item in
+                        NavigationLink {
+                            destinationView(for: item.destination)
+                        } label: {
+                            MoreRow(item: item)
+                        }
+                    }
+                }
+
+                Section("Productivity") {
+                    ForEach(productivity) { item in
+                        NavigationLink {
+                            destinationView(for: item.destination)
+                        } label: {
+                            MoreRow(item: item)
+                        }
+                    }
+                }
+
+                Section("Tools & System") {
+                    ForEach(systemLinks) { item in
+                        NavigationLink {
+                            destinationView(for: item.destination)
+                        } label: {
+                            MoreRow(item: item)
+                        }
+                    }
+                }
             }
+            .listStyle(.insetGrouped)
             .navigationTitle("More")
             .navigationBarTitleDisplayMode(.inline)
-            .background(themeManager.backgroundColor.ignoresSafeArea())
-            .navigationDestination(for: FeatureDestination.self) { destination in
-                destinationView(for: destination)
-            }
+            .background(
+                Rectangle()
+                    .fill(themeManager.backgroundStyle)
+                    .ignoresSafeArea()
+            )
             .sheet(isPresented: $showIOSFeatures) {
                 IOSFeaturesDetailView()
-            }
-            .sheet(isPresented: $showSettings) {
-                NavigationStack {
-                    SettingsView()
-                }
             }
         }
     }
@@ -175,183 +141,46 @@ struct MoreView: View {
     }
 }
 
-// MARK: - Feature Category Section
+// MARK: - Models + Rows
 
-struct FeatureCategorySection: View {
-    let title: String
-    let icon: String
-    let color: Color
-    let features: [FeatureCard]
-    @Environment(ThemeManager.self) var themeManager
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
-                Image(systemName: icon)
-                    .foregroundColor(color)
-                Text(title)
-                    .font(.title3)
-                    .fontWeight(.semibold)
-                    .foregroundColor(themeManager.textColor)
-                Spacer()
-            }
-            .padding(.horizontal)
-
-            LazyVGrid(columns: [
-                GridItem(.flexible()),
-                GridItem(.flexible())
-            ], spacing: 16) {
-                ForEach(features) { feature in
-                    FeatureCardView(feature: feature)
-                }
-            }
-            .padding(.horizontal)
-        }
-    }
-}
-
-// MARK: - Feature Card Model
-
-struct FeatureCard: Identifiable {
+private struct MoreLink: Identifiable {
     let id = UUID()
     let title: String
+    let subtitle: String
     let icon: String
     let color: Color
     let destination: FeatureDestination
-    let description: String
-
-    static let allFeatures: [FeatureCard] = productivityFeatures + communicationFeatures + toolsFeatures + systemFeatures
-
-    static let productivityFeatures: [FeatureCard] = [
-        FeatureCard(
-            title: "Tasks",
-            icon: "checkmark.circle",
-            color: .green,
-            destination: .tasks,
-            description: "Manage your tasks"
-        ),
-        FeatureCard(
-            title: "Calendar",
-            icon: "calendar",
-            color: .red,
-            destination: .calendar,
-            description: "Schedule events"
-        ),
-        FeatureCard(
-            title: "Templates",
-            icon: "doc.text",
-            color: .purple,
-            destination: .templates,
-            description: "Reusable task templates"
-        ),
-        FeatureCard(
-            title: "Smart Lists",
-            icon: "list.bullet.rectangle",
-            color: .orange,
-            destination: .smartLists,
-            description: "Custom filtered views"
-        )
-    ]
-
-    static let communicationFeatures: [FeatureCard] = [
-        FeatureCard(
-            title: "AI Chat",
-            icon: "sparkles",
-            color: .pink,
-            destination: .chat,
-            description: "AI assistant"
-        ),
-        FeatureCard(
-            title: "Messages",
-            icon: "message",
-            color: .cyan,
-            destination: .messages,
-            description: "Team collaboration"
-        ),
-        FeatureCard(
-            title: "Social Circles",
-            icon: "person.3.sequence.fill",
-            color: .orange,
-            destination: .social,
-            description: "Group pulse board"
-        )
-    ]
-
-    static let toolsFeatures: [FeatureCard] = [
-        FeatureCard(
-            title: "Finance",
-            icon: "dollarsign.circle",
-            color: .teal,
-            destination: .finance,
-            description: "Budget tracking"
-        )
-    ]
-
-    static let systemFeatures: [FeatureCard] = [
-        FeatureCard(
-            title: "Settings",
-            icon: "gearshape",
-            color: .gray,
-            destination: .settings,
-            description: "App preferences"
-        )
-    ]
 }
 
-enum FeatureDestination {
-    case tasks
-    case templates
-    case smartLists
-    case messages
-    case finance
-    case calendar
-    case chat
-    case settings
-    case social
-}
-
-// MARK: - Feature Card View
-
-struct FeatureCardView: View {
-    let feature: FeatureCard
-    @Environment(ThemeManager.self) var themeManager
+private struct MoreRow: View {
+    let item: MoreLink
 
     var body: some View {
-        NavigationLink(value: feature.destination) {
-            VStack(spacing: 12) {
-                // Icon
-                ZStack {
-                    Circle()
-                        .fill(feature.color.opacity(0.15))
-                        .frame(width: 60, height: 60)
-
-                    Image(systemName: feature.icon)
-                        .font(.system(size: 28))
-                        .foregroundColor(feature.color)
+        HStack(spacing: 12) {
+            Circle()
+                .fill(item.color.opacity(0.15))
+                .frame(width: 44, height: 44)
+                .overlay {
+                    Image(systemName: item.icon)
+                        .font(.headline)
+                        .foregroundColor(item.color)
                 }
 
-                // Title
-                Text(feature.title)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(themeManager.textColor)
-                    .multilineTextAlignment(.center)
-
-                // Description
-                Text(feature.description)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(item.title)
+                    .font(.headline)
+                Text(item.subtitle)
                     .font(.caption)
-                    .foregroundColor(themeManager.secondaryTextColor)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(2)
+                    .foregroundColor(.secondary)
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 20)
-            .padding(.horizontal, 12)
-            .background(themeManager.cardBackgroundColor)
-            .cornerRadius(16)
-            .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
+
+            Spacer()
+
+            Image(systemName: "chevron.right")
+                .foregroundColor(.secondary)
+                .font(.caption)
         }
-        .buttonStyle(.plain)
+        .padding(.vertical, 6)
     }
 }
 
