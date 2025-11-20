@@ -398,16 +398,26 @@ class AiGateway:
             name = entry.get("name") or entry.get("id")
             if not name:
                 continue
-            formatted.append(
-                self._format_model_entry(
-                    normalized,
-                    name,
-                    source=normalized,
-                    size=entry.get("size"),
-                    metadata=entry,
-                    endpoint=self._endpoint_for_provider(normalized),
-                )
+
+            # Enrich cloud models with metadata
+            model_entry = self._format_model_entry(
+                normalized,
+                name,
+                source=normalized,
+                size=entry.get("size"),
+                metadata=entry,
+                endpoint=self._endpoint_for_provider(normalized),
             )
+
+            # Add enriched metadata for cloud providers
+            if normalized == "openai":
+                from .model_metadata import enrich_openai_model
+                model_entry = enrich_openai_model(name, model_entry)
+            elif normalized == "gemini":
+                from .model_metadata import enrich_gemini_model
+                model_entry = enrich_gemini_model(name, model_entry)
+
+            formatted.append(model_entry)
         return formatted
 
     def _endpoint_for_provider(self, provider_key: str) -> Optional[str]:

@@ -489,3 +489,276 @@ async def rebuild_frontend(
             status_code=500,
             detail=f"Build error: {str(e)}"
         )
+
+
+# AI Model Discovery Endpoints
+class CloudModelInfo(BaseModel):
+    id: str
+    name: str
+    description: Optional[str] = None
+    context_window: Optional[int] = None
+    max_output_tokens: Optional[int] = None
+    input_cost_per_1m: Optional[float] = None
+    output_cost_per_1m: Optional[float] = None
+    supports_vision: bool = False
+    supports_function_calling: bool = False
+    owned_by: Optional[str] = None
+    created: Optional[int] = None
+
+    class Config:
+        from_attributes = True
+
+
+class CloudModelsResponse(BaseModel):
+    provider: str
+    models: List[CloudModelInfo]
+    total_count: int
+    credentials_configured: bool
+    error: Optional[str] = None
+
+
+@router.get("/ai/models/openai", response_model=CloudModelsResponse)
+async def list_openai_models(
+    admin_user: models.User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db),
+):
+    """Fetch available OpenAI models from OpenAI API"""
+    from .ai_providers import OpenAIProvider
+
+    # Get stored credentials
+    secret = crud.get_provider_secret(db, "openai")
+    if not secret or not secret.get("api_key"):
+        return CloudModelsResponse(
+            provider="openai",
+            models=[],
+            total_count=0,
+            credentials_configured=False,
+            error="OpenAI API key not configured"
+        )
+
+    try:
+        provider = OpenAIProvider(secret["api_key"])
+        raw_models = await provider.list_models()
+
+        # Enrich with metadata
+        models = []
+        for m in raw_models:
+            model_id = m.get("name") or m.get("id")
+            models.append(CloudModelInfo(
+                id=model_id,
+                name=model_id,
+                description=_get_openai_model_description(model_id),
+                context_window=_get_openai_context_window(model_id),
+                max_output_tokens=_get_openai_max_output(model_id),
+                input_cost_per_1m=_get_openai_input_cost(model_id),
+                output_cost_per_1m=_get_openai_output_cost(model_id),
+                supports_vision=_openai_supports_vision(model_id),
+                supports_function_calling=_openai_supports_functions(model_id),
+                owned_by=m.get("owned_by"),
+                created=m.get("created")
+            ))
+
+        return CloudModelsResponse(
+            provider="openai",
+            models=models,
+            total_count=len(models),
+            credentials_configured=True
+        )
+    except Exception as e:
+        return CloudModelsResponse(
+            provider="openai",
+            models=[],
+            total_count=0,
+            credentials_configured=True,
+            error=str(e)
+        )
+
+
+@router.get("/ai/models/gemini", response_model=CloudModelsResponse)
+async def list_gemini_models(
+    admin_user: models.User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db),
+):
+    """Fetch available Gemini models from Google API"""
+    from .ai_providers import GoogleGeminiProvider
+
+    # Get stored credentials
+    secret = crud.get_provider_secret(db, "gemini")
+    if not secret or not secret.get("api_key"):
+        return CloudModelsResponse(
+            provider="gemini",
+            models=[],
+            total_count=0,
+            credentials_configured=False,
+            error="Gemini API key not configured"
+        )
+
+    try:
+        provider = GoogleGeminiProvider(secret["api_key"])
+        raw_models = await provider.list_models()
+
+        # Enrich with metadata
+        models = []
+        for m in raw_models:
+            model_id = m.get("name") or m.get("id")
+            models.append(CloudModelInfo(
+                id=model_id,
+                name=model_id,
+                description=m.get("description") or _get_gemini_model_description(model_id),
+                context_window=_get_gemini_context_window(model_id),
+                max_output_tokens=_get_gemini_max_output(model_id),
+                input_cost_per_1m=_get_gemini_input_cost(model_id),
+                output_cost_per_1m=_get_gemini_output_cost(model_id),
+                supports_vision=_gemini_supports_vision(model_id),
+                supports_function_calling=True  # All Gemini models support function calling
+            ))
+
+        return CloudModelsResponse(
+            provider="gemini",
+            models=models,
+            total_count=len(models),
+            credentials_configured=True
+        )
+    except Exception as e:
+        return CloudModelsResponse(
+            provider="gemini",
+            models=[],
+            total_count=0,
+            credentials_configured=True,
+            error=str(e)
+        )
+
+
+# Model metadata helpers for OpenAI
+def _get_openai_model_description(model_id: str) -> str:
+    descriptions = {
+        "gpt-4o": "Most advanced multimodal model, best for complex tasks",
+        "gpt-4o-mini": "Affordable and intelligent small model for fast, lightweight tasks",
+        "gpt-4-turbo": "Latest GPT-4 Turbo model with vision capabilities",
+        "gpt-4": "GPT-4 base model, high intelligence",
+        "gpt-3.5-turbo": "Fast, inexpensive model for simple tasks",
+        "gpt-3.5-turbo-16k": "Extended context version of GPT-3.5 Turbo",
+    }
+    return descriptions.get(model_id, "OpenAI language model")
+
+
+def _get_openai_context_window(model_id: str) -> int:
+    windows = {
+        "gpt-4o": 128000,
+        "gpt-4o-mini": 128000,
+        "gpt-4-turbo": 128000,
+        "gpt-4": 8192,
+        "gpt-3.5-turbo": 16385,
+        "gpt-3.5-turbo-16k": 16385,
+    }
+    return windows.get(model_id, 8192)
+
+
+def _get_openai_max_output(model_id: str) -> int:
+    outputs = {
+        "gpt-4o": 16384,
+        "gpt-4o-mini": 16384,
+        "gpt-4-turbo": 4096,
+        "gpt-4": 8192,
+        "gpt-3.5-turbo": 4096,
+    }
+    return outputs.get(model_id, 4096)
+
+
+def _get_openai_input_cost(model_id: str) -> Optional[float]:
+    """Cost per 1M input tokens in USD"""
+    costs = {
+        "gpt-4o": 5.00,
+        "gpt-4o-mini": 0.15,
+        "gpt-4-turbo": 10.00,
+        "gpt-4": 30.00,
+        "gpt-3.5-turbo": 0.50,
+    }
+    return costs.get(model_id)
+
+
+def _get_openai_output_cost(model_id: str) -> Optional[float]:
+    """Cost per 1M output tokens in USD"""
+    costs = {
+        "gpt-4o": 15.00,
+        "gpt-4o-mini": 0.60,
+        "gpt-4-turbo": 30.00,
+        "gpt-4": 60.00,
+        "gpt-3.5-turbo": 1.50,
+    }
+    return costs.get(model_id)
+
+
+def _openai_supports_vision(model_id: str) -> bool:
+    vision_models = {"gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-4-vision-preview"}
+    return model_id in vision_models
+
+
+def _openai_supports_functions(model_id: str) -> bool:
+    # All modern GPT models support function calling
+    return "gpt-4" in model_id or "gpt-3.5" in model_id
+
+
+# Model metadata helpers for Gemini
+def _get_gemini_model_description(model_id: str) -> str:
+    descriptions = {
+        "gemini-1.5-pro": "Most capable Gemini model, best for complex reasoning",
+        "gemini-1.5-flash": "Fast and versatile performance across a variety of tasks",
+        "gemini-1.0-pro": "Previous generation Gemini model",
+        "gemini-2.0-flash": "Next generation flash model with enhanced capabilities",
+    }
+    return descriptions.get(model_id, "Google Gemini model")
+
+
+def _get_gemini_context_window(model_id: str) -> int:
+    windows = {
+        "gemini-1.5-pro": 2000000,  # 2M tokens
+        "gemini-1.5-flash": 1000000,  # 1M tokens
+        "gemini-1.0-pro": 32760,
+        "gemini-2.0-flash": 1000000,
+    }
+    # Default to 1M for unknown Gemini models
+    for key in windows:
+        if key in model_id:
+            return windows[key]
+    return 1000000
+
+
+def _get_gemini_max_output(model_id: str) -> int:
+    outputs = {
+        "gemini-1.5-pro": 8192,
+        "gemini-1.5-flash": 8192,
+        "gemini-1.0-pro": 2048,
+        "gemini-2.0-flash": 8192,
+    }
+    return outputs.get(model_id, 8192)
+
+
+def _get_gemini_input_cost(model_id: str) -> Optional[float]:
+    """Cost per 1M input tokens in USD"""
+    costs = {
+        "gemini-1.5-pro": 1.25,  # <= 128K context
+        "gemini-1.5-flash": 0.075,  # <= 128K context
+        "gemini-1.0-pro": 0.50,
+    }
+    # Gemini 2.0 Flash is free during preview
+    if "gemini-2.0-flash" in model_id:
+        return 0.0
+    return costs.get(model_id)
+
+
+def _get_gemini_output_cost(model_id: str) -> Optional[float]:
+    """Cost per 1M output tokens in USD"""
+    costs = {
+        "gemini-1.5-pro": 5.00,
+        "gemini-1.5-flash": 0.30,
+        "gemini-1.0-pro": 1.50,
+    }
+    if "gemini-2.0-flash" in model_id:
+        return 0.0
+    return costs.get(model_id)
+
+
+def _gemini_supports_vision(model_id: str) -> bool:
+    # All Gemini 1.5+ models support vision
+    return "gemini-1.5" in model_id or "gemini-2.0" in model_id

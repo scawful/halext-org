@@ -368,6 +368,14 @@ class AiModelInfo(BaseModel):
     latency_ms: Optional[int] = None
     metadata: Dict[str, Any] = Field(default_factory=dict)
     modified_at: Optional[str] = None
+    # Enhanced metadata for cloud models
+    description: Optional[str] = None
+    context_window: Optional[int] = None
+    max_output_tokens: Optional[int] = None
+    input_cost_per_1m: Optional[float] = None
+    output_cost_per_1m: Optional[float] = None
+    supports_vision: Optional[bool] = None
+    supports_function_calling: Optional[bool] = None
 
 class AiModelsResponse(BaseModel):
     models: List[AiModelInfo]
