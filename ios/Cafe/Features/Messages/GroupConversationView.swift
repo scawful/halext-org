@@ -219,7 +219,8 @@ struct GroupConversationView: View {
                 messageType: .text,
                 isRead: true,
                 createdAt: Date(),
-                updatedAt: Date()
+                updatedAt: Date(),
+                modelUsed: chatSettings.getActiveAgents().first?.id
             ))
         }
     }
