@@ -8,7 +8,27 @@ Usage:
 """
 
 import argparse
+import os
 import sys
+from pathlib import Path
+
+def _load_env():
+    """Load backend/.env so DATABASE_URL matches the running service when the script is executed manually."""
+    env_path = Path(__file__).resolve().parent / ".env"
+    if not env_path.exists():
+        return
+    with env_path.open() as env_file:
+        for raw_line in env_file:
+            line = raw_line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            key = key.strip()
+            val = value.strip().strip('"').strip("'")
+            os.environ.setdefault(key, val)
+
+_load_env()
+
 from app.database import SessionLocal
 from app import crud, schemas
 from passlib.context import CryptContext
