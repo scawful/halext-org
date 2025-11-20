@@ -177,16 +177,16 @@ class APIClient {
 
     // MARK: - AI Features
 
-    func sendChatMessage(prompt: String, history: [ChatMessage] = []) async throws -> AIChatResponse {
-        let chatRequest = AIChatRequest(prompt: prompt, history: history)
+    func sendChatMessage(prompt: String, history: [ChatMessage] = [], model: String? = nil) async throws -> AIChatResponse {
+        let chatRequest = AIChatRequest(prompt: prompt, history: history, model: model)
         var request = try authorizedRequest(path: "/ai/chat", method: "POST")
         request.httpBody = try JSONEncoder().encode(chatRequest)
         return try await performRequest(request)
     }
 
     /// Stream chat message responses token by token
-    func streamChatMessage(prompt: String, history: [ChatMessage] = []) async throws -> AsyncThrowingStream<String, Error> {
-        let chatRequest = AIChatRequest(prompt: prompt, history: history)
+    func streamChatMessage(prompt: String, history: [ChatMessage] = [], model: String? = nil) async throws -> AsyncThrowingStream<String, Error> {
+        let chatRequest = AIChatRequest(prompt: prompt, history: history, model: model)
         var request = try authorizedRequest(path: "/ai/chat/stream", method: "POST")
         request.httpBody = try JSONEncoder().encode(chatRequest)
         request.setValue("text/event-stream", forHTTPHeaderField: "Accept")

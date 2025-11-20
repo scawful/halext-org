@@ -12,6 +12,25 @@ struct ChatSettingsView: View {
 
     var body: some View {
         List {
+            // AI Model Settings
+            Section {
+                NavigationLink {
+                    AISettingsView()
+                } label: {
+                    HStack {
+                        Image(systemName: "cpu")
+                            .foregroundColor(.blue)
+                            .frame(width: 24)
+
+                        Text("AI Model")
+                    }
+                }
+            } header: {
+                Text("Model Configuration")
+            } footer: {
+                Text("Select which AI model to use for chat and suggestions")
+            }
+
             // Quick Presets
             Section {
                 ForEach(ChatPreset.allCases, id: \.self) { preset in

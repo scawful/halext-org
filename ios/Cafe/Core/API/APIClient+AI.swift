@@ -17,7 +17,26 @@ extension APIClient {
 
     func getAIModels() async throws -> AIModelsResponse {
         let request = try authorizedRequest(path: "/ai/models", method: "GET")
-        return try await performRequest(request)
+
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.invalidResponse
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            throw APIError.httpError(httpResponse.statusCode)
+        }
+
+        return try decoder.decode(AIModelsResponse.self, from: data)
+    }
+
+    /// Fetch AI models and return them (convenience method)
+    func fetchAiModels() async throws -> AIModelsResponse {
+        return try await getAIModels()
     }
 
     // MARK: - AI Embeddings
@@ -260,13 +279,143 @@ struct AIProviderInfo: Codable {
 
 struct AIModelsResponse: Codable {
     let models: [AIModel]
-    let defaultModel: String
+    let provider: String
+    let currentModel: String
+    let defaultModelId: String?
+
+    enum CodingKeys: String, CodingKey {
+        case models, provider
+        case currentModel = "current_model"
+        case defaultModelId = "default_model_id"
+    }
 }
 
-struct AIModel: Codable {
+struct AIModel: Codable, Identifiable, Hashable {
     let id: String
     let name: String
-    let capabilities: [String]
+    let provider: String
+    let size: String?
+    let source: String?
+    let nodeId: Int?
+    let nodeName: String?
+    let endpoint: String?
+    let latencyMs: Int?
+    let metadata: [String: AnyCodable]
+    let modifiedAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, provider, size, source, endpoint, metadata
+        case nodeId = "node_id"
+        case nodeName = "node_name"
+        case latencyMs = "latency_ms"
+        case modifiedAt = "modified_at"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        provider = try container.decode(String.self, forKey: .provider)
+        size = try container.decodeIfPresent(String.self, forKey: .size)
+        source = try container.decodeIfPresent(String.self, forKey: .source)
+        nodeId = try container.decodeIfPresent(Int.self, forKey: .nodeId)
+        nodeName = try container.decodeIfPresent(String.self, forKey: .nodeName)
+        endpoint = try container.decodeIfPresent(String.self, forKey: .endpoint)
+        latencyMs = try container.decodeIfPresent(Int.self, forKey: .latencyMs)
+        metadata = (try? container.decodeIfPresent([String: AnyCodable].self, forKey: .metadata)) ?? [:]
+        modifiedAt = try container.decodeIfPresent(String.self, forKey: .modifiedAt)
+    }
+
+    var displayName: String {
+        if let nodeName = nodeName {
+            return "\(name) (\(nodeName))"
+        }
+        return name
+    }
+
+    var sourceLabel: String {
+        source ?? provider
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+
+    static func == (lhs: AIModel, rhs: AIModel) -> Bool {
+        lhs.id == rhs.id
+    }
+}
+
+// Helper to decode arbitrary JSON values
+struct AnyCodable: Codable, Hashable {
+    let value: Any
+
+    init(_ value: Any) {
+        self.value = value
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+
+        if let string = try? container.decode(String.self) {
+            value = string
+        } else if let int = try? container.decode(Int.self) {
+            value = int
+        } else if let double = try? container.decode(Double.self) {
+            value = double
+        } else if let bool = try? container.decode(Bool.self) {
+            value = bool
+        } else if let array = try? container.decode([AnyCodable].self) {
+            value = array.map { $0.value }
+        } else if let dict = try? container.decode([String: AnyCodable].self) {
+            value = dict.mapValues { $0.value }
+        } else {
+            value = NSNull()
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+
+        switch value {
+        case let string as String:
+            try container.encode(string)
+        case let int as Int:
+            try container.encode(int)
+        case let double as Double:
+            try container.encode(double)
+        case let bool as Bool:
+            try container.encode(bool)
+        case let array as [Any]:
+            try container.encode(array.map { AnyCodable($0) })
+        case let dict as [String: Any]:
+            try container.encode(dict.mapValues { AnyCodable($0) })
+        default:
+            try container.encodeNil()
+        }
+    }
+
+    func hash(into hasher: inout Hasher) {
+        if let string = value as? String {
+            hasher.combine(string)
+        } else if let int = value as? Int {
+            hasher.combine(int)
+        } else if let double = value as? Double {
+            hasher.combine(double)
+        } else if let bool = value as? Bool {
+            hasher.combine(bool)
+        }
+    }
+
+    static func == (lhs: AnyCodable, rhs: AnyCodable) -> Bool {
+        switch (lhs.value, rhs.value) {
+        case let (l as String, r as String): return l == r
+        case let (l as Int, r as Int): return l == r
+        case let (l as Double, r as Double): return l == r
+        case let (l as Bool, r as Bool): return l == r
+        default: return false
+        }
+    }
 }
 
 struct AIEmbeddingsResponse: Codable {

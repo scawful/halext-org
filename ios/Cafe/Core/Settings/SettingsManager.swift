@@ -88,6 +88,14 @@ class SettingsManager {
         }
     }
 
+    // MARK: - AI Settings
+
+    @ObservationIgnored
+    @AppStorage("selected_ai_model_id") var selectedAiModelId: String?
+
+    @ObservationIgnored
+    @AppStorage("ai_cloud_providers_disabled") var cloudProvidersDisabled: Bool = false
+
     // MARK: - Account & Profile
 
     var connectedDevicesCount: Int {

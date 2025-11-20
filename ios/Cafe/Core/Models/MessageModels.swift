@@ -46,6 +46,7 @@ struct Message: Codable, Identifiable {
     let isRead: Bool
     let createdAt: Date
     let updatedAt: Date
+    let modelUsed: String?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -56,10 +57,15 @@ struct Message: Codable, Identifiable {
         case isRead = "is_read"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
+        case modelUsed = "model_used"
     }
 
     var isFromCurrentUser: Bool {
         senderId == KeychainManager.shared.getUserId()
+    }
+
+    var isFromAI: Bool {
+        modelUsed != nil
     }
 }
 

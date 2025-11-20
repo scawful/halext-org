@@ -40,6 +40,10 @@ class AppState {
         currentUser?.isAdmin ?? false
     }
 
+    // AI Models Cache
+    var aiModels: AIModelsResponse?
+    var isLoadingModels: Bool = false
+
     init() {
         // Setup notification categories
         NotificationManager.shared.setupNotificationCategories()
@@ -203,6 +207,9 @@ class AppState {
             print("👤 Loading current user...")
             currentUser = try await APIClient.shared.getCurrentUser()
             print("✅ Current user loaded: \(currentUser?.username ?? "unknown")")
+
+            // Load AI models after user is loaded
+            await loadAIModels()
         } catch {
             print("❌ Failed to load current user:", error)
             // If fetching user fails, token might be invalid
@@ -212,5 +219,27 @@ class AppState {
                 await logout()
             }
         }
+    }
+
+    // MARK: - AI Models
+
+    @MainActor
+    func loadAIModels() async {
+        isLoadingModels = true
+        defer { isLoadingModels = false }
+
+        do {
+            print("🤖 Loading AI models...")
+            aiModels = try await APIClient.shared.fetchAiModels()
+            print("✅ AI models loaded: \(aiModels?.models.count ?? 0) models")
+        } catch {
+            print("❌ Failed to load AI models:", error)
+            // Don't throw error, just log - models are optional feature
+        }
+    }
+
+    @MainActor
+    func refreshAIModels() async {
+        await loadAIModels()
     }
 }

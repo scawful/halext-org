@@ -13,9 +13,10 @@ class ChatViewModel {
     var messages: [AiChatMessage] = []
     var inputText: String = ""
     var isLoading: Bool = false
-    
+
     private var api = APIClient.shared
-    
+    private var settingsManager = SettingsManager.shared
+
     @MainActor
     func sendMessage() async {
         guard !inputText.isEmpty else { return }
@@ -28,9 +29,12 @@ class ChatViewModel {
         inputText = ""
         isLoading = true
 
+        // Get selected model from settings
+        let modelId = settingsManager.selectedAiModelId
+
         do {
             var assistantResponse = ""
-            let stream = try await api.streamChatMessage(prompt: userMessage.content, history: history)
+            let stream = try await api.streamChatMessage(prompt: userMessage.content, history: history, model: modelId)
 
             // Add a placeholder for the streaming message
             let assistantMessageId = UUID()

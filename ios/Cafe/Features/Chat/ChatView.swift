@@ -8,13 +8,18 @@
 import SwiftUI
 
 struct ChatView: View {
+    @Environment(AppState.self) var appState
     @State private var viewModel = ChatViewModel()
     @State private var scrollProxy: ScrollViewProxy?
     @FocusState private var isInputFocused: Bool
+    @State private var settingsManager = SettingsManager.shared
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
+                // Active Model Chip
+                activeModelChip
+
                 // Messages list
                 ScrollViewReader { proxy in
                     ScrollView {
@@ -99,6 +104,19 @@ struct ChatView: View {
                 proxy.scrollTo(lastMessage.id, anchor: .bottom)
             }
         }
+    }
+
+    private var activeModelChip: some View {
+        HStack {
+            Spacer()
+
+            AIModelCompactPicker(selectedModelId: $settingsManager.selectedAiModelId)
+                .padding(.horizontal)
+                .padding(.top, 8)
+
+            Spacer()
+        }
+        .background(Color(.systemBackground))
     }
 }
 

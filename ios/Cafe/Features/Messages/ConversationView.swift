@@ -135,9 +135,26 @@ struct MessageBubbleView: View {
                     .foregroundColor(message.isFromCurrentUser ? .white : .primary)
                     .cornerRadius(16)
 
-                Text(message.createdAt, style: .time)
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
+                HStack(spacing: 4) {
+                    Text(message.createdAt, style: .time)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+
+                    if let modelUsed = message.modelUsed {
+                        Text("•")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+
+                        HStack(spacing: 2) {
+                            Image(systemName: "cpu")
+                                .font(.caption2)
+
+                            Text(modelUsed)
+                                .font(.caption2)
+                        }
+                        .foregroundColor(.secondary)
+                    }
+                }
             }
 
             if !message.isFromCurrentUser {
