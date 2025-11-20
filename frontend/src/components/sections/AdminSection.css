@@ -324,6 +324,101 @@
   border-color: rgba(118, 75, 162, 0.5);
 }
 
+.api-catalog .api-controls {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.api-controls input,
+.api-controls select {
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  padding: 0.45rem 0.75rem;
+}
+
+.api-fact {
+  flex: 1;
+  min-width: 200px;
+  background: rgba(147, 51, 234, 0.15);
+  border-radius: 999px;
+  padding: 0.5rem 1rem;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.85rem;
+}
+
+.api-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0.85rem;
+}
+
+.api-card {
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 0.95rem;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.api-card-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.api-card-header code {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.api-methods {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.api-method {
+  font-size: 0.7rem;
+  border-radius: 6px;
+  padding: 0.15rem 0.4rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.api-method-get {
+  color: #4ade80;
+  border-color: rgba(74, 222, 128, 0.4);
+}
+
+.api-method-post {
+  color: #93c5fd;
+  border-color: rgba(147, 197, 253, 0.4);
+}
+
+.api-method-put,
+.api-method-patch {
+  color: #fdba74;
+  border-color: rgba(253, 186, 116, 0.4);
+}
+
+.api-method-delete {
+  color: #fca5a5;
+  border-color: rgba(252, 165, 165, 0.5);
+}
+
+.api-card-title {
+  font-weight: 600;
+  margin: 0.4rem 0 0.1rem;
+}
+
+.api-card-body {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.7);
+  margin: 0;
+}
+
 /* Form Card */
 .client-form-card {
   background: rgba(255, 255, 255, 0.05);

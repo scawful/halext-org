@@ -11,6 +11,7 @@ import {
   MdPhotoLibrary,
   MdArticle,
   MdCloudUpload,
+  MdOutlineHub,
 } from 'react-icons/md'
 import './AdminSection.css'
 import { API_BASE_URL } from '../../utils/helpers'
@@ -77,6 +78,13 @@ interface MediaAsset {
   created_at: string
 }
 
+interface ApiRouteInfo {
+  path: string
+  methods: string[]
+  name: string
+  summary?: string | null
+}
+
 interface AdminSectionProps {
   token: string
 }
@@ -88,6 +96,7 @@ const TAB_OPTIONS = [
   { id: 'photos', label: 'Photo Albums', icon: <MdPhotoLibrary size={18} /> },
   { id: 'blog', label: 'Blog Posts', icon: <MdArticle size={18} /> },
   { id: 'media', label: 'Media', icon: <MdCloudUpload size={18} /> },
+  { id: 'api', label: 'API Catalog', icon: <MdOutlineHub size={18} /> },
 ] as const
 
 type AdminTab = (typeof TAB_OPTIONS)[number]['id']
@@ -199,6 +208,12 @@ export const AdminSection = ({ token }: AdminSectionProps) => {
   const [mediaTitle, setMediaTitle] = useState('')
   const [mediaFile, setMediaFile] = useState<File | null>(null)
 
+  // API catalog
+  const [apiRoutes, setApiRoutes] = useState<ApiRouteInfo[]>([])
+  const [apiCatalogLoaded, setApiCatalogLoaded] = useState(false)
+  const [apiSearch, setApiSearch] = useState('')
+  const [apiMethod, setApiMethod] = useState<'ALL' | 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'>('ALL')
+
   const authHeaders: HeadersInit = {
     Authorization: `Bearer ${token}`,
   }
@@ -276,6 +291,15 @@ export const AdminSection = ({ token }: AdminSectionProps) => {
       const data = await response.json()
       setMediaAssets(data)
       setMediaLoaded(true)
+    }
+  }
+
+  const fetchApiCatalog = async () => {
+    const response = await fetch(`${API_BASE_URL}/admin/api-catalog`, { headers: authHeaders })
+    if (response.ok) {
+      const data = await response.json()
+      setApiRoutes(data)
+      setApiCatalogLoaded(true)
     }
   }
 
@@ -382,7 +406,10 @@ export const AdminSection = ({ token }: AdminSectionProps) => {
     if (activeTab === 'media' && !mediaLoaded) {
       fetchMedia()
     }
-  }, [activeTab, clientsLoaded, credsLoaded, siteLoaded, photosLoaded, blogLoaded, mediaLoaded, themeLoaded])
+    if (activeTab === 'api' && !apiCatalogLoaded) {
+      fetchApiCatalog()
+    }
+  }, [activeTab, clientsLoaded, credsLoaded, siteLoaded, photosLoaded, blogLoaded, mediaLoaded, themeLoaded, apiCatalogLoaded])
 
   const handleAddClient = async (event: FormEvent) => {
     event.preventDefault()
@@ -1234,6 +1261,74 @@ export const AdminSection = ({ token }: AdminSectionProps) => {
     </div>
   )
 
+  const renderApiCatalog = () => {
+    const filtered = apiRoutes.filter((route) => {
+      const matchesSearch =
+        !apiSearch.trim() ||
+        route.path.toLowerCase().includes(apiSearch.toLowerCase()) ||
+        (route.summary || '').toLowerCase().includes(apiSearch.toLowerCase())
+      const matchesMethod = apiMethod === 'ALL' || route.methods.includes(apiMethod)
+      return matchesSearch && matchesMethod
+    })
+
+    const playfulFacts = [
+      '🐣 The API loves JSON and cozy error messages.',
+      '🌈 Use bearer tokens for everything beyond login.',
+      '📡 /finance/* endpoints prefer HTTPS and snacks.',
+      '💌 Webhooks? Coming soon with glitter.',
+    ]
+
+    return (
+      <div className="api-catalog">
+        <header className="admin-header">
+          <div>
+            <h2 className="text-2xl font-bold text-purple-300">API Catalog</h2>
+            <p className="text-sm text-gray-400">
+              Quick reference for every endpoint Halext exposes. Pick a method filter, copy a path, ship magic.
+            </p>
+          </div>
+        </header>
+        <div className="api-controls">
+          <input
+            type="text"
+            placeholder="Search /finance, /ai/chat, /social..."
+            value={apiSearch}
+            onChange={(e) => setApiSearch(e.target.value)}
+          />
+          <select value={apiMethod} onChange={(e) => setApiMethod(e.target.value as typeof apiMethod)}>
+            {['ALL', 'GET', 'POST', 'PUT', 'PATCH', 'DELETE'].map((method) => (
+              <option key={method} value={method}>
+                {method}
+              </option>
+            ))}
+          </select>
+          <div className="api-fact">{playfulFacts[Math.floor(Math.random() * playfulFacts.length)]}</div>
+        </div>
+        <div className="api-cards">
+          {filtered.map((route) => (
+            <article key={`${route.path}-${route.methods.join('-')}`} className="api-card">
+              <div className="api-card-header">
+                <div className="api-methods">
+                  {route.methods.map((method) => (
+                    <span key={method} className={`api-method api-method-${method.toLowerCase()}`}>
+                      {method}
+                    </span>
+                  ))}
+                </div>
+                <code>{route.path}</code>
+              </div>
+              <p className="api-card-title">{route.name}</p>
+              <p className="api-card-body">{route.summary || 'No description yet—feel free to add one!'}</p>
+            </article>
+          ))}
+          {filtered.length === 0 && (
+            <p className="text-sm text-gray-400">No endpoints match that filter (try clearing search).</p>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   const renderActiveTab = () => {
     switch (activeTab) {
       case 'server':
@@ -1248,6 +1343,8 @@ export const AdminSection = ({ token }: AdminSectionProps) => {
         return renderBlogPosts()
       case 'media':
         return renderMedia()
+      case 'api':
+        return renderApiCatalog()
       default:
         return null
     }

@@ -12,6 +12,14 @@ interface MessageWithModel extends AiChatMessage {
   provider?: string
 }
 
+const formatModelIdentifier = (identifier: string) => {
+  if (identifier.startsWith('client:')) {
+    const [, nodeId, modelName] = identifier.split(':')
+    return `Client ${nodeId}${modelName ? ` (${modelName})` : ''}`
+  }
+  return identifier
+}
+
 export const AiChatWidget = ({ token }: AiChatWidgetProps) => {
   const [messages, setMessages] = useState<MessageWithModel[]>([])
   const [input, setInput] = useState('')
@@ -43,13 +51,14 @@ export const AiChatWidget = ({ token }: AiChatWidgetProps) => {
       // Use streaming for better UX
       let fullResponse = ''
 
-      // Pass selected model to the stream function
-      for await (const chunk of streamChatMessage(
+      const streamResult = await streamChatMessage(
         token,
         userMessage.content,
         messages,
         selectedModelId || undefined
-      )) {
+      )
+
+      for await (const chunk of streamResult.stream) {
         fullResponse += chunk
         setStreamingMessage(fullResponse)
       }
@@ -57,7 +66,7 @@ export const AiChatWidget = ({ token }: AiChatWidgetProps) => {
       const assistantMessage: MessageWithModel = {
         role: 'assistant',
         content: fullResponse,
-        model: selectedModelId || undefined,
+        model: streamResult.model || selectedModelId || undefined,
       }
       setMessages((prev) => [...prev, assistantMessage])
       setStreamingMessage('')
@@ -111,7 +120,7 @@ export const AiChatWidget = ({ token }: AiChatWidgetProps) => {
                   {message.model && (
                     <>
                       <span>•</span>
-                      <span className="text-gray-400">{message.model}</span>
+                      <span className="text-gray-400">{formatModelIdentifier(message.model)}</span>
                     </>
                   )}
                 </div>

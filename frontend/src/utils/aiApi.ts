@@ -251,12 +251,18 @@ export async function sendChatMessage(
 /**
  * Stream chat response from AI
  */
-export async function* streamChatMessage(
+export interface ChatStreamResult {
+  stream: AsyncGenerator<string>
+  model?: string
+  provider?: string
+}
+
+export async function streamChatMessage(
   token: string,
   prompt: string,
   history: AiChatMessage[] = [],
   model?: string
-): AsyncGenerator<string> {
+): Promise<ChatStreamResult> {
   const response = await fetch(`${API_BASE_URL}/ai/stream`, {
     method: 'POST',
     headers: {
@@ -268,26 +274,231 @@ export async function* streamChatMessage(
 
   if (!response.ok) throw new Error('Failed to stream chat message')
 
-  const reader = response.body?.getReader()
-  if (!reader) throw new Error('No response body')
+  const responseBody = response.body
+  if (!responseBody) {
+    throw new Error('No response body')
+  }
+  const reader = responseBody.getReader()
 
   const decoder = new TextDecoder()
+  const resolvedModel = response.headers.get('x-halext-ai-model') ?? undefined
+  const provider = resolvedModel?.split(':')[0]
 
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
+  async function* iterator(): AsyncGenerator<string> {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
 
-    const chunk = decoder.decode(value, { stream: true })
-    const lines = chunk.split('\n')
+      const chunk = decoder.decode(value, { stream: true })
+      const lines = chunk.split('\n')
 
-    for (const line of lines) {
-      if (line.startsWith('data: ')) {
-        const data = line.slice(6)
-        if (data === '[DONE]') return
-        yield data
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6)
+          if (data === '[DONE]') return
+          yield data
+        }
       }
     }
   }
+
+  return {
+    stream: iterator(),
+    model: resolvedModel || undefined,
+    provider: provider || undefined,
+  }
+}
+
+export interface AiGenerateTasksResponse {
+  tasks: Array<{
+    title: string
+    description?: string
+    due_date?: string
+    priority: string
+    labels: string[]
+    estimated_minutes?: number
+    subtasks?: string[]
+    reasoning?: string
+  }>
+  events: Array<{
+    title: string
+    description?: string
+    start_time: string
+    end_time: string
+    location?: string
+    recurrence_type?: string
+    reasoning?: string
+  }>
+  smart_lists: Array<{
+    name: string
+    description?: string
+    items: string[]
+    reasoning?: string
+  }>
+  metadata?: {
+    original_prompt?: string
+    summary?: string
+    model?: string
+  }
+}
+
+/**
+ * Generate tasks, events, and lists from natural language prompt
+ */
+export async function generateSmartTasks(
+  token: string,
+  prompt: string,
+  context: {
+    timezone: string
+    current_date: string
+    existing_task_titles?: string[]
+    upcoming_event_dates?: string[]
+  },
+  model?: string
+): Promise<AiGenerateTasksResponse> {
+  const response = await fetch(`${API_BASE_URL}/ai/generate-tasks`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ prompt, context, model }),
+  })
+  if (!response.ok) throw new Error('Failed to generate tasks')
+  return response.json()
+}
+
+export interface RecipeIngredient {
+  id: string
+  name: string
+  amount?: string
+  unit?: string
+  notes?: string
+  is_optional?: boolean
+}
+
+export interface RecipeInstruction {
+  id: string
+  step_number: number
+  instruction: string
+  time_minutes?: number
+  image_url?: string
+  timer_name?: string
+}
+
+export interface RecipeNutrition {
+  calories?: number
+  protein?: number
+  carbohydrates?: number
+  fat?: number
+  fiber?: number
+  sugar?: number
+  sodium?: number
+}
+
+export interface Recipe {
+  id: string
+  name: string
+  description?: string
+  prep_time_minutes?: number
+  cook_time_minutes?: number
+  total_time_minutes?: number
+  servings?: number
+  difficulty?: string
+  cuisine?: string
+  image_url?: string
+  nutrition?: RecipeNutrition
+  tags?: string[]
+  ingredients: RecipeIngredient[]
+  instructions: RecipeInstruction[]
+  matched_ingredients?: string[]
+  missing_ingredients?: string[]
+  match_score?: number
+}
+
+export interface RecipeGenerationResponse {
+  recipes: Recipe[]
+  summary?: string
+}
+
+export interface MealPlanMeal {
+  id: string
+  meal_type: string
+  recipe: Recipe
+}
+
+export interface MealPlanDay {
+  id: string
+  day: string
+  meals: MealPlanMeal[]
+}
+
+export interface NutritionSummary {
+  calories?: number
+  protein?: number
+  carbohydrates?: number
+  fat?: number
+  fiber?: number
+  sugar?: number
+  sodium?: number
+}
+
+export interface MealPlanResponse {
+  meal_plan: MealPlanDay[]
+  shopping_list: string[]
+  estimated_cost?: number
+  nutrition_summary?: NutritionSummary
+}
+
+/**
+ * Generate recipes from ingredients
+ */
+export async function generateRecipes(
+  token: string,
+  ingredients: string[],
+  filters: {
+    dietary_restrictions?: string[]
+    cuisine_preferences?: string[]
+    difficulty_level?: string
+    time_limit_minutes?: number
+  },
+  model?: string
+): Promise<RecipeGenerationResponse> {
+  const response = await fetch(`${API_BASE_URL}/ai/recipes/generate`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ ingredients, ...filters, model }),
+  })
+  if (!response.ok) throw new Error('Failed to generate recipes')
+  return response.json()
+}
+
+/**
+ * Generate a meal plan
+ */
+export async function generateMealPlan(
+  token: string,
+  ingredients: string[],
+  options: {
+    days: number
+    dietary_restrictions?: string[]
+    meals_per_day?: number
+  },
+  model?: string
+): Promise<MealPlanResponse> {
+  const response = await fetch(`${API_BASE_URL}/ai/recipes/meal-plan`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ ingredients, ...options, model }),
+  })
+  if (!response.ok) throw new Error('Failed to generate meal plan')
+  return response.json()
 }
 
 /**

@@ -1,5 +1,6 @@
 import type { FormEvent, KeyboardEvent } from 'react'
 import { useCallback, useEffect, useState } from 'react'
+import { MdAutoAwesome } from 'react-icons/md'
 import { MenuBar } from './components/layout/MenuBar'
 import type { MenuSection } from './components/layout/MenuBar'
 import { CreatePanel } from './components/pages/CreatePanel'
@@ -12,6 +13,10 @@ import { ChatSection } from './components/sections/ChatSection'
 import { TasksPage } from './components/pages/TasksPage'
 import { AdminSection } from './components/sections/AdminSection'
 import { SettingsSection } from './components/sections/SettingsSection'
+import { RecipeSection } from './components/sections/RecipeSection'
+import { SmartTaskGenerator } from './components/ai/SmartTaskGenerator'
+import { FinanceSection } from './components/sections/FinanceSection'
+import { SocialSection } from './components/sections/SocialSection'
 import type {
   Task,
   EventItem,
@@ -57,6 +62,7 @@ function App() {
   const [availableLabels, setAvailableLabels] = useState<Label[]>([])
   const [activeSection, setActiveSection] = useState<MenuSection>('dashboard')
   const [isCreateOverlayOpen, setCreateOverlayOpen] = useState(false)
+  const [isSmartGenOpen, setIsSmartGenOpen] = useState(false)
 
   const logout = useCallback(() => {
     localStorage.removeItem('halext_token')
@@ -276,6 +282,12 @@ function App() {
     setAvailableLabels(mergedLabels)
   }
 
+  const handleCreateTasks = async (newTasks: any[]) => {
+    for (const task of newTasks) {
+      await handleCreateTaskDirect(task)
+    }
+  }
+
   const handleUpdateTask = async (id: number, updates: TaskUpdateInput) => {
     const payload: any = { ...updates }
     if (payload.due_date) {
@@ -300,6 +312,7 @@ function App() {
   const handleDeleteTask = async (id: number) => {
     await authorizedFetch(`/tasks/${id}`, {
       method: 'DELETE',
+      body: null,
     })
     setTasks((prev) => prev.filter((t) => t.id !== id))
   }
@@ -323,6 +336,18 @@ function App() {
     })
     setEvents((prev) => [created, ...prev])
     setEventForm({ title: '', description: '', start_time: '', end_time: '', location: '', recurrence_type: 'none', recurrence_interval: 1, recurrence_end_date: '' })
+  }
+
+  const handleCreateEvents = async (newEvents: any[]) => {
+    for (const event of newEvents) {
+      await authorizedFetch('/events/', {
+        method: 'POST',
+        body: JSON.stringify(event)
+      })
+    }
+    // Refresh events
+    const eventsResponse = await authorizedFetch<EventItem[]>('/events/')
+    setEvents(eventsResponse)
   }
 
   const handleCreatePage = async (event: FormEvent) => {
@@ -588,6 +613,12 @@ function App() {
         return <CalendarSection events={events} />
       case 'chat':
         return token ? <ChatSection token={token} /> : <div className="section-placeholder">Please login to access chat</div>
+      case 'recipes':
+        return token ? <RecipeSection token={token} /> : <div className="section-placeholder">Please login to access recipes</div>
+      case 'finance':
+        return token ? <FinanceSection token={token} /> : <div className="section-placeholder">Please login to peek at finance</div>
+      case 'social':
+        return token ? <SocialSection token={token} /> : <div className="section-placeholder">Please login to access circles</div>
       case 'image-gen':
         return token ? <ImageGenerationSection token={token} /> : <div className="section-placeholder">Please login to access image generation</div>
       case 'anime':
@@ -611,20 +642,33 @@ function App() {
         onLogout={logout}
         onOpenCreate={() => setCreateOverlayOpen(true)}
         username={user?.username}
+        tasks={tasks}
+        events={events}
+        pages={pages}
       />
       <div className="app-main">
         <main className="main-content">
           <div className="workspace-shell">{renderSection()}</div>
         </main>
         {token && (
-          <button
-            className="floating-create-button"
-            onClick={() => setCreateOverlayOpen(true)}
-            aria-label="Open creation panel"
-          >
-            <span>+</span>
-            <span className="floating-label">Create</span>
-          </button>
+          <div className="floating-actions">
+            <button
+              className="floating-btn ai-btn"
+              onClick={() => setIsSmartGenOpen(true)}
+              aria-label="AI Smart Generator"
+              title="AI Smart Generator"
+            >
+              <MdAutoAwesome size={24} />
+            </button>
+            <button
+              className="floating-btn create-btn"
+              onClick={() => setCreateOverlayOpen(true)}
+              aria-label="Open creation panel"
+              title="Create New"
+            >
+              <span>+</span>
+            </button>
+          </div>
         )}
         {token && isCreateOverlayOpen && (
           <div className="create-overlay" role="dialog" aria-modal="true">
@@ -656,6 +700,14 @@ function App() {
               />
             </div>
           </div>
+        )}
+        {token && isSmartGenOpen && (
+          <SmartTaskGenerator
+            token={token}
+            onClose={() => setIsSmartGenOpen(false)}
+            onCreateTasks={handleCreateTasks}
+            onCreateEvents={handleCreateEvents}
+          />
         )}
       </div>
     </div>
