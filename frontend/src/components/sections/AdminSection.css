@@ -8,28 +8,62 @@
   --text-muted: #9ca3af;
   --border-subtle: rgba(255, 255, 255, 0.12);
   --border-strong: rgba(255, 255, 255, 0.2);
+  --glow: rgba(102, 126, 234, 0.12);
+  --shadow: rgba(0, 0, 0, 0.35);
   padding: 2rem;
   max-width: 1400px;
   margin: 0 auto;
   transition: background 0.2s ease, color 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.admin-section::before,
+.admin-section::after {
+  content: "";
+  position: absolute;
+  width: 420px;
+  height: 420px;
+  background: radial-gradient(circle at center, var(--glow), transparent 60%);
+  filter: blur(60px);
+  z-index: 0;
+  opacity: 0.75;
+}
+
+.admin-section::before {
+  top: -120px;
+  left: -160px;
+}
+
+.admin-section::after {
+  bottom: -180px;
+  right: -220px;
+}
+
+.admin-section > * {
+  position: relative;
+  z-index: 1;
 }
 
 .admin-section[data-theme="aurora"] {
   --accent-1: #3b82f6;
   --accent-2: #22d3ee;
   --surface-panel: rgba(12, 17, 29, 0.8);
+  --glow: rgba(34, 211, 238, 0.14);
 }
 
 .admin-section[data-theme="sunset"] {
   --accent-1: #f97316;
   --accent-2: #ec4899;
   --surface-panel: rgba(24, 14, 20, 0.8);
+  --glow: rgba(236, 72, 153, 0.18);
 }
 
 .admin-section[data-theme="seabreeze"] {
   --accent-1: #10b981;
   --accent-2: #0ea5e9;
   --surface-panel: rgba(9, 19, 26, 0.8);
+  --glow: rgba(14, 165, 233, 0.16);
 }
 
 .admin-section[data-density="compact"] {
