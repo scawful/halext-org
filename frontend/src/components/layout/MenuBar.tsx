@@ -24,12 +24,12 @@ type MenuSection =
   | 'image-gen'
   | 'anime'
   | 'admin'
-  | 'create'
 
 type MenuBarProps = {
   activeSection: MenuSection
   onSectionChange: (section: MenuSection) => void
   onLogout: () => void
+  onOpenCreate: () => void
   username?: string
 }
 
@@ -37,6 +37,7 @@ export const MenuBar = ({
   activeSection,
   onSectionChange,
   onLogout,
+  onOpenCreate,
   username,
 }: MenuBarProps) => {
   const [showSettings, setShowSettings] = useState(false)
@@ -81,8 +82,8 @@ export const MenuBar = ({
 
       <div className="menu-right">
         <button
-          className={`menu-item create-button ${activeSection === 'create' ? 'active' : ''}`}
-          onClick={() => handleMenuClick('create')}
+          className="menu-item create-button"
+          onClick={onOpenCreate}
           title="Create"
         >
           <MdAdd size={24} />
