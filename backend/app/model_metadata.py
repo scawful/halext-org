@@ -33,6 +33,8 @@ def enrich_gemini_model(model_id: str, model_data: Dict[str, Any]) -> Dict[str, 
 def get_openai_model_description(model_id: str) -> str:
     """Get description for OpenAI model"""
     descriptions = {
+        "gpt-5.1": "Latest GPT-5.1 model for advanced reasoning",
+        "gpt-5.1-codex": "GPT-5.1 Codex tuned for code generation and editing",
         "gpt-4o": "Most advanced multimodal model, best for complex tasks",
         "gpt-4o-mini": "Affordable and intelligent small model for fast, lightweight tasks",
         "gpt-4-turbo": "Latest GPT-4 Turbo model with vision capabilities",
@@ -47,6 +49,8 @@ def get_openai_model_description(model_id: str) -> str:
 def get_openai_context_window(model_id: str) -> int:
     """Get context window size for OpenAI model"""
     windows = {
+        "gpt-5.1": 200000,
+        "gpt-5.1-codex": 200000,
         "gpt-4o": 128000,
         "gpt-4o-mini": 128000,
         "gpt-4-turbo": 128000,
@@ -61,6 +65,8 @@ def get_openai_context_window(model_id: str) -> int:
 def get_openai_max_output(model_id: str) -> int:
     """Get max output tokens for OpenAI model"""
     outputs = {
+        "gpt-5.1": 16384,
+        "gpt-5.1-codex": 16384,
         "gpt-4o": 16384,
         "gpt-4o-mini": 16384,
         "gpt-4-turbo": 4096,
@@ -74,6 +80,8 @@ def get_openai_max_output(model_id: str) -> int:
 def get_openai_input_cost(model_id: str) -> Optional[float]:
     """Get cost per 1M input tokens in USD for OpenAI model"""
     costs = {
+        "gpt-5.1": 10.0,
+        "gpt-5.1-codex": 10.0,
         "gpt-4o": 5.00,
         "gpt-4o-mini": 0.15,
         "gpt-4-turbo": 10.00,
@@ -87,6 +95,8 @@ def get_openai_input_cost(model_id: str) -> Optional[float]:
 def get_openai_output_cost(model_id: str) -> Optional[float]:
     """Get cost per 1M output tokens in USD for OpenAI model"""
     costs = {
+        "gpt-5.1": 30.0,
+        "gpt-5.1-codex": 30.0,
         "gpt-4o": 15.00,
         "gpt-4o-mini": 0.60,
         "gpt-4-turbo": 30.00,
@@ -99,7 +109,7 @@ def get_openai_output_cost(model_id: str) -> Optional[float]:
 
 def openai_supports_vision(model_id: str) -> bool:
     """Check if OpenAI model supports vision"""
-    vision_models = {"gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-4-vision-preview"}
+    vision_models = {"gpt-5.1", "gpt-5.1-codex", "gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-4-vision-preview"}
     return model_id in vision_models
 
 
@@ -113,6 +123,8 @@ def openai_supports_functions(model_id: str) -> bool:
 def get_gemini_model_description(model_id: str) -> str:
     """Get description for Gemini model"""
     descriptions = {
+        "gemini-2.5-pro": "Gemini 2.5 Pro for advanced reasoning and long-context",
+        "gemini-2.5-flash": "Gemini 2.5 Flash for fast, cost-effective responses",
         "gemini-1.5-pro": "Most capable Gemini model, best for complex reasoning",
         "gemini-1.5-pro-latest": "Latest Gemini 1.5 Pro with newest updates",
         "gemini-1.5-flash": "Fast and versatile performance across a variety of tasks",
@@ -127,6 +139,8 @@ def get_gemini_model_description(model_id: str) -> str:
 def get_gemini_context_window(model_id: str) -> int:
     """Get context window size for Gemini model"""
     windows = {
+        "gemini-2.5-pro": 2000000,
+        "gemini-2.5-flash": 1000000,
         "gemini-1.5-pro": 2000000,  # 2M tokens
         "gemini-1.5-pro-latest": 2000000,
         "gemini-1.5-flash": 1000000,  # 1M tokens
@@ -145,6 +159,8 @@ def get_gemini_context_window(model_id: str) -> int:
 def get_gemini_max_output(model_id: str) -> int:
     """Get max output tokens for Gemini model"""
     outputs = {
+        "gemini-2.5-pro": 8192,
+        "gemini-2.5-flash": 8192,
         "gemini-1.5-pro": 8192,
         "gemini-1.5-pro-latest": 8192,
         "gemini-1.5-flash": 8192,
@@ -159,6 +175,8 @@ def get_gemini_max_output(model_id: str) -> int:
 def get_gemini_input_cost(model_id: str) -> Optional[float]:
     """Get cost per 1M input tokens in USD for Gemini model"""
     costs = {
+        "gemini-2.5-pro": 1.25,
+        "gemini-2.5-flash": 0.075,
         "gemini-1.5-pro": 1.25,  # <= 128K context
         "gemini-1.5-pro-latest": 1.25,
         "gemini-1.5-flash": 0.075,  # <= 128K context
@@ -174,6 +192,8 @@ def get_gemini_input_cost(model_id: str) -> Optional[float]:
 def get_gemini_output_cost(model_id: str) -> Optional[float]:
     """Get cost per 1M output tokens in USD for Gemini model"""
     costs = {
+        "gemini-2.5-pro": 5.00,
+        "gemini-2.5-flash": 0.30,
         "gemini-1.5-pro": 5.00,
         "gemini-1.5-pro-latest": 5.00,
         "gemini-1.5-flash": 0.30,
@@ -188,7 +208,7 @@ def get_gemini_output_cost(model_id: str) -> Optional[float]:
 def gemini_supports_vision(model_id: str) -> bool:
     """Check if Gemini model supports vision"""
     # All Gemini 1.5+ models support vision
-    return "gemini-1.5" in model_id or "gemini-2.0" in model_id or "gemini-exp" in model_id
+    return "gemini-1.5" in model_id or "gemini-2.0" in model_id or "gemini-2.5" in model_id or "gemini-exp" in model_id
 
 
 # Model Recommendations

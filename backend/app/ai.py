@@ -69,12 +69,13 @@ class AiGateway:
     '''Central router that fans out to OpenAI, Gemini, Ollama clients, or OpenWebUI.'''
 
     def __init__(self) -> None:
-        self.provider = os.getenv("AI_PROVIDER", "mock").lower()
-        self.model = os.getenv("AI_MODEL", "llama3.1")
+        default_identifier = os.getenv("AI_DEFAULT_MODEL", "gemini:gemini-2.5-flash")
+        self.provider = os.getenv("AI_PROVIDER", "gemini").lower()
+        self.model = os.getenv("AI_MODEL", "gemini-2.5-flash")
         self.openwebui_url = os.getenv("OPENWEBUI_URL")
         self.openwebui_public_url = os.getenv("OPENWEBUI_PUBLIC_URL", self.openwebui_url)
         self.ollama_url = os.getenv("OLLAMA_URL", "http://localhost:11434")
-        self.default_model_identifier = os.getenv("AI_DEFAULT_MODEL")
+        self.default_model_identifier = default_identifier
 
         self.providers: Dict[str, AIProvider] = {}
         self._init_providers()
@@ -400,7 +401,7 @@ class AiGateway:
             entries = await provider.list_models()
         except Exception as exc:  # pragma: no cover - network failure logging
             print(f"Error listing models for provider '{provider_key}': {exc}")
-            return []
+            entries = []
 
         formatted: List[Dict[str, Any]] = []
         normalized = "ollama" if provider_key == "ollama-local" else provider_key
@@ -427,6 +428,38 @@ class AiGateway:
                 from .model_metadata import enrich_gemini_model
                 model_entry = enrich_gemini_model(name, model_entry)
 
+            formatted.append(model_entry)
+
+        curated_openai = [
+            "gpt-5.1",
+            "gpt-5.1-codex",
+            "gpt-4o",
+            "gpt-4o-mini",
+            "gpt-4-turbo",
+            "gpt-4-turbo-preview",
+        ]
+        curated_gemini = [
+            "gemini-2.5-pro",
+            "gemini-2.5-flash",
+            "gemini-1.5-pro-latest",
+            "gemini-1.5-flash-latest",
+        ]
+        curated = curated_openai if normalized == "openai" else curated_gemini if normalized == "gemini" else []
+        for name in curated:
+            if any(m.get("name") == name for m in formatted):
+                continue
+            model_entry = self._format_model_entry(
+                normalized,
+                name,
+                source=normalized,
+                endpoint=self._endpoint_for_provider(normalized),
+            )
+            if normalized == "openai":
+                from .model_metadata import enrich_openai_model
+                model_entry = enrich_openai_model(name, model_entry)
+            elif normalized == "gemini":
+                from .model_metadata import enrich_gemini_model
+                model_entry = enrich_gemini_model(name, model_entry)
             formatted.append(model_entry)
         return formatted
 
