@@ -31,6 +31,12 @@ class DashboardLayoutManager {
             saveCurrentLayout()
         }
 
+        // Ensure we always start with cards to edit
+        if currentLayout.cards.isEmpty {
+            currentLayout = DashboardLayout.defaultLayout
+            saveCurrentLayout()
+        }
+
         // Load saved layouts
         loadSavedLayouts()
     }

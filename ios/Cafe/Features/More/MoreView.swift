@@ -7,6 +7,18 @@
 
 import SwiftUI
 
+enum FeatureDestination: Hashable {
+    case tasks
+    case templates
+    case smartLists
+    case messages
+    case finance
+    case calendar
+    case chat
+    case settings
+    case social
+}
+
 struct MoreView: View {
     @Environment(ThemeManager.self) var themeManager
     @State private var showIOSFeatures = false

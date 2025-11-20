@@ -17,8 +17,6 @@ struct GroupConversationView: View {
     @State private var errorMessage: String?
     @State private var showingParticipants = false
     @State private var showingAddParticipant = false
-    @State private var showingAddAI = false
-    @State private var isTyping = false
 
     @State private var chatSettings = ChatSettingsManager.shared
 
@@ -46,14 +44,6 @@ struct GroupConversationView: View {
                             .id(message.id)
                         }
 
-                        // Typing indicator
-                        if isTyping {
-                            HStack {
-                                TypingIndicatorView()
-                                Spacer()
-                            }
-                            .padding(.horizontal)
-                        }
                     }
                     .padding()
                 }
@@ -68,19 +58,9 @@ struct GroupConversationView: View {
 
             // Input bar
             HStack(spacing: 12) {
-                // Add participants/AI button
-                Menu {
-                    Button(action: { showingAddParticipant = true }) {
-                        Label("Add Person", systemImage: "person.badge.plus")
-                    }
-
-                    if chatSettings.enableAIResponses && chatSettings.allowGroupAIAgents {
-                        Button(action: { showingAddAI = true }) {
-                            Label("Add AI Agent", systemImage: "sparkles")
-                        }
-                    }
-                } label: {
-                    Image(systemName: "plus.circle")
+                // Add participants button
+                Button(action: { showingAddParticipant = true }) {
+                    Image(systemName: "person.badge.plus")
                         .font(.title3)
                         .foregroundColor(.blue)
                 }
@@ -88,11 +68,6 @@ struct GroupConversationView: View {
                 TextField("Message", text: $messageText, axis: .vertical)
                     .textFieldStyle(.roundedBorder)
                     .lineLimit(1...5)
-                    .onChange(of: messageText) { _, newValue in
-                        if chatSettings.enableTypingIndicators {
-                            handleTyping(!newValue.isEmpty)
-                        }
-                    }
 
                 Button(action: sendMessage) {
                     if isSending {
@@ -123,9 +98,6 @@ struct GroupConversationView: View {
         }
         .sheet(isPresented: $showingAddParticipant) {
             AddParticipantView(conversation: conversation)
-        }
-        .sheet(isPresented: $showingAddAI) {
-            AddAIAgentView(conversation: conversation)
         }
         .task {
             await loadMessages()
@@ -173,80 +145,11 @@ struct GroupConversationView: View {
                     content: content
                 )
                 messages.append(newMessage)
-
-                // Trigger AI responses if enabled
-                if chatSettings.enableAIResponses {
-                    await triggerAIResponses(userMessage: content)
-                }
             } catch {
                 errorMessage = error.localizedDescription
                 messageText = originalText // Restore on error
             }
             isSending = false
-        }
-    }
-
-    private func triggerAIResponses(userMessage: String) async {
-        // Get AI agents in conversation
-        let aiAgents = conversation.participants.compactMap { user -> String? in
-            // This would need to be enhanced to track AI agents in conversation
-            return nil
-        }
-
-        guard !aiAgents.isEmpty else { return }
-
-        // Simulate typing delay
-        if chatSettings.enableTypingIndicators {
-            isTyping = true
-            try? await _Concurrency.Task.sleep(nanoseconds: UInt64(chatSettings.autoRespondDelay * 1_000_000_000))
-        }
-
-        // Generate AI response (would call actual AI API in production)
-        let aiResponse = await generateAIResponse(
-            message: userMessage,
-            agent: chatSettings.getActiveAgents().first
-        )
-
-        isTyping = false
-
-        if let response = aiResponse {
-            // In production, this would be sent via API
-            messages.append(Message(
-                id: Int.random(in: 10000...99999),
-                conversationId: conversation.id,
-                senderId: -1, // AI sender ID
-                content: response,
-                messageType: .text,
-                isRead: true,
-                createdAt: Date(),
-                updatedAt: Date(),
-                modelUsed: chatSettings.getActiveAgents().first?.id
-            ))
-        }
-    }
-
-    private func generateAIResponse(message: String, agent: AIAgent?) async -> String? {
-        // This is a mock implementation
-        // In production, this would call your AI API endpoint
-        guard let agent = agent else { return nil }
-
-        let responses = [
-            "I can help you with that! \(agent.personality.systemPrompt)",
-            "Great question! Let me assist you.",
-            "I'm here to help. Based on your message, I suggest...",
-            "That's an interesting point. Have you considered...",
-            "I understand. Here's my recommendation..."
-        ]
-
-        return responses.randomElement()
-    }
-
-    private func handleTyping(_ isTyping: Bool) {
-        _Concurrency.Task {
-            try? await APIClient.shared.sendTypingIndicator(
-                conversationId: conversation.id,
-                isTyping: isTyping
-            )
         }
     }
 
@@ -545,7 +448,12 @@ struct AddAIAgentView: View {
     NavigationStack {
         GroupConversationView(conversation: Conversation(
             id: 1,
+            title: "Preview",
+            mode: "solo",
+            withAI: false,
+            defaultModelId: nil,
             participants: [],
+            participantUsernames: [],
             lastMessage: nil,
             unreadCount: 0,
             createdAt: Date(),

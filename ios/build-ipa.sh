@@ -10,7 +10,7 @@ echo "🏗️  Building Cafe IPA for AltStore..."
 # Clean previous builds
 echo "🧹 Cleaning previous builds..."
 rm -rf build/
-xcodebuild clean -scheme Cafe -quiet
+xcodebuild clean -scheme Cafe -quiet -derivedDataPath ./build/DerivedData 2>/dev/null || true
 
 # Archive the app
 echo "📦 Creating archive..."
@@ -19,6 +19,7 @@ xcodebuild archive \
   -archivePath ./build/Cafe.xcarchive \
   -configuration Release \
   -destination 'generic/platform=iOS' \
+  -derivedDataPath ./build/DerivedData \
   CODE_SIGN_IDENTITY="" \
   CODE_SIGNING_REQUIRED=NO \
   CODE_SIGNING_ALLOWED=NO

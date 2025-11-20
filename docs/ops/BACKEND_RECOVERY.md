@@ -54,6 +54,20 @@ curl -H "Host: org.halext.org" http://127.0.0.1/api/health
 ```
 When the service returns `200 OK` and `/token` works via curl, the web and mobile clients should accept the same credentials (ensure they send the fresh `ACCESS_CODE` header).
 
+## AI endpoints still 404/500
+- Run `scripts/agents/ai-health.sh` with the access code and bearer token file from the server notes (`/srv/halext.org/agent-notes/ai-health-token.txt` describes where `/tmp/test-token.txt` lives). The script now falls back to `/ai/info` if `/ai/provider-info` is missing.
+- If `/ai/provider-info` is 404 or `/ai/models` returns 5xx, the running service is usually behind `main` or missing Python deps (e.g., `psutil`, `httpx`).
+  ```bash
+  cd /srv/halext.org/halext-org/backend
+  git pull --ff-only
+  source env/bin/activate
+  pip install -r requirements.txt
+  deactivate
+  sudo systemctl restart halext-api
+  HAL_AI_CODE=<code> HAL_AI_BEARER_FILE=/tmp/test-token.txt ../scripts/agents/ai-health.sh
+  ```
+- Use `journalctl -u halext-api -n 80` if errors persist; a missing module in the logs usually points to a dependency gap.
+
 ## 6. Clear stray dev servers and duplicate clones
 - Port conflicts on `127.0.0.1:8000` usually come from an old dev server in `~/halext-org/backend`. Identify and stop it:
   ```bash

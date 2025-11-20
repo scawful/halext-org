@@ -141,8 +141,23 @@ class Conversation(ConversationBase):
     class Config:
         from_attributes = True
 
+class UserSummary(BaseModel):
+    id: int
+    username: str
+    email: Optional[str] = None
+    full_name: Optional[str] = None
+    is_admin: bool = False
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
 class ConversationSummary(Conversation):
     participants: List[str] = Field(default_factory=list)
+    participant_details: List[UserSummary] = Field(default_factory=list)
+    last_message: Optional["ChatMessage"] = None  # forward reference
+    unread_count: int = 0
 
 class ChatMessageBase(BaseModel):
     content: str
@@ -383,6 +398,9 @@ class AiModelsResponse(BaseModel):
     current_model: str
     default_model_id: Optional[str] = None
     credentials: Optional[List[ProviderCredentialStatus]] = None
+
+class AiDefaultModelRequest(BaseModel):
+    default_model_id: str
 
 class AiEmbeddingsRequest(BaseModel):
     text: str

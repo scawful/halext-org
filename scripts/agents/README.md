@@ -4,7 +4,7 @@ Use these wrappers whenever you need to run smoke builds, quick tests, or check 
 
 | Script | Description |
 | --- | --- |
-| `ai-health.sh` | Probes `/ai/provider-info` and `/ai/models` with optional `X-Halext-Code` (`HAL_AI_CODE`) and `Authorization: Bearer …` (`HAL_AI_BEARER` or `HAL_AI_BEARER_FILE`) headers for quick auth-required checks. |
+| `ai-health.sh` | Probes `/ai/provider-info` (falls back to `/ai/info` on older backends) and `/ai/models` with optional `X-Halext-Code` (`HAL_AI_CODE`) and `Authorization: Bearer …` (`HAL_AI_BEARER` or `HAL_AI_BEARER_FILE`) headers; prints hints for common 4xx/5xx causes. |
 | `smoke-build.sh` | Compiles backend Python files and runs `npm run build` for the SPA. Fails fast if either step breaks. |
 | `run-tests.sh` | Runs lightweight backend checks (`pytest` if tests exist, pycompile fallback otherwise). Safe to run repeatedly. |
 | `ci-status.sh` | Uses `gh run list` to print the latest GitHub Actions results; helps keep CI bingo honest. |

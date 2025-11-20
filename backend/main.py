@@ -2,6 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException, status, Header
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+from sqlalchemy import func, or_
 from datetime import datetime, timedelta
 from typing import Optional, List
 import os
@@ -141,12 +142,28 @@ def _serialize_page(db: Session, page: models.Page):
 
 def _serialize_conversation(conversation: models.Conversation):
     base = schemas.Conversation.from_orm(conversation).dict()
-    participants = [
-        participant.user.username
-        for participant in conversation.participants
-        if participant.user is not None
-    ]
-    return schemas.ConversationSummary(**base, participants=participants)
+    participants = []
+    participant_details: list[schemas.UserSummary] = []
+    for participant in conversation.participants:
+        if participant.user is None:
+            continue
+        participants.append(participant.user.username)
+        participant_details.append(
+            schemas.UserSummary.from_orm(participant.user)
+        )
+
+    last_message = None
+    if conversation.messages:
+        last_message_obj = sorted(conversation.messages, key=lambda m: m.created_at)[-1]
+        last_message = schemas.ChatMessage.from_orm(last_message_obj)
+
+    return schemas.ConversationSummary(
+        **base,
+        participants=participants,
+        participant_details=participant_details,
+        last_message=last_message,
+        unread_count=0,
+    )
 
 def _ensure_page_edit_permission(db: Session, page: models.Page, user_id: int):
     if page.owner_id == user_id:
@@ -212,6 +229,29 @@ def create_user(
 @app.get("/users/me/", response_model=schemas.User)
 async def read_users_me(current_user: models.User = Depends(auth.get_current_active_user)):
     return current_user
+
+
+@app.get("/users/search", response_model=List[schemas.UserSummary])
+def search_users(
+    q: str = "",
+    limit: int = 20,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Lightweight user search for messaging (matches username/full_name, excludes the requester).
+    """
+    query = db.query(models.User).filter(models.User.id != current_user.id)
+    if q:
+        like = f"%{q.lower()}%"
+        query = query.filter(
+            or_(
+                func.lower(models.User.username).like(like),
+                func.lower(models.User.full_name).like(like),
+            )
+        )
+    results = query.order_by(models.User.username.asc()).limit(limit).all()
+    return [schemas.UserSummary.from_orm(user) for user in results]
 
 
 @app.post("/tasks/", response_model=schemas.Task)
@@ -473,6 +513,17 @@ def list_conversations(
     conversations = crud.get_conversations_for_user(db=db, user_id=current_user.id)
     return [_serialize_conversation(conversation) for conversation in conversations]
 
+@app.get("/conversations/{conversation_id}", response_model=schemas.ConversationSummary)
+def get_conversation(
+    conversation_id: int,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    conversation = crud.get_conversation_for_user(db=db, conversation_id=conversation_id, user_id=current_user.id)
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    return _serialize_conversation(conversation)
+
 @app.post("/conversations/", response_model=schemas.ConversationSummary)
 def create_conversation(
     conversation: schemas.ConversationCreate,
@@ -673,6 +724,34 @@ async def list_ai_models(
         provider=provider,
         current_model=model_name,
         default_model_id=default_model_id,
+        credentials=[schemas.ProviderCredentialStatus(**c) for c in credential_status],
+    )
+
+@app.post("/admin/ai/default-model", response_model=schemas.AiModelsResponse)
+async def set_default_ai_model(
+    payload: schemas.AiDefaultModelRequest,
+    admin_user: models.User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Admin-only: set the backend default model so Messages/AgentHub pick the same route.
+    """
+    models_list = await ai_gateway.get_models(db=db, user_id=admin_user.id)
+    available_ids = [m["id"] for m in models_list]
+    if payload.default_model_id not in available_ids:
+        raise HTTPException(status_code=400, detail="Model is not available on this backend")
+
+    provider, model_name, _ = ai_gateway._parse_identifier(payload.default_model_id)  # type: ignore[attr-defined]
+    ai_gateway.default_model_identifier = payload.default_model_id
+    ai_gateway.provider = provider
+    ai_gateway.model = model_name
+
+    credential_status = crud.list_provider_credentials(db, owner_id=admin_user.id)
+    return schemas.AiModelsResponse(
+        models=[schemas.AiModelInfo(**m) for m in models_list],
+        provider=provider,
+        current_model=model_name,
+        default_model_id=payload.default_model_id,
         credentials=[schemas.ProviderCredentialStatus(**c) for c in credential_status],
     )
 

@@ -269,6 +269,7 @@ def create_conversation(
         owner_id=owner_id,
         mode=payload.mode,
         with_ai=payload.with_ai,
+        default_model_id=payload.default_model_id,
     )
     db.add(conversation)
     db.flush()

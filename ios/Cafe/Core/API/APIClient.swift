@@ -265,6 +265,9 @@ class APIClient {
         request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        if let code = accessCode {
+            request.setValue(code, forHTTPHeaderField: "X-Halext-Code")
+        }
 
         return request
     }

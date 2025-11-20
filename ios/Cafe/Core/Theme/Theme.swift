@@ -17,7 +17,7 @@ struct Theme: Identifiable, Codable, Hashable {
     let secondaryBackgroundColor: CodableColor
     let textColor: CodableColor
     let secondaryTextColor: CodableColor
-    let backgroundGradient: CodableGradient? = nil
+    var backgroundGradient: CodableGradient? = nil
     let isDark: Bool
 
     // Derived colors

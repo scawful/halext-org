@@ -15,7 +15,7 @@ struct MessagesView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var showingNewMessage = false
-    @State private var jumpToAIChat = false
+    @State private var activeConversation: Conversation?
     @State private var preferredContactUsername: String = "chris"
 
     var body: some View {
@@ -29,9 +29,15 @@ struct MessagesView: View {
                     List {
                         // Unified AI + people quick actions
                         Section {
-                            NavigationLink(destination: ChatView(), isActive: $jumpToAIChat) {
+                            NavigationLink {
+                                AgentHubView(onStartChat: { modelId in
+                                    _Concurrency.Task {
+                                        await startAIConversation(modelId: modelId)
+                                    }
+                                })
+                            } label: {
                                 HStack {
-                                    Image(systemName: "sparkles")
+                                    Image(systemName: "atom")
                                         .font(.title3)
                                         .foregroundStyle(.white)
                                         .frame(width: 32, height: 32)
@@ -45,9 +51,9 @@ struct MessagesView: View {
                                         .clipShape(Circle())
 
                                     VStack(alignment: .leading, spacing: 4) {
-                                        Text("Chat with AI")
+                                        Text("Agents & LLMs")
                                             .font(.headline)
-                                        Text("Use your configured model for quick answers")
+                                        Text("Manage models and start AI threads")
                                             .font(.caption)
                                             .foregroundColor(.secondary)
                                     }
@@ -81,16 +87,16 @@ struct MessagesView: View {
                         }
                         .listRowBackground(themeManager.cardBackgroundColor)
 
-                        ForEach(conversations) { conversation in
-                            NavigationLink(destination: GroupConversationView(conversation: conversation)) {
-                                ConversationRowView(
-                                    conversation: conversation,
-                                    presence: presence(for: conversation.otherParticipant?.id)
-                                )
-                            }
-                        }
-                        .onDelete(perform: deleteConversations)
-                    }
+        ForEach(conversations) { conversation in
+            NavigationLink(destination: GroupConversationView(conversation: conversation)) {
+                ConversationRowView(
+                    conversation: conversation,
+                    presence: nil
+                )
+            }
+        }
+        .onDelete(perform: deleteConversations)
+    }
                     .listStyle(.plain)
                     .refreshable {
                         await loadConversations()
@@ -106,6 +112,19 @@ struct MessagesView: View {
                     }
                 }
             }
+            .background(
+                NavigationLink(
+                    destination: GroupConversationView(conversation: activeConversation ?? Conversation(id: -1, title: "AI", mode: "solo", withAI: true, defaultModelId: nil, participants: [], participantUsernames: [], lastMessage: nil, unreadCount: 0, createdAt: nil, updatedAt: nil)),
+                    isActive: Binding(
+                        get: { activeConversation != nil },
+                        set: { newValue in
+                            if !newValue { activeConversation = nil }
+                        }
+                    )
+                ) {
+                    EmptyView()
+                }
+            )
             .sheet(isPresented: $showingNewMessage) {
                 NewMessageView(onConversationCreated: { conversation in
                     conversations.insert(conversation, at: 0)
@@ -125,7 +144,7 @@ struct MessagesView: View {
 
         do {
             conversations = try await APIClient.shared.getConversations()
-            conversations.sort { ($0.updatedAt) > ($1.updatedAt) }
+            conversations.sort { ($0.updatedAt ?? .distantPast) > ($1.updatedAt ?? .distantPast) }
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -141,13 +160,19 @@ struct MessagesView: View {
         conversations.remove(atOffsets: offsets)
     }
 
-    private func presence(for userId: Int?) -> SocialPresenceStatus? {
-        guard let userId else { return nil }
-        let profiles = socialManager.partnerProfiles.values
-        guard let profile = profiles.first(where: { $0.userId == userId }) else {
-            return nil
+    private func startAIConversation(modelId: String?) async {
+        do {
+            let convo = try await APIClient.shared.createConversation(
+                title: "AI Agent",
+                participantUsernames: [],
+                withAI: true,
+                defaultModelId: modelId
+            )
+            conversations.insert(convo, at: 0)
+            activeConversation = convo
+        } catch {
+            errorMessage = error.localizedDescription
         }
-        return socialManager.presenceStatuses[profile.id]
     }
 }
 
@@ -413,7 +438,11 @@ struct NewMessageView: View {
 
         _Concurrency.Task {
             do {
-                let conversation = try await APIClient.shared.createConversation(participantIds: [user.id])
+                let conversation = try await APIClient.shared.createConversation(
+                    title: "Chat with \(user.username)",
+                    participantUsernames: [user.username],
+                    withAI: false
+                )
                 onConversationCreated(conversation)
                 dismiss()
             } catch {

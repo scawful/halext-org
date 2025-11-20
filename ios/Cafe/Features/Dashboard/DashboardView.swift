@@ -8,77 +8,10 @@
 import SwiftUI
 
 struct DashboardView: View {
-    @State private var viewModel = DashboardViewModel()
-    @State private var showAIGenerator = false
-
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                LazyVStack(spacing: 20) {
-                    // Welcome header
-                    WelcomeHeader()
-                        .padding(.horizontal)
-
-                    // AI Generator Quick Access
-                    AIGeneratorQuickAccessCard(showAIGenerator: $showAIGenerator)
-                        .padding(.horizontal)
-
-                    // Stats cards
-                    StatsCardsView(viewModel: viewModel)
-                        .padding(.horizontal)
-
-                    // Today's tasks widget
-                    if !viewModel.todaysTasks.isEmpty {
-                        TodaysTasksWidget(tasks: viewModel.todaysTasks)
-                            .padding(.horizontal)
-                    }
-
-                    // Overdue tasks (if any)
-                    if !viewModel.overdueTasks.isEmpty {
-                        OverdueTasksWidget(tasks: viewModel.overdueTasks)
-                            .padding(.horizontal)
-                    }
-
-                    // Upcoming events widget
-                    if !viewModel.upcomingEvents.isEmpty {
-                        UpcomingEventsWidget(events: viewModel.upcomingEvents)
-                            .padding(.horizontal)
-                    }
-
-                    // Meal Planning Widget
-                    MealPlanningWidget()
-                        .padding(.horizontal)
-
-                    // iOS Features Discovery
-                    IOSFeaturesWidget()
-                        .padding(.horizontal)
-
-                    // Quick actions
-                    QuickActionsWidget()
-                        .padding(.horizontal)
-
-                    // All Apps Grid
-                    AllAppsWidget()
-                        .padding(.horizontal)
-                }
-                .padding(.vertical)
-            }
-            .navigationTitle("Dashboard")
-            .refreshable {
-                await viewModel.loadDashboardData()
-            }
-            .task {
-                await viewModel.loadDashboardData()
-            }
-            .overlay {
-                if viewModel.isLoading && viewModel.tasks.isEmpty {
-                    ProgressView()
-                }
-            }
-            .sheet(isPresented: $showAIGenerator) {
-                SmartGeneratorView()
-            }
-        }
+        // Use the configurable dashboard with inline editing controls,
+        // so customization lives alongside the content (widget-style).
+        ConfigurableDashboardView()
     }
 }
 

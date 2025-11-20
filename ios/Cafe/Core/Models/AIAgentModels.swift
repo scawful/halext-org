@@ -221,8 +221,8 @@ struct EnhancedMessage: Codable, Identifiable {
     let conversationId: Int
     let sender: ConversationParticipant
     let content: String
-    let messageType: MessageType
-    let isRead: Bool
+    let messageType: String?
+    let isRead: Bool?
     let createdAt: Date
     let metadata: MessageMetadata?
 
@@ -245,6 +245,50 @@ struct EnhancedMessage: Codable, Identifiable {
 
     var isFromAI: Bool {
         sender.isAI
+    }
+
+    init(
+        id: Int,
+        conversationId: Int,
+        sender: ConversationParticipant,
+        content: String,
+        messageType: String?,
+        isRead: Bool?,
+        createdAt: Date,
+        metadata: MessageMetadata?
+    ) {
+        self.id = id
+        self.conversationId = conversationId
+        self.sender = sender
+        self.content = content
+        self.messageType = messageType
+        self.isRead = isRead
+        self.createdAt = createdAt
+        self.metadata = metadata
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(Int.self, forKey: .id)
+        conversationId = try container.decode(Int.self, forKey: .conversationId)
+        sender = try container.decode(ConversationParticipant.self, forKey: .sender)
+        content = try container.decode(String.self, forKey: .content)
+        messageType = try container.decodeIfPresent(String.self, forKey: .messageType)
+        isRead = try container.decodeIfPresent(Bool.self, forKey: .isRead)
+        createdAt = try container.decode(Date.self, forKey: .createdAt)
+        metadata = try container.decodeIfPresent(MessageMetadata.self, forKey: .metadata)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(conversationId, forKey: .conversationId)
+        try container.encode(sender, forKey: .sender)
+        try container.encode(content, forKey: .content)
+        try container.encodeIfPresent(messageType, forKey: .messageType)
+        try container.encodeIfPresent(isRead, forKey: .isRead)
+        try container.encode(createdAt, forKey: .createdAt)
+        try container.encodeIfPresent(metadata, forKey: .metadata)
     }
 }
 

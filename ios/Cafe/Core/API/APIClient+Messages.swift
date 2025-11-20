@@ -20,9 +20,21 @@ extension APIClient {
         return try await performRequest(request)
     }
 
-    func createConversation(participantIds: [Int]) async throws -> Conversation {
+    func createConversation(
+        title: String,
+        participantUsernames: [String],
+        withAI: Bool = true,
+        defaultModelId: String? = nil,
+        mode: String = "solo"
+    ) async throws -> Conversation {
         var request = try authorizedRequest(path: "/conversations/", method: "POST")
-        let body = ConversationCreate(participantIds: participantIds)
+        let body = ConversationCreate(
+            title: title,
+            mode: mode,
+            withAI: withAI,
+            defaultModelId: defaultModelId,
+            participantUsernames: participantUsernames
+        )
         request.httpBody = try JSONEncoder().encode(body)
         return try await performRequest(request)
     }
@@ -40,13 +52,9 @@ extension APIClient {
         return try await performRequest(request)
     }
 
-    func sendMessage(conversationId: Int, content: String, messageType: MessageType = .text) async throws -> Message {
+    func sendMessage(conversationId: Int, content: String, model: String? = nil) async throws -> Message {
         var request = try authorizedRequest(path: "/conversations/\(conversationId)/messages", method: "POST")
-        let body = MessageCreate(
-            conversationId: conversationId,
-            content: content,
-            messageType: messageType.rawValue
-        )
+        let body = MessageCreate(content: content, model: model)
         request.httpBody = try JSONEncoder().encode(body)
         return try await performRequest(request)
     }

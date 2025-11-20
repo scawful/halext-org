@@ -158,6 +158,10 @@ class AppState {
             // Try to load current user with stored token
             currentUser = try await APIClient.shared.getCurrentUser()
             print("✅ Token valid - user: \(currentUser?.username ?? "unknown")")
+            if let user = currentUser {
+                KeychainManager.shared.saveUserId(user.id)
+                UserDefaults.standard.set(user.username, forKey: "currentUsername")
+            }
 
             // Only set authenticated if token validation succeeded
             isAuthenticated = true
@@ -209,6 +213,10 @@ class AppState {
             print("👤 Loading current user...")
             currentUser = try await APIClient.shared.getCurrentUser()
             print("✅ Current user loaded: \(currentUser?.username ?? "unknown")")
+            if let user = currentUser {
+                KeychainManager.shared.saveUserId(user.id)
+                UserDefaults.standard.set(user.username, forKey: "currentUsername")
+            }
 
             // Load AI models after user is loaded
             await loadAIModels()

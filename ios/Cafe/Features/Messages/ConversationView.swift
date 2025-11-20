@@ -170,7 +170,12 @@ struct MessageBubbleView: View {
     NavigationStack {
         ConversationView(conversation: Conversation(
             id: 1,
+            title: "Preview",
+            mode: "solo",
+            withAI: false,
+            defaultModelId: nil,
             participants: [],
+            participantUsernames: [],
             lastMessage: nil,
             unreadCount: 0,
             createdAt: Date(),

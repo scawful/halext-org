@@ -16,11 +16,18 @@ struct ConfigurableDashboardView: View {
     @State private var showingCustomization = false
     @State private var showingLayoutPicker = false
     @State private var draggedCard: DashboardCard?
+    @State private var showingAddCardMenu = false
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 LazyVStack(spacing: 16) {
+                    controlStrip
+
+                    if layoutManager.currentLayout.cards.isEmpty {
+                        emptyState
+                    }
+
                     ForEach(visibleCards) { card in
                         DashboardCardView(
                             card: card,
@@ -118,6 +125,101 @@ struct ConfigurableDashboardView: View {
                 DashboardCustomizationView(layout: $layoutManager.currentLayout)
             }
         }
+    }
+
+    private var controlStrip: some View {
+        VStack(spacing: 12) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(layoutManager.currentLayout.name.isEmpty ? "Custom Layout" : layoutManager.currentLayout.name)
+                        .font(.headline)
+                    Text("\(layoutManager.currentLayout.cards.count) cards • drag to rearrange")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+                Toggle(isOn: $isEditMode.animation()) {
+                    Text("Edit")
+                }
+                .toggleStyle(.switch)
+                .frame(maxWidth: 120)
+            }
+
+            HStack(spacing: 12) {
+                Button {
+                    showingAddCardMenu = true
+                } label: {
+                    Label("Add Card", systemImage: "plus.circle.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+
+                Menu {
+                    ForEach(DashboardLayout.allPresets) { preset in
+                        Button(preset.name) {
+                            withAnimation {
+                                layoutManager.applyPreset(preset)
+                            }
+                        }
+                    }
+                    Divider()
+                    Button("Reset to Default", systemImage: "arrow.counterclockwise") {
+                        withAnimation { layoutManager.resetToDefaultLayout() }
+                    }
+                } label: {
+                    Label("Presets", systemImage: "square.grid.3x3.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+
+                Button {
+                    showingCustomization = true
+                } label: {
+                    Label("Customize", systemImage: "slider.horizontal.3")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+        .padding()
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .padding(.horizontal)
+        .popover(isPresented: $showingAddCardMenu) {
+            CardPickerView { cardType in
+                layoutManager.addCard(
+                    DashboardCard(type: cardType, position: (layoutManager.currentLayout.cards.map(\.position).max() ?? -1) + 1)
+                )
+                showingAddCardMenu = false
+            }
+            .presentationCompactAdaptation(.popover)
+        }
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "rectangle.grid.2x2")
+                .font(.system(size: 34))
+                .foregroundColor(.secondary)
+            Text("Add cards to build your dashboard")
+                .font(.headline)
+            Text("Use Add Card or apply a preset to start editing like widgets.")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+            HStack(spacing: 12) {
+                Button("Use Default Layout") {
+                    withAnimation { layoutManager.resetToDefaultLayout() }
+                }
+                .buttonStyle(.borderedProminent)
+                Button("Open Presets") {
+                    showingAddCardMenu = true
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity)
+        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .padding(.horizontal)
     }
 
     private var visibleCards: [DashboardCard] {

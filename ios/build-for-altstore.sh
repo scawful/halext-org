@@ -17,7 +17,7 @@ SCHEME="Cafe"
 # Clean
 echo "🧹 Cleaning previous builds..."
 rm -rf "$BUILD_DIR"
-xcodebuild clean -scheme "$SCHEME" -quiet 2>/dev/null || true
+xcodebuild clean -scheme "$SCHEME" -quiet -derivedDataPath "$BUILD_DIR/DerivedData" 2>/dev/null || true
 
 # Build for device (unsigned)
 echo "📦 Building app bundle..."

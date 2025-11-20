@@ -260,24 +260,6 @@ struct BlogPost: Codable, Identifiable {
     }
 }
 
-// MARK: - AI Provider Credentials
-
-struct ProviderCredentialStatus: Codable {
-    let provider: String
-    let hasKey: Bool
-    let maskedKey: String?
-    let keyName: String?
-    let model: String?
-
-    enum CodingKeys: String, CodingKey {
-        case provider
-        case hasKey = "has_key"
-        case maskedKey = "masked_key"
-        case keyName = "key_name"
-        case model
-    }
-}
-
 struct ProviderCredentialUpdate: Codable {
     let provider: String
     let apiKey: String
