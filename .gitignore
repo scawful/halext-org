@@ -48,3 +48,5 @@ scripts/emergency-ubuntu-cleanup.sh
 scripts/emergency-kill-ollama.sh
 scripts/frontend-deploy.env
 scripts/macos-sync.env
+ios/build_attempt*.log
+frontend/.package-lock.local.sha256
