@@ -75,6 +75,7 @@ export type ConversationSummary = {
   owner_id: number
   mode: string
   with_ai: boolean
+  default_model_id?: string | null
   created_at: string
   updated_at: string
   participants: string[]

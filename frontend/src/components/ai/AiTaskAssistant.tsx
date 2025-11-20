@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { getTaskSuggestions } from '../../utils/aiApi'
 import type { AiTaskSuggestion } from '../../utils/aiApi'
+import { useAiProvider } from '../../contexts/AiProviderContext'
+import { AiModelSelector } from './AiModelSelector'
 
 interface AiTaskAssistantProps {
   token: string
@@ -18,6 +20,7 @@ export const AiTaskAssistant = ({
   const [loading, setLoading] = useState(false)
   const [suggestions, setSuggestions] = useState<AiTaskSuggestion | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const { selectedModelId } = useAiProvider()
 
   const getSuggestions = async () => {
     if (!taskTitle.trim()) {
@@ -29,7 +32,7 @@ export const AiTaskAssistant = ({
     setError(null)
 
     try {
-      const result = await getTaskSuggestions(token, taskTitle, taskDescription)
+      const result = await getTaskSuggestions(token, taskTitle, taskDescription, selectedModelId)
       setSuggestions(result)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to get AI suggestions')
@@ -68,6 +71,15 @@ export const AiTaskAssistant = ({
         >
           {loading ? 'Analyzing...' : 'Get AI Suggestions'}
         </button>
+      </div>
+
+      {/* Model Selector */}
+      <div>
+        <AiModelSelector
+          token={token}
+          compact={true}
+          showLabel={false}
+        />
       </div>
 
       {error && (

@@ -98,12 +98,26 @@ export async function getAiProviderInfo(token: string): Promise<AiProviderInfo> 
 }
 
 /**
+ * Get available AI models
+ */
+export async function getAiModels(token: string): Promise<AiModelsResponse> {
+  const response = await fetch(`${API_BASE_URL}/ai/models`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  })
+  if (!response.ok) throw new Error('Failed to get AI models')
+  return response.json()
+}
+
+/**
  * Get AI suggestions for a task
  */
 export async function getTaskSuggestions(
   token: string,
   title: string,
-  description?: string
+  description?: string,
+  model?: string
 ): Promise<AiTaskSuggestion> {
   const response = await fetch(`${API_BASE_URL}/ai/tasks/suggest`, {
     method: 'POST',
@@ -111,7 +125,7 @@ export async function getTaskSuggestions(
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ title, description }),
+    body: JSON.stringify({ title, description, model }),
   })
   if (!response.ok) throw new Error('Failed to get task suggestions')
   return response.json()
@@ -126,7 +140,8 @@ export async function getEventAnalysis(
   description: string | undefined,
   start_time: string,
   end_time: string,
-  event_type?: string
+  event_type?: string,
+  model?: string
 ): Promise<AiEventAnalysis> {
   const response = await fetch(`${API_BASE_URL}/ai/events/analyze`, {
     method: 'POST',
@@ -134,7 +149,7 @@ export async function getEventAnalysis(
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ title, description, start_time, end_time, event_type }),
+    body: JSON.stringify({ title, description, start_time, end_time, event_type, model }),
   })
   if (!response.ok) throw new Error('Failed to get event analysis')
   return response.json()
@@ -146,7 +161,8 @@ export async function getEventAnalysis(
 export async function getNoteSummary(
   token: string,
   content: string,
-  max_length = 200
+  max_length = 200,
+  model?: string
 ): Promise<AiNoteSummary> {
   const response = await fetch(`${API_BASE_URL}/ai/notes/summarize`, {
     method: 'POST',
@@ -154,7 +170,7 @@ export async function getNoteSummary(
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ content, max_length }),
+    body: JSON.stringify({ content, max_length, model }),
   })
   if (!response.ok) throw new Error('Failed to get note summary')
   return response.json()

@@ -1,18 +1,25 @@
 import { useState, useRef, useEffect } from 'react'
 import { streamChatMessage } from '../../utils/aiApi'
 import type { AiChatMessage } from '../../utils/aiApi'
+import { useAiProvider } from '../../contexts/AiProviderContext'
 
 interface AiChatWidgetProps {
   token: string
 }
 
+interface MessageWithModel extends AiChatMessage {
+  model?: string
+  provider?: string
+}
+
 export const AiChatWidget = ({ token }: AiChatWidgetProps) => {
-  const [messages, setMessages] = useState<AiChatMessage[]>([])
+  const [messages, setMessages] = useState<MessageWithModel[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [streaming, setStreaming] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const [streamingMessage, setStreamingMessage] = useState('')
+  const { selectedModelId } = useAiProvider()
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -25,7 +32,7 @@ export const AiChatWidget = ({ token }: AiChatWidgetProps) => {
   const sendMessage = async () => {
     if (!input.trim() || loading) return
 
-    const userMessage: AiChatMessage = { role: 'user', content: input.trim() }
+    const userMessage: MessageWithModel = { role: 'user', content: input.trim() }
     setMessages((prev) => [...prev, userMessage])
     setInput('')
     setLoading(true)
@@ -36,17 +43,27 @@ export const AiChatWidget = ({ token }: AiChatWidgetProps) => {
       // Use streaming for better UX
       let fullResponse = ''
 
-      for await (const chunk of streamChatMessage(token, userMessage.content, messages)) {
+      // Pass selected model to the stream function
+      for await (const chunk of streamChatMessage(
+        token,
+        userMessage.content,
+        messages,
+        selectedModelId || undefined
+      )) {
         fullResponse += chunk
         setStreamingMessage(fullResponse)
       }
 
-      const assistantMessage: AiChatMessage = { role: 'assistant', content: fullResponse }
+      const assistantMessage: MessageWithModel = {
+        role: 'assistant',
+        content: fullResponse,
+        model: selectedModelId || undefined,
+      }
       setMessages((prev) => [...prev, assistantMessage])
       setStreamingMessage('')
     } catch (error) {
       console.error('Chat error:', error)
-      const errorMessage: AiChatMessage = {
+      const errorMessage: MessageWithModel = {
         role: 'assistant',
         content: 'Sorry, I encountered an error. Please try again.',
       }
@@ -87,6 +104,18 @@ export const AiChatWidget = ({ token }: AiChatWidgetProps) => {
                   : 'bg-white/10 backdrop-blur-sm text-gray-200 border border-white/10'
               }`}
             >
+              {message.role === 'assistant' && message.model && (
+                <div className="flex items-center gap-1 mb-2 text-xs text-purple-300">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-purple-400"></span>
+                  <span>AI</span>
+                  {message.model && (
+                    <>
+                      <span>•</span>
+                      <span className="text-gray-400">{message.model}</span>
+                    </>
+                  )}
+                </div>
+              )}
               <p className="text-sm whitespace-pre-wrap">{message.content}</p>
             </div>
           </div>

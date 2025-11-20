@@ -11,6 +11,7 @@ import { IoTSection } from './components/sections/IoTSection'
 import { ChatSection } from './components/sections/ChatSection'
 import { TasksPage } from './components/pages/TasksPage'
 import { AdminSection } from './components/sections/AdminSection'
+import { SettingsSection } from './components/sections/SettingsSection'
 import type {
   Task,
   EventItem,
@@ -592,6 +593,8 @@ function App() {
         return <AnimeSection />
       case 'iot':
         return <IoTSection />
+      case 'settings':
+        return token ? <SettingsSection token={token} /> : <div className="section-placeholder">Please login to access settings</div>
       case 'admin':
         return token ? <AdminSection token={token} /> : <div className="section-placeholder">Please login to access admin panel</div>
       case 'create':
