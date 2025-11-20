@@ -10,6 +10,8 @@ from app import crud, models, schemas, auth
 from app.database import SessionLocal, engine
 from app.ai import AiGateway
 from app.ai_features import AiTaskHelper, AiEventHelper, AiNoteHelper
+from app.smart_generation import AiSmartGenerator
+from app.recipe_ai import AiRecipeGenerator
 from app.openwebui_sync import OpenWebUISync
 from app.admin_routes import router as admin_router
 from app.ai_routes import router as ai_router
@@ -782,3 +784,90 @@ async def get_openwebui_sso_link(
         token=token,
         expires_in=86400  # 24 hours in seconds
     )
+
+# Smart Generation Endpoint
+@app.post("/ai/generate-tasks", response_model=schemas.AiGenerateTasksResponse)
+async def generate_smart_tasks(
+    request: schemas.AiGenerateTasksRequest,
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    """Generate tasks, events, and smart lists from natural language prompt"""
+    helper = AiSmartGenerator(ai_gateway)
+
+    result = await helper.generate_from_prompt(
+        prompt=request.prompt,
+        timezone=request.context.timezone,
+        current_date=request.context.current_date,
+        existing_task_titles=request.context.existing_task_titles,
+        upcoming_event_dates=request.context.upcoming_event_dates
+    )
+
+    return schemas.AiGenerateTasksResponse(**result)
+
+# Recipe AI Endpoints
+@app.post("/ai/recipes/generate", response_model=schemas.RecipeGenerationResponse)
+async def generate_recipes(
+    request: schemas.RecipeGenerationRequest,
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    """Generate recipes from available ingredients"""
+    helper = AiRecipeGenerator(ai_gateway)
+
+    result = await helper.generate_recipes(
+        ingredients=request.ingredients,
+        dietary_restrictions=request.dietary_restrictions,
+        cuisine_preferences=request.cuisine_preferences,
+        difficulty_level=request.difficulty_level,
+        time_limit_minutes=request.time_limit_minutes,
+        servings=request.servings,
+        meal_type=request.meal_type
+    )
+
+    return schemas.RecipeGenerationResponse(**result)
+
+@app.post("/ai/recipes/meal-plan", response_model=schemas.MealPlanResponse)
+async def generate_meal_plan(
+    request: schemas.MealPlanRequest,
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    """Generate a meal plan for multiple days"""
+    helper = AiRecipeGenerator(ai_gateway)
+
+    result = await helper.generate_meal_plan(
+        ingredients=request.ingredients,
+        days=request.days,
+        dietary_restrictions=request.dietary_restrictions,
+        budget=request.budget,
+        meals_per_day=request.meals_per_day
+    )
+
+    return schemas.MealPlanResponse(**result)
+
+@app.post("/ai/recipes/suggest-substitutions", response_model=schemas.RecipeGenerationResponse)
+async def suggest_ingredient_substitutions(
+    request: schemas.SubstitutionRequest,
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    """Suggest ingredient substitutions and alternative recipes"""
+    helper = AiRecipeGenerator(ai_gateway)
+
+    result = await helper.suggest_substitutions(
+        ingredients=request.ingredients,
+        recipe_type=request.recipe_type
+    )
+
+    return schemas.RecipeGenerationResponse(**result)
+
+@app.post("/ai/recipes/analyze-ingredients", response_model=schemas.IngredientAnalysis)
+async def analyze_ingredients(
+    request: schemas.IngredientsRequest,
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    """Analyze and categorize ingredients"""
+    helper = AiRecipeGenerator(ai_gateway)
+
+    result = await helper.analyze_ingredients(
+        ingredients=request.ingredients
+    )
+
+    return schemas.IngredientAnalysis(**result)

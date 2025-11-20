@@ -455,3 +455,156 @@ class OpenWebUISSOResponse(BaseModel):
     sso_url: str
     token: str
     expires_in: int
+
+# Smart Generation Schemas
+class GenerationContext(BaseModel):
+    timezone: str
+    current_date: datetime
+    existing_task_titles: Optional[List[str]] = None
+    upcoming_event_dates: Optional[List[datetime]] = None
+
+class AiGenerateTasksRequest(BaseModel):
+    prompt: str
+    context: GenerationContext
+
+class GeneratedTaskData(BaseModel):
+    title: str
+    description: str
+    due_date: Optional[datetime] = None
+    priority: str
+    labels: List[str] = Field(default_factory=list)
+    estimated_minutes: Optional[int] = None
+    subtasks: List[str] = Field(default_factory=list)
+    reasoning: str
+
+class GeneratedEventData(BaseModel):
+    title: str
+    description: str
+    start_time: datetime
+    end_time: datetime
+    location: Optional[str] = None
+    recurrence_type: str = "none"
+    reasoning: str
+
+class GeneratedSmartListData(BaseModel):
+    name: str
+    description: str
+    category: str
+    items: List[str] = Field(default_factory=list)
+    reasoning: str
+
+class GenerationMetadataData(BaseModel):
+    original_prompt: str
+    model: str
+    summary: str
+
+class AiGenerateTasksResponse(BaseModel):
+    tasks: List[GeneratedTaskData] = Field(default_factory=list)
+    events: List[GeneratedEventData] = Field(default_factory=list)
+    smart_lists: List[GeneratedSmartListData] = Field(default_factory=list)
+    metadata: GenerationMetadataData
+
+# Recipe AI Schemas
+class NutritionInfo(BaseModel):
+    calories: Optional[int] = None
+    protein: Optional[float] = None
+    carbohydrates: Optional[float] = None
+    fat: Optional[float] = None
+    fiber: Optional[float] = None
+    sugar: Optional[float] = None
+    sodium: Optional[float] = None
+
+class RecipeIngredient(BaseModel):
+    id: str
+    name: str
+    amount: str
+    unit: str
+    notes: Optional[str] = None
+    is_optional: bool = False
+
+class RecipeInstruction(BaseModel):
+    id: str
+    step_number: int
+    instruction: str
+    time_minutes: Optional[int] = None
+    image_url: Optional[str] = None
+    timer_name: Optional[str] = None
+
+class Recipe(BaseModel):
+    id: str
+    name: str
+    description: str
+    ingredients: List[RecipeIngredient] = Field(default_factory=list)
+    instructions: List[RecipeInstruction] = Field(default_factory=list)
+    prep_time_minutes: int
+    cook_time_minutes: int
+    total_time_minutes: int
+    servings: int
+    difficulty: str
+    cuisine: Optional[str] = None
+    image_url: Optional[str] = None
+    nutrition: Optional[NutritionInfo] = None
+    tags: List[str] = Field(default_factory=list)
+    matched_ingredients: List[str] = Field(default_factory=list)
+    missing_ingredients: List[str] = Field(default_factory=list)
+    match_score: float
+
+class RecipeGenerationRequest(BaseModel):
+    ingredients: List[str]
+    dietary_restrictions: Optional[List[str]] = None
+    cuisine_preferences: Optional[List[str]] = None
+    difficulty_level: Optional[str] = None
+    time_limit_minutes: Optional[int] = None
+    servings: Optional[int] = None
+    meal_type: Optional[str] = None
+
+class RecipeGenerationResponse(BaseModel):
+    recipes: List[Recipe] = Field(default_factory=list)
+    total_recipes: int
+    match_score: float
+
+class DailyMealRecipe(BaseModel):
+    id: str
+    meal_type: str
+    recipe: Recipe
+
+class DailyMeal(BaseModel):
+    id: str
+    day: str
+    meals: List[DailyMealRecipe] = Field(default_factory=list)
+
+class MealPlanRequest(BaseModel):
+    ingredients: List[str]
+    days: int
+    dietary_restrictions: Optional[List[str]] = None
+    budget: Optional[float] = None
+    meals_per_day: int
+
+class MealPlanResponse(BaseModel):
+    meal_plan: List[DailyMeal] = Field(default_factory=list)
+    shopping_list: List[str] = Field(default_factory=list)
+    estimated_cost: Optional[float] = None
+    nutrition_summary: NutritionInfo
+
+class SubstitutionRequest(BaseModel):
+    ingredients: List[str]
+    recipe_type: Optional[str] = None
+
+class IngredientSubstitution(BaseModel):
+    original: str
+    substitute: str
+    ratio: str
+    notes: Optional[str] = None
+
+class IngredientsRequest(BaseModel):
+    ingredients: List[str]
+
+class IngredientCategory(BaseModel):
+    id: str
+    name: str
+    ingredients: List[str] = Field(default_factory=list)
+
+class IngredientAnalysis(BaseModel):
+    extracted_ingredients: List[str] = Field(default_factory=list)
+    categories: List[IngredientCategory] = Field(default_factory=list)
+    suggestions: List[str] = Field(default_factory=list)
