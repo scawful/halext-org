@@ -834,6 +834,8 @@ async def summarize_note(
 @app.get("/integrations/openwebui/sync/status", response_model=schemas.OpenWebUISyncStatus)
 def get_openwebui_sync_status(current_user: models.User = Depends(auth.get_current_user)):
     """Get OpenWebUI sync configuration status"""
+    if not openwebui_sync.is_enabled():
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="OpenWebUI sync is disabled")
     status = openwebui_sync.get_sync_status()
     return schemas.OpenWebUISyncStatus(**status)
 
@@ -843,6 +845,9 @@ async def sync_user_to_openwebui(
     db: Session = Depends(get_db)
 ):
     """Sync current user to OpenWebUI"""
+    if not openwebui_sync.is_enabled():
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="OpenWebUI sync is disabled")
+
     result = await openwebui_sync.sync_user_from_halext(
         current_user.id,
         current_user.username,
@@ -866,6 +871,9 @@ async def get_openwebui_sso_link(
 ):
     """Generate SSO link for OpenWebUI"""
     from datetime import timedelta
+
+    if not openwebui_sync.is_enabled():
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="OpenWebUI sync is disabled")
 
     # Generate SSO token
     token = await openwebui_sync.generate_sso_token(

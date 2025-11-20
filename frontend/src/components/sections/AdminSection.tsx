@@ -83,7 +83,7 @@ interface AdminSectionProps {
 
 const TAB_OPTIONS = [
   { id: 'server', label: 'Server & Projects', icon: <MdSettingsRemote size={18} /> },
-  { id: 'ai', label: 'AI Clients', icon: <MdComputer size={18} /> },
+  { id: 'ai', label: 'AI & Cloud', icon: <MdComputer size={18} /> },
   { id: 'site', label: 'Site Pages', icon: <MdWeb size={18} /> },
   { id: 'photos', label: 'Photo Albums', icon: <MdPhotoLibrary size={18} /> },
   { id: 'blog', label: 'Blog Posts', icon: <MdArticle size={18} /> },
@@ -91,6 +91,17 @@ const TAB_OPTIONS = [
 ] as const
 
 type AdminTab = (typeof TAB_OPTIONS)[number]['id']
+type Density = 'compact' | 'comfortable' | 'spacious'
+type ThemeId = 'nightfall' | 'aurora' | 'sunset' | 'seabreeze'
+
+const PREF_KEY = 'halext_admin_prefs'
+
+const THEME_OPTIONS: { id: ThemeId; label: string }[] = [
+  { id: 'nightfall', label: 'Nightfall' },
+  { id: 'aurora', label: 'Aurora' },
+  { id: 'sunset', label: 'Sunset' },
+  { id: 'seabreeze', label: 'Sea Breeze' },
+]
 
 const emptySectionJson = '[\n  {\n    "type": "nav-list",\n    "title": "Labs",\n    "items": [{ "label": "About", "url": "https://halext.org/labs/About" }]\n  }\n]'
 
@@ -121,6 +132,14 @@ export const AdminSection = ({ token }: AdminSectionProps) => {
     openai: 'gpt-4o-mini',
     gemini: 'gemini-1.5-flash',
   }
+  const [theme, setTheme] = useState<ThemeId>('nightfall')
+  const [density, setDensity] = useState<Density>('comfortable')
+  const defaultVisibleTabs = TAB_OPTIONS.reduce<Record<AdminTab, boolean>>((acc, tab) => {
+    acc[tab.id] = true
+    return acc
+  }, {} as Record<AdminTab, boolean>)
+  const [visibleTabs, setVisibleTabs] = useState<Record<AdminTab, boolean>>(defaultVisibleTabs)
+  const [showMenuEditor, setShowMenuEditor] = useState(false)
 
   // Site pages
   const [sitePages, setSitePages] = useState<SitePage[]>([])
@@ -259,6 +278,36 @@ export const AdminSection = ({ token }: AdminSectionProps) => {
       setMediaLoaded(true)
     }
   }
+
+  // UI preferences persistence
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(PREF_KEY)
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (parsed.theme) setTheme(parsed.theme)
+        if (parsed.density) setDensity(parsed.density)
+        if (parsed.visibleTabs) setVisibleTabs({ ...defaultVisibleTabs, ...parsed.visibleTabs })
+      }
+    } catch (error) {
+      console.error('Failed to load admin prefs', error)
+    }
+  }, [])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(PREF_KEY, JSON.stringify({ theme, density, visibleTabs }))
+    } catch (error) {
+      console.error('Failed to persist admin prefs', error)
+    }
+  }, [theme, density, visibleTabs])
+
+  useEffect(() => {
+    if (!visibleTabs[activeTab]) {
+      const fallback = TAB_OPTIONS.find((tab) => visibleTabs[tab.id])?.id
+      if (fallback) setActiveTab(fallback)
+    }
+  }, [visibleTabs, activeTab])
 
   const handleSaveCredential = async (provider: 'openai' | 'gemini') => {
     const form = credentialForms[provider] || { api_key: '', model: providerDefaults[provider] }
@@ -649,6 +698,14 @@ export const AdminSection = ({ token }: AdminSectionProps) => {
       alert('File uploaded')
     }
   }
+
+  const densityOptions: { id: Density; label: string }[] = [
+    { id: 'compact', label: 'Compact' },
+    { id: 'comfortable', label: 'Comfortable' },
+    { id: 'spacious', label: 'Spacious' },
+  ]
+
+  const filteredTabs = TAB_OPTIONS.filter((tab) => visibleTabs[tab.id] !== false)
 
   const renderAiClients = () => (
     <div>
@@ -1197,9 +1254,69 @@ export const AdminSection = ({ token }: AdminSectionProps) => {
   }
 
   return (
-    <div className="admin-section">
+    <div className="admin-section" data-theme={theme} data-density={density}>
+      <div className="admin-toolbar">
+        <div className="toolbar-group">
+          <label className="toolbar-field">
+            <span>Theme</span>
+            <select value={theme} onChange={(e) => setTheme(e.target.value as ThemeId)}>
+              {THEME_OPTIONS.map((opt) => (
+                <option key={opt.id} value={opt.id}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="toolbar-field">
+            <span>Density</span>
+            <select value={density} onChange={(e) => setDensity(e.target.value as Density)}>
+              {densityOptions.map((opt) => (
+                <option key={opt.id} value={opt.id}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <div className="toolbar-group">
+          <button className="btn-secondary subtle" onClick={() => setShowMenuEditor((v) => !v)}>
+            {showMenuEditor ? 'Hide Menu Editor' : 'Customize Menu'}
+          </button>
+        </div>
+      </div>
+
+      {showMenuEditor && (
+        <div className="menu-editor">
+          <div className="menu-editor-header">
+            <div>
+              <p className="text-xs text-gray-400">Toggle admin modules to reduce mobile clutter</p>
+            </div>
+            <button className="btn-secondary subtle" onClick={() => setVisibleTabs(defaultVisibleTabs)}>
+              Reset
+            </button>
+          </div>
+          <div className="menu-grid">
+            {TAB_OPTIONS.map((tab) => (
+              <label key={tab.id} className="menu-toggle">
+                <input
+                  type="checkbox"
+                  checked={visibleTabs[tab.id] !== false}
+                  onChange={(e) =>
+                    setVisibleTabs((prev) => ({
+                      ...prev,
+                      [tab.id]: e.target.checked,
+                    }))
+                  }
+                />
+                <span>{tab.label}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="admin-tabs">
-        {TAB_OPTIONS.map((tab) => (
+        {filteredTabs.map((tab) => (
           <button
             key={tab.id}
             className={`admin-tab ${activeTab === tab.id ? 'active' : ''}`}
@@ -1209,6 +1326,9 @@ export const AdminSection = ({ token }: AdminSectionProps) => {
             <span>{tab.label}</span>
           </button>
         ))}
+        {filteredTabs.length === 0 && (
+          <div className="tab-empty">Enable at least one module in the menu editor.</div>
+        )}
       </div>
       {renderActiveTab()}
     </div>
