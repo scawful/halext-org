@@ -5,7 +5,7 @@ import {
   MdOutlineSpeed,
   MdMemory,
   MdStorage,
-  MdCommit,
+  MdGitCommit,
   MdLink,
 } from 'react-icons/md'
 import { API_BASE_URL } from '../../utils/helpers'
@@ -202,7 +202,7 @@ export const ServerProjectsPanel = ({ token }: ServerProjectsPanelProps) => {
 
         <div className="stat-card">
           <div className="stat-icon">
-            <MdCommit size={20} />
+            <MdGitCommit size={20} />
           </div>
           <p className="stat-label">Git</p>
           <p className="stat-value">

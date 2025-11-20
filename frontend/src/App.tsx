@@ -56,6 +56,7 @@ function App() {
   const [openwebui, setOpenwebui] = useState<OpenWebUiStatus | null>(null)
   const [availableLabels, setAvailableLabels] = useState<Label[]>([])
   const [activeSection, setActiveSection] = useState<MenuSection>('dashboard')
+  const [isCreateOverlayOpen, setCreateOverlayOpen] = useState(false)
 
   const logout = useCallback(() => {
     localStorage.removeItem('halext_token')
@@ -597,29 +598,6 @@ function App() {
         return token ? <SettingsSection token={token} /> : <div className="section-placeholder">Please login to access settings</div>
       case 'admin':
         return token ? <AdminSection token={token} /> : <div className="section-placeholder">Please login to access admin panel</div>
-      case 'create':
-        return token ? (
-          <CreatePanel
-            taskForm={taskForm}
-            onTaskFormChange={setTaskForm}
-            onTaskSubmit={handleCreateTask}
-            newTaskLabels={newTaskLabels}
-            taskLabelInput={taskLabelInput}
-            onTaskLabelInputChange={setTaskLabelInput}
-            onTaskLabelInputKeyDown={handleLabelInputKeyDown}
-            onAddTaskLabel={addTaskLabel}
-            onRemoveTaskLabel={removeTaskLabel}
-            availableLabels={availableLabels}
-            eventForm={eventForm}
-            onEventFormChange={setEventForm}
-            onEventSubmit={handleCreateEvent}
-            pageForm={pageForm}
-            onPageFormChange={setPageForm}
-            onPageSubmit={handleCreatePage}
-          />
-        ) : (
-          <div className="section-placeholder">Please login to access creator tools</div>
-        )
       default:
         return null
     }
@@ -631,12 +609,54 @@ function App() {
         activeSection={activeSection}
         onSectionChange={setActiveSection}
         onLogout={logout}
+        onOpenCreate={() => setCreateOverlayOpen(true)}
         username={user?.username}
       />
       <div className="app-main">
         <main className="main-content">
-          {renderSection()}
+          <div className="workspace-shell">{renderSection()}</div>
         </main>
+        {token && (
+          <button
+            className="floating-create-button"
+            onClick={() => setCreateOverlayOpen(true)}
+            aria-label="Open creation panel"
+          >
+            <span>+</span>
+            <span className="floating-label">Create</span>
+          </button>
+        )}
+        {token && isCreateOverlayOpen && (
+          <div className="create-overlay" role="dialog" aria-modal="true">
+            <div className="create-overlay-card">
+              <button
+                className="overlay-close"
+                onClick={() => setCreateOverlayOpen(false)}
+                aria-label="Close creation panel"
+              >
+                ×
+              </button>
+              <CreatePanel
+                taskForm={taskForm}
+                onTaskFormChange={setTaskForm}
+                onTaskSubmit={handleCreateTask}
+                newTaskLabels={newTaskLabels}
+                taskLabelInput={taskLabelInput}
+                onTaskLabelInputChange={setTaskLabelInput}
+                onTaskLabelInputKeyDown={handleLabelInputKeyDown}
+                onAddTaskLabel={addTaskLabel}
+                onRemoveTaskLabel={removeTaskLabel}
+                availableLabels={availableLabels}
+                eventForm={eventForm}
+                onEventFormChange={setEventForm}
+                onEventSubmit={handleCreateEvent}
+                pageForm={pageForm}
+                onPageFormChange={setPageForm}
+                onPageSubmit={handleCreatePage}
+              />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

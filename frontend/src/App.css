@@ -19,6 +19,102 @@
   background: var(--gradient-surface);
 }
 
+.workspace-shell {
+  width: min(1400px, 100%);
+  margin: 0 auto;
+  padding: 2.5rem clamp(1rem, 3vw, 3rem) 4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.floating-create-button {
+  position: fixed;
+  bottom: 2.5rem;
+  right: 2.5rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.85rem 1.5rem;
+  border-radius: 999px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: var(--text-primary);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  z-index: 1100;
+}
+
+.floating-create-button:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 24px 50px rgba(0, 0, 0, 0.5);
+}
+
+.floating-create-button span:first-child {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: var(--accent-primary);
+  color: var(--bg-primary);
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.floating-create-button .floating-label {
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+}
+
+.create-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(3, 3, 7, 0.75);
+  backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(1rem, 2vw, 3rem);
+  z-index: 1200;
+}
+
+.create-overlay-card {
+  width: min(520px, 95vw);
+  max-height: 90vh;
+  overflow-y: auto;
+  background: rgba(12, 14, 22, 0.92);
+  border-radius: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 40px 120px rgba(0, 0, 0, 0.55);
+  position: relative;
+  padding: clamp(1.25rem, 3vw, 2rem);
+}
+
+.overlay-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+  font-size: 1.2rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.overlay-close:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
 .empty-state-section {
   display: flex;
   align-items: center;
