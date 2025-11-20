@@ -11,4 +11,12 @@ Halext Org is a hybrid task/todo/calendar workspace with configurable “widget�
 - **One-command deploys** — Scripts for server bootstrap (`server-init.sh`), updates (`server-deploy.sh`), and launchd helpers on macOS.
 - **iOS scaffolding** — SwiftUI app stub with an API client for native dashboards and chats.
 
-For setup guides, deployment recipes, and more details see `docs/SETUP_OVERVIEW.md`, `docs/DEPLOYMENT.md`, and `docs/PLANNING.md`.
+For setup guides, deployment recipes, and more details see `docs/dev/SETUP_OVERVIEW.md`, `docs/ops/DEPLOYMENT.md`, and `docs/dev/PLANNING.md`.
+
+## Documentation
+
+- [docs/README.md](docs/README.md) – master index linking every guide.
+- **Development**: [LOCAL_DEVELOPMENT](docs/dev/LOCAL_DEVELOPMENT.md), [QUICKSTART](docs/dev/QUICKSTART.md), [ARCHITECTURE_OVERVIEW](docs/dev/ARCHITECTURE_OVERVIEW.md).
+- **Operations**: [AGENTS runbook](docs/ops/AGENTS.md), [Deployment checklist](docs/ops/DEPLOYMENT_CHECKLIST.md), [Server field guide](docs/ops/SERVER_FIELD_GUIDE.md).
+- **AI Infrastructure**: [AI architecture](docs/ai/AI_ARCHITECTURE.md), [Routing roadmap](docs/ai/AI_ROUTING_ROADMAP.md), [OpenWebUI setup](docs/ai/OPENWEBUI_SETUP.md).
+- **iOS**: [iOS development plan](docs/ios/IOS_DEVELOPMENT_PLAN.md) and [Zeniea integration](docs/ios/ZENIEA_ZEN3MP_INTEGRATION.md).
