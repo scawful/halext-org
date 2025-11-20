@@ -10,6 +10,7 @@ import SwiftUI
 struct MoreView: View {
     @Environment(ThemeManager.self) var themeManager
     @State private var showIOSFeatures = false
+    @State private var showSettings = false
 
     var body: some View {
         NavigationStack {
@@ -29,6 +30,13 @@ struct MoreView: View {
                                     .foregroundColor(themeManager.secondaryTextColor)
                             }
                             Spacer()
+
+                            // Quick Settings Access
+                            Button(action: { showSettings = true }) {
+                                Image(systemName: "gearshape.fill")
+                                    .font(.title2)
+                                    .foregroundColor(.gray)
+                            }
                         }
                         .padding(.horizontal)
 
@@ -128,9 +136,41 @@ struct MoreView: View {
             .navigationTitle("More")
             .navigationBarTitleDisplayMode(.inline)
             .background(themeManager.backgroundColor.ignoresSafeArea())
+            .navigationDestination(for: FeatureDestination.self) { destination in
+                destinationView(for: destination)
+            }
             .sheet(isPresented: $showIOSFeatures) {
                 IOSFeaturesDetailView()
             }
+            .sheet(isPresented: $showSettings) {
+                NavigationStack {
+                    SettingsView()
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func destinationView(for destination: FeatureDestination) -> some View {
+        switch destination {
+        case .tasks:
+            TaskListView()
+        case .templates:
+            TaskTemplatesView()
+        case .smartLists:
+            SmartListsView()
+        case .messages:
+            MessagesView()
+        case .finance:
+            FinanceView()
+        case .calendar:
+            CalendarView()
+        case .chat:
+            ChatView()
+        case .settings:
+            SettingsView()
+        case .social:
+            SocialCirclesView()
         }
     }
 }
@@ -210,13 +250,6 @@ struct FeatureCard: Identifiable {
             color: .orange,
             destination: .smartLists,
             description: "Custom filtered views"
-        ),
-        FeatureCard(
-            title: "Pages",
-            icon: "doc.richtext",
-            color: .blue,
-            destination: .pages,
-            description: "Notes & documents"
         )
     ]
 
@@ -269,7 +302,6 @@ enum FeatureDestination {
     case tasks
     case templates
     case smartLists
-    case pages
     case messages
     case finance
     case calendar
@@ -320,35 +352,6 @@ struct FeatureCardView: View {
             .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
         }
         .buttonStyle(.plain)
-        .navigationDestination(for: FeatureDestination.self) { destination in
-            destinationView(for: destination)
-        }
-    }
-
-    @ViewBuilder
-    private func destinationView(for destination: FeatureDestination) -> some View {
-        switch destination {
-        case .tasks:
-            TaskListView()
-        case .templates:
-            TaskTemplatesView()
-        case .smartLists:
-            SmartListsView()
-        case .pages:
-            PagesView()
-        case .messages:
-            MessagesView()
-        case .finance:
-            FinanceView()
-        case .calendar:
-            CalendarView()
-        case .chat:
-            ChatView()
-        case .settings:
-            SettingsView()
-        case .social:
-            SocialCirclesView()
-        }
     }
 }
 

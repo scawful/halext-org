@@ -118,6 +118,17 @@ extension Theme {
         isDark: false
     )
 
+    static let sakura = Theme(
+        id: "sakura",
+        name: "Sakura",
+        accentColor: CodableColor(Color(hex: "#FF69B4")),        // Hot Pink
+        backgroundColor: CodableColor(Color(hex: "#FFF0F5")),     // Lavender Blush
+        secondaryBackgroundColor: CodableColor(Color(hex: "#FFE4E9")), // Light Pink
+        textColor: CodableColor(Color(hex: "#2D1B2E")),           // Dark Purple-Brown
+        secondaryTextColor: CodableColor(Color(hex: "#4A2E4D")), // Medium Purple
+        isDark: false
+    )
+
     static let mint = Theme(
         id: "mint",
         name: "Mint",
@@ -210,13 +221,13 @@ extension Theme {
     // All available themes
     static let allThemes: [Theme] = [
         .light, .ocean, .forest, .sunset, .pastel,
-        .cherryBlossom, .lavender, .mint, .coral, .autumn, .monochromeLight,
+        .cherryBlossom, .sakura, .lavender, .mint, .coral, .autumn, .monochromeLight,
         .dark, .midnight, .amoled, .neon
     ]
 
     static let lightThemes: [Theme] = [
         .light, .ocean, .forest, .sunset, .pastel,
-        .cherryBlossom, .lavender, .mint, .coral, .autumn, .monochromeLight
+        .cherryBlossom, .sakura, .lavender, .mint, .coral, .autumn, .monochromeLight
     ]
 
     static let darkThemes: [Theme] = [

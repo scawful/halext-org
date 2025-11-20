@@ -107,29 +107,84 @@ struct AIModelPickerView: View {
             selectedModelId = model.id
             dismiss()
         }) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(model.name)
-                        .font(.headline)
-                        .foregroundColor(.primary)
-
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 6) {
+                    // Model name and tier badge
                     HStack(spacing: 8) {
-                        if let nodeName = model.nodeName {
-                            Label(nodeName, systemImage: "server.rack")
-                                .font(.caption)
+                        Text(model.name)
+                            .font(.headline)
+                            .foregroundColor(.primary)
+
+                        if !model.tierLabel.isEmpty {
+                            Text(model.tierLabel)
+                                .font(.caption2)
+                                .fontWeight(.medium)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(tierColor(for: model.tierLabel))
+                                .foregroundColor(.white)
+                                .cornerRadius(4)
+                        }
+                    }
+
+                    // Description
+                    if let description = model.description {
+                        Text(description)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .lineLimit(2)
+                    }
+
+                    // Capabilities and metadata
+                    VStack(alignment: .leading, spacing: 4) {
+                        // Context window
+                        if let contextWindow = model.contextWindowFormatted {
+                            Label(contextWindow, systemImage: "doc.text")
+                                .font(.caption2)
                                 .foregroundColor(.secondary)
                         }
 
-                        if let size = model.size {
-                            Label(size, systemImage: "externaldrive")
-                                .font(.caption)
+                        // Cost
+                        if let cost = model.costDescription {
+                            Label(cost, systemImage: "dollarsign.circle")
+                                .font(.caption2)
                                 .foregroundColor(.secondary)
                         }
 
-                        if let latency = model.latencyMs {
-                            Label("\(latency)ms", systemImage: "speedometer")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                        // Capabilities
+                        HStack(spacing: 8) {
+                            if model.supportsVision == true {
+                                Label("Vision", systemImage: "eye.fill")
+                                    .font(.caption2)
+                                    .foregroundColor(.purple)
+                            }
+
+                            if model.supportsFunctionCalling == true {
+                                Label("Functions", systemImage: "function")
+                                    .font(.caption2)
+                                    .foregroundColor(.green)
+                            }
+                        }
+
+                        // Node/latency info for distributed models
+                        HStack(spacing: 8) {
+                            if let nodeName = model.nodeName {
+                                Label(nodeName, systemImage: "server.rack")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+
+                            if let latency = model.latencyMs {
+                                Label("\(latency)ms", systemImage: "speedometer")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+
+                            if let size = model.size {
+                                Label(size, systemImage: "externaldrive")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
                         }
                     }
                 }
@@ -139,8 +194,23 @@ struct AIModelPickerView: View {
                 if selectedModelId == model.id {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundColor(.blue)
+                        .padding(.top, 4)
                 }
             }
+            .padding(.vertical, 4)
+        }
+    }
+
+    private func tierColor(for tier: String) -> Color {
+        switch tier {
+        case "Lightweight":
+            return .green
+        case "Standard":
+            return .blue
+        case "Premium":
+            return .purple
+        default:
+            return .gray
         }
     }
 

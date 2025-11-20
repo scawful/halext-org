@@ -36,7 +36,7 @@ struct DashboardCardView<Content: View>: View {
             .padding()
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(Color(.systemBackground))
+                    .fill(ThemeManager.shared.cardBackgroundColor)
                     .shadow(color: .black.opacity(isEditMode ? 0.1 : 0.05), radius: 8, y: 2)
             )
             .overlay(

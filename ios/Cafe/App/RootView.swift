@@ -63,24 +63,11 @@ struct MainTabView: View {
         case .smartLists:
             SmartListsView()
         case .pages:
-            PagesView()
+            EmptyView() // Pages not currently used - can be removed from navigation
         case .messages:
             MessagesView()
         case .more:
             MoreView()
-        }
-    }
-}
-
-// Placeholder for Pages view
-struct PagesView: View {
-    var body: some View {
-        NavigationStack {
-            List {
-                Text("Pages feature coming soon")
-                    .foregroundColor(.secondary)
-            }
-            .navigationTitle("Pages")
         }
     }
 }

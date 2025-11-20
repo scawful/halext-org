@@ -315,13 +315,27 @@ struct AIModel: Codable, Identifiable, Hashable {
     let latencyMs: Int?
     let metadata: [String: AnyCodable]
     let modifiedAt: String?
+    // Enhanced metadata
+    let description: String?
+    let contextWindow: Int?
+    let maxOutputTokens: Int?
+    let inputCostPer1m: Double?
+    let outputCostPer1m: Double?
+    let supportsVision: Bool?
+    let supportsFunctionCalling: Bool?
 
     enum CodingKeys: String, CodingKey {
-        case id, name, provider, size, source, endpoint, metadata
+        case id, name, provider, size, source, endpoint, metadata, description
         case nodeId = "node_id"
         case nodeName = "node_name"
         case latencyMs = "latency_ms"
         case modifiedAt = "modified_at"
+        case contextWindow = "context_window"
+        case maxOutputTokens = "max_output_tokens"
+        case inputCostPer1m = "input_cost_per_1m"
+        case outputCostPer1m = "output_cost_per_1m"
+        case supportsVision = "supports_vision"
+        case supportsFunctionCalling = "supports_function_calling"
     }
 
     init(from decoder: Decoder) throws {
@@ -337,6 +351,13 @@ struct AIModel: Codable, Identifiable, Hashable {
         latencyMs = try container.decodeIfPresent(Int.self, forKey: .latencyMs)
         metadata = (try? container.decodeIfPresent([String: AnyCodable].self, forKey: .metadata)) ?? [:]
         modifiedAt = try container.decodeIfPresent(String.self, forKey: .modifiedAt)
+        description = try container.decodeIfPresent(String.self, forKey: .description)
+        contextWindow = try container.decodeIfPresent(Int.self, forKey: .contextWindow)
+        maxOutputTokens = try container.decodeIfPresent(Int.self, forKey: .maxOutputTokens)
+        inputCostPer1m = try container.decodeIfPresent(Double.self, forKey: .inputCostPer1m)
+        outputCostPer1m = try container.decodeIfPresent(Double.self, forKey: .outputCostPer1m)
+        supportsVision = try container.decodeIfPresent(Bool.self, forKey: .supportsVision)
+        supportsFunctionCalling = try container.decodeIfPresent(Bool.self, forKey: .supportsFunctionCalling)
     }
 
     var displayName: String {
@@ -348,6 +369,37 @@ struct AIModel: Codable, Identifiable, Hashable {
 
     var sourceLabel: String {
         source ?? provider
+    }
+
+    var tierLabel: String {
+        if name.contains("gpt-3.5") || name.contains("flash") {
+            return "Lightweight"
+        } else if name.contains("gpt-4o-mini") || name.contains("1.5-pro") {
+            return "Standard"
+        } else if name.contains("gpt-4") {
+            return "Premium"
+        }
+        return ""
+    }
+
+    var costDescription: String? {
+        guard let inputCost = inputCostPer1m, let outputCost = outputCostPer1m else {
+            return nil
+        }
+        if inputCost == 0 && outputCost == 0 {
+            return "Free during preview"
+        }
+        return "$\(String(format: "%.2f", inputCost))/$\(String(format: "%.2f", outputCost)) per 1M tokens"
+    }
+
+    var contextWindowFormatted: String? {
+        guard let window = contextWindow else { return nil }
+        if window >= 1000000 {
+            return "\(window / 1000000)M tokens"
+        } else if window >= 1000 {
+            return "\(window / 1000)K tokens"
+        }
+        return "\(window) tokens"
     }
 
     func hash(into hasher: inout Hasher) {

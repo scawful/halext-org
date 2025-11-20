@@ -168,7 +168,7 @@ struct NavigationPreset: Identifiable {
         NavigationPreset(
             name: "Advanced",
             description: "Power user features",
-            tabs: [.dashboard, .smartLists, .templates, .pages, .more],
+            tabs: [.dashboard, .smartLists, .templates, .messages, .more],
             icon: "star.fill"
         )
     ]

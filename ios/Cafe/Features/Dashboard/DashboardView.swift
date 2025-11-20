@@ -295,7 +295,7 @@ struct TodaysTasksWidget: View {
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color(.systemBackground))
+                .fill(ThemeManager.shared.cardBackgroundColor)
                 .shadow(color: .black.opacity(0.05), radius: 8, y: 2)
         )
     }
@@ -403,7 +403,7 @@ struct UpcomingEventsWidget: View {
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color(.systemBackground))
+                .fill(ThemeManager.shared.cardBackgroundColor)
                 .shadow(color: .black.opacity(0.05), radius: 8, y: 2)
         )
     }
@@ -464,6 +464,9 @@ struct EventRow: View {
 
 struct QuickActionsWidget: View {
     @State private var showAIGenerator = false
+    @State private var showNewTask = false
+    @State private var showNewEvent = false
+    @State private var showViewAll = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -474,17 +477,45 @@ struct QuickActionsWidget: View {
                 GridItem(.flexible()),
                 GridItem(.flexible())
             ], spacing: 12) {
-                QuickActionButton(
-                    title: "New Task",
-                    icon: "plus.circle.fill",
-                    color: .blue
-                )
+                Button {
+                    showNewTask = true
+                } label: {
+                    VStack(spacing: 8) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(.blue)
 
-                QuickActionButton(
-                    title: "New Event",
-                    icon: "calendar.badge.plus",
-                    color: .purple
-                )
+                        Text("New Task")
+                            .font(.caption)
+                            .foregroundColor(.primary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color(.systemBackground))
+                    )
+                }
+
+                Button {
+                    showNewEvent = true
+                } label: {
+                    VStack(spacing: 8) {
+                        Image(systemName: "calendar.badge.plus")
+                            .font(.title2)
+                            .foregroundColor(.purple)
+
+                        Text("New Event")
+                            .font(.caption)
+                            .foregroundColor(.primary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color(.systemBackground))
+                    )
+                }
 
                 Button {
                     showAIGenerator = true
@@ -506,11 +537,24 @@ struct QuickActionsWidget: View {
                     )
                 }
 
-                QuickActionButton(
-                    title: "View All",
-                    icon: "list.bullet",
-                    color: .green
-                )
+                NavigationLink(destination: TaskListView()) {
+                    VStack(spacing: 8) {
+                        Image(systemName: "list.bullet")
+                            .font(.title2)
+                            .foregroundColor(.green)
+
+                        Text("View All")
+                            .font(.caption)
+                            .foregroundColor(.primary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color(.systemBackground))
+                    )
+                }
+                .buttonStyle(.plain)
             }
         }
         .padding()
@@ -521,33 +565,25 @@ struct QuickActionsWidget: View {
         .sheet(isPresented: $showAIGenerator) {
             SmartGeneratorView()
         }
-    }
-}
-
-struct QuickActionButton: View {
-    let title: String
-    let icon: String
-    let color: Color
-
-    var body: some View {
-        Button {
-            // Action will be handled by navigation
-        } label: {
-            VStack(spacing: 8) {
-                Image(systemName: icon)
-                    .font(.title2)
-                    .foregroundColor(color)
-
-                Text(title)
-                    .font(.caption)
-                    .foregroundColor(.primary)
+        .sheet(isPresented: $showNewTask) {
+            NewTaskView { newTask in
+                await createTask(newTask)
             }
-            .frame(maxWidth: .infinity)
-            .padding()
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(.systemBackground))
-            )
+        }
+        .sheet(isPresented: $showNewEvent) {
+            NewEventView(viewModel: CalendarViewModel())
+        }
+    }
+
+    private func createTask(_ taskCreate: TaskCreate) async {
+        do {
+            let newTask = try await APIClient.shared.createTask(taskCreate)
+            // Task created successfully - could refresh dashboard if needed
+            showNewTask = false
+            HapticManager.success()
+        } catch {
+            print("Failed to create task:", error)
+            HapticManager.error()
         }
     }
 }
@@ -853,7 +889,7 @@ struct MealPlanningWidget: View {
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color(.systemBackground))
+                .fill(ThemeManager.shared.cardBackgroundColor)
                 .shadow(color: .black.opacity(0.05), radius: 8, y: 2)
         )
         .sheet(isPresented: $showingRecipeGenerator) {
@@ -905,7 +941,7 @@ struct AllAppsWidget: View {
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color(.systemBackground))
+                .fill(ThemeManager.shared.cardBackgroundColor)
                 .shadow(color: .black.opacity(0.05), radius: 8, y: 2)
         )
     }
@@ -969,7 +1005,7 @@ struct DashboardAppButton: View {
         case .smartLists:
             SmartListsView()
         case .pages:
-            PagesView()
+            EmptyView() // Pages not currently used
         case .dashboard, .settings, .more:
             EmptyView()
         }

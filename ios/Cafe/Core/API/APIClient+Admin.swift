@@ -141,4 +141,23 @@ extension APIClient {
         let request = try authorizedRequest(path: "/admin/rebuild-indexes", method: "POST")
         return try await performRequest(request)
     }
+
+    // MARK: - AI Provider Credentials
+
+    func getAIProviderCredentials() async throws -> [ProviderCredentialStatus] {
+        let request = try authorizedRequest(path: "/admin/ai/credentials", method: "GET")
+        return try await performRequest(request)
+    }
+
+    func saveAIProviderCredential(provider: String, apiKey: String, model: String?) async throws -> ProviderCredentialStatus {
+        let update = ProviderCredentialUpdate(
+            provider: provider,
+            apiKey: apiKey,
+            model: model,
+            keyName: nil
+        )
+        var request = try authorizedRequest(path: "/admin/ai/credentials", method: "POST")
+        request.httpBody = try JSONEncoder().encode(update)
+        return try await performRequest(request)
+    }
 }

@@ -117,6 +117,20 @@ struct AdminView: View {
                 }
             }
 
+            NavigationLink(destination: AdminAICredentialsView()) {
+                Label {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("AI Credentials")
+                        Text("Configure OpenAI and Gemini API keys")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                } icon: {
+                    Image(systemName: "key.fill")
+                        .foregroundColor(.purple)
+                }
+            }
+
             NavigationLink(destination: AIClientManagementView()) {
                 Label {
                     VStack(alignment: .leading, spacing: 2) {

@@ -260,6 +260,14 @@ extension View {
             .cornerRadius(12)
     }
 
+    func themedCardBackground(cornerRadius: CGFloat = 16, shadow: Bool = true) -> some View {
+        self.background(
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .fill(ThemeManager.shared.cardBackgroundColor)
+                .shadow(color: shadow ? .black.opacity(0.05) : .clear, radius: 8, y: 2)
+        )
+    }
+
     func themedText() -> some View {
         self.foregroundColor(ThemeManager.shared.textColor)
     }
