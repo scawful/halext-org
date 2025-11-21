@@ -159,7 +159,7 @@ struct NavigationPreset: Identifiable {
         ),
         NavigationPreset(
             name: "Communication",
-            description: "Stay connected with your team",
+            description: "Messages and AI conversations",
             tabs: [.dashboard, .messages, .chat, .calendar, .more],
             icon: "bubble.left.and.bubble.right.fill"
         ),
@@ -276,7 +276,7 @@ enum NavigationTab: String, Codable, CaseIterable, Identifiable {
         case .templates: return "Task templates library"
         case .smartLists: return "Custom filtered views"
         case .pages: return "Notes and documents"
-        case .messages: return "Chat with team members"
+        case .messages: return "Messages and conversations"
         case .more: return "All features and options"
         }
     }

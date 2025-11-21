@@ -9,6 +9,7 @@ import SwiftUI
 
 struct AgentHubView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(ThemeManager.self) var themeManager
     @State private var modelsResponse: AIModelsResponse?
     @State private var isLoading = false
     @State private var errorMessage: String?
@@ -22,6 +23,8 @@ struct AgentHubView: View {
             providerSection
             controlsSection
         }
+        .background(themeManager.backgroundColor.ignoresSafeArea())
+        .scrollContentBackground(.hidden)
         .navigationTitle("Agents & LLMs")
         .toolbar(content: {
             ToolbarItem(placement: .navigationBarTrailing) {

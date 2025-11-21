@@ -544,7 +544,7 @@ struct RecentActivityCardContent: View {
                 DashboardActivityItemView(
                     icon: "plus.circle.fill",
                     color: .blue,
-                    title: "Created 'Team Meeting'",
+                    title: "Created 'Meeting'",
                     time: "1 hour ago"
                 )
 
@@ -665,7 +665,7 @@ struct SocialActivityCardContent: View {
         VStack(alignment: .leading, spacing: 12) {
             CardHeader(
                 icon: "person.2.fill",
-                title: "Team Activity",
+                title: "Activity",
                 color: .teal
             )
 

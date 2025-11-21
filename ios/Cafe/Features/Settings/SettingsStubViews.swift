@@ -52,10 +52,10 @@ struct LabsFeaturesView: View {
             color: .blue
         ),
         LabsFeature(
-            id: "collaboration",
-            name: "Real-time Collaboration",
-            description: "Work together with others in real-time",
-            icon: "person.2.fill",
+            id: "real_time_sync",
+            name: "Real-time Sync",
+            description: "Instant synchronization across devices",
+            icon: "arrow.triangle.2.circlepath",
             color: .green
         )
     ]
@@ -338,14 +338,6 @@ struct CreditsView: View {
     var body: some View {
         List {
             Section {
-                CreditRow(name: "Development Team", role: "Core Development")
-                CreditRow(name: "Design Team", role: "UI/UX Design")
-                CreditRow(name: "AI Team", role: "AI & Machine Learning")
-            } header: {
-                Text("Team")
-            }
-
-            Section {
                 CreditRow(name: "SwiftUI", role: "UI Framework")
                 CreditRow(name: "Claude", role: "AI Assistant")
                 CreditRow(name: "Open Source Libraries", role: "Various")
@@ -354,11 +346,11 @@ struct CreditsView: View {
             }
 
             Section {
-                Text("Special thanks to our beta testers and the productivity community for their valuable feedback.")
+                Text("Built as an experimental productivity app. Thanks to the open source community.")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             } header: {
-                Text("Acknowledgments")
+                Text("About")
             }
         }
         .navigationTitle("Credits")
@@ -450,13 +442,13 @@ struct SettingsHelpStubView: View {
     }
 
     private func contactSupport() {
-        if let url = URL(string: "mailto:support@cafe.app") {
+        if let url = URL(string: "mailto:support@halext.org") {
             UIApplication.shared.open(url)
         }
     }
 
     private func openFAQ() {
-        if let url = URL(string: "https://cafe.app/faq") {
+        if let url = URL(string: "https://halext.org") {
             UIApplication.shared.open(url)
         }
     }

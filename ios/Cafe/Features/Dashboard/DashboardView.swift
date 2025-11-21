@@ -8,9 +8,11 @@
 import SwiftUI
 
 struct DashboardView: View {
+    @Environment(ThemeManager.self) var themeManager
     @State private var viewModel = DashboardViewModel()
     @State private var showAIGenerator = false
     @State private var showingLayoutEditor = false
+    @State private var showingAgentHub = false
 
     var body: some View {
         NavigationStack {
@@ -20,9 +22,12 @@ struct DashboardView: View {
                     WelcomeHeader()
                         .padding(.horizontal)
 
-                    // AI Generator Quick Access
-                    AIGeneratorQuickAccessCard(showAIGenerator: $showAIGenerator)
-                        .padding(.horizontal)
+                    // AI Features Section
+                    AIFeaturesSection(
+                        showAIGenerator: $showAIGenerator,
+                        showingAgentHub: $showingAgentHub
+                    )
+                    .padding(.horizontal)
 
                     // Stats cards
                     StatsCardsView(viewModel: viewModel)
@@ -69,6 +74,20 @@ struct DashboardView: View {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Menu {
                         Button {
+                            showAIGenerator = true
+                        } label: {
+                            Label("AI Generator", systemImage: "sparkles")
+                        }
+                        
+                        Button {
+                            showingAgentHub = true
+                        } label: {
+                            Label("Agent Hub", systemImage: "atom")
+                        }
+                        
+                        Divider()
+                        
+                        Button {
                             showingLayoutEditor = true
                         } label: {
                             Label("Customize Dashboard", systemImage: "slider.horizontal.3")
@@ -92,6 +111,20 @@ struct DashboardView: View {
             .sheet(isPresented: $showAIGenerator) {
                 SmartGeneratorView()
             }
+            .sheet(isPresented: $showingAgentHub) {
+                NavigationStack {
+                    AgentHubView(onStartChat: { _ in })
+                        .navigationTitle("Agent Hub")
+                        .navigationBarTitleDisplayMode(.inline)
+                        .toolbar {
+                            ToolbarItem(placement: .topBarTrailing) {
+                                Button("Done") {
+                                    showingAgentHub = false
+                                }
+                            }
+                        }
+                }
+            }
             .sheet(isPresented: $showingLayoutEditor) {
                 NavigationStack {
                     ConfigurableDashboardView()
@@ -108,79 +141,125 @@ struct DashboardView: View {
     }
 }
 
-// MARK: - AI Generator Quick Access Card
+// MARK: - AI Features Section
 
-struct AIGeneratorQuickAccessCard: View {
+struct AIFeaturesSection: View {
     @Binding var showAIGenerator: Bool
+    @Binding var showingAgentHub: Bool
+    @Environment(ThemeManager.self) var themeManager
 
     var body: some View {
-        Button {
-            showAIGenerator = true
-        } label: {
-            HStack(spacing: 16) {
-                // Icon
-                ZStack {
-                    Circle()
+        VStack(spacing: 12) {
+            // Main AI Generator Card
+            Button {
+                showAIGenerator = true
+            } label: {
+                HStack(spacing: 16) {
+                    // Icon
+                    ZStack {
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [.blue, .purple],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .frame(width: 60, height: 60)
+
+                        Image(systemName: "sparkles")
+                            .font(.title2)
+                            .foregroundColor(.white)
+                    }
+
+                    // Content
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text("AI Task Generator")
+                                .font(.headline)
+                                .foregroundColor(.primary)
+
+                            Spacer()
+
+                            Image(systemName: "arrow.right.circle.fill")
+                                .foregroundColor(.blue)
+                        }
+
+                        Text("Describe what you need in plain English and let AI create tasks")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .lineLimit(2)
+                    }
+
+                    Spacer()
+                }
+                .padding()
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
                         .fill(
                             LinearGradient(
-                                colors: [.blue, .purple],
+                                colors: [
+                                    Color.blue.opacity(0.1),
+                                    Color.purple.opacity(0.1)
+                                ],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
                         )
-                        .frame(width: 60, height: 60)
-
-                    Image(systemName: "sparkles")
-                        .font(.title2)
-                        .foregroundColor(.white)
-                }
-
-                // Content
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Text("AI Task Generator")
-                            .font(.headline)
-                            .foregroundColor(.primary)
-
-                        Spacer()
-
-                        Image(systemName: "arrow.right.circle.fill")
-                            .foregroundColor(.blue)
-                    }
-
-                    Text("Describe what you need in plain English")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .lineLimit(2)
-                }
-
-                Spacer()
-            }
-            .padding()
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Color.blue.opacity(0.08),
-                                Color.purple.opacity(0.08)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(
+                            LinearGradient(
+                                colors: [.blue.opacity(0.3), .purple.opacity(0.3)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1.5
                         )
+                )
+            }
+
+            // AI Quick Actions Row
+            HStack(spacing: 12) {
+                Button {
+                    showingAgentHub = true
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "atom")
+                            .font(.subheadline)
+                            .foregroundColor(.blue)
+                        Text("Agent Hub")
+                            .font(.subheadline)
+                            .foregroundColor(.primary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color(.systemGray6))
                     )
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(
-                        LinearGradient(
-                            colors: [.blue.opacity(0.4), .purple.opacity(0.4)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 1.5
+                }
+
+                Button {
+                    showAIGenerator = true
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "brain")
+                            .font(.subheadline)
+                            .foregroundColor(.purple)
+                        Text("Quick Generate")
+                            .font(.subheadline)
+                            .foregroundColor(.primary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color(.systemGray6))
                     )
-            )
+                }
+            }
         }
     }
 }
@@ -603,7 +682,7 @@ struct QuickActionsWidget: View {
 
     private func createTask(_ taskCreate: TaskCreate) async {
         do {
-            let newTask = try await APIClient.shared.createTask(taskCreate)
+            _ = try await APIClient.shared.createTask(taskCreate)
             // Task created successfully - could refresh dashboard if needed
             showNewTask = false
             HapticManager.success()

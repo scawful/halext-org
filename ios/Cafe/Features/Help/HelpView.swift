@@ -267,14 +267,14 @@ struct HelpView: View {
                 FeatureStatusCategory(title: "Communication") {
                     FeatureStatusRow(
                         name: "Messages",
-                        description: "Team messaging and collaboration",
+                        description: "Personal messaging and AI conversations",
                         status: .inProgress,
                         icon: "message"
                     )
 
                     FeatureStatusRow(
-                        name: "Group Conversations",
-                        description: "Team chat channels",
+                        name: "Conversations",
+                        description: "Chat with AI assistants and contacts",
                         status: .inProgress,
                         icon: "person.3"
                     )
@@ -545,7 +545,7 @@ struct HelpView: View {
 
                 FAQItem(
                     question: "Can I share tasks with others?",
-                    answer: "Team collaboration features are currently in development. You can use Messages to discuss tasks with team members, and admin users can manage shared content.",
+                    answer: "Messaging features allow you to communicate with contacts. Sharing and collaboration features are experimental and can be accessed through Messages.",
                     isExpanded: expandedSections.contains("faq-share")
                 ) {
                     toggleSection("faq-share")
@@ -727,12 +727,6 @@ struct HelpView: View {
                     )
 
                     AboutLinkButton(
-                        icon: "envelope",
-                        title: "Support & Feedback",
-                        url: "mailto:support@halext.org"
-                    )
-
-                    AboutLinkButton(
                         icon: "globe",
                         title: "Website",
                         url: "https://halext.org"
@@ -760,7 +754,7 @@ struct HelpView: View {
                 }
 
                 // Copyright
-                Text("© 2024 Halext. All rights reserved.")
+                Text("© 2024 Halext - Experimental project")
                     .font(.caption)
                     .foregroundColor(themeManager.secondaryTextColor)
                     .frame(maxWidth: .infinity, alignment: .center)
@@ -842,8 +836,13 @@ struct QuickLinkCard: View {
         case .settings:
             SettingsView()
         case .contact:
-            Text("Contact support at support@halext.org")
-                .navigationTitle("Contact")
+            VStack(spacing: 16) {
+                Text("For questions or feedback, visit halext.org")
+                    .multilineTextAlignment(.center)
+                    .foregroundColor(.secondary)
+            }
+            .padding()
+            .navigationTitle("Contact")
         }
     }
 }

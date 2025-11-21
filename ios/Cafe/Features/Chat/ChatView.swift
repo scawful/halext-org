@@ -9,6 +9,7 @@ import SwiftUI
 
 struct ChatView: View {
     @Environment(AppState.self) var appState
+    @Environment(ThemeManager.self) var themeManager
     @State private var viewModel = ChatViewModel()
     @State private var scrollProxy: ScrollViewProxy?
     @FocusState private var isInputFocused: Bool
@@ -21,6 +22,7 @@ struct ChatView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
+                themeManager.backgroundColor.ignoresSafeArea()
                 // Active Model Chip
                 activeModelChip
 
@@ -57,6 +59,7 @@ struct ChatView: View {
                         }
                     }
                 }
+                .background(themeManager.backgroundColor)
 
                 Divider()
 
@@ -72,7 +75,9 @@ struct ChatView: View {
                 )
                 .focused($isInputFocused)
                 .padding()
+                .background(themeManager.cardBackgroundColor)
             }
+            .background(themeManager.backgroundColor.ignoresSafeArea())
             .navigationTitle("AI Assistant")
             .task {
                 // Ensure models are loaded when view appears

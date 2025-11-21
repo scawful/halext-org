@@ -103,37 +103,31 @@ struct AboutView: View {
                     VStack(spacing: 12) {
                         AboutLinkButton(
                             icon: "globe",
-                            title: "Visit Our Website",
-                            url: "https://cafe.app"
-                        )
-
-                        AboutLinkButton(
-                            icon: "envelope.fill",
-                            title: "Contact Support",
-                            url: "mailto:support@cafe.app"
+                            title: "Website",
+                            url: "https://halext.org"
                         )
 
                         AboutLinkButton(
                             icon: "hand.raised.fill",
                             title: "Privacy Policy",
-                            url: "https://cafe.app/privacy"
+                            url: "https://halext.org/privacy"
                         )
 
                         AboutLinkButton(
                             icon: "doc.text.fill",
                             title: "Terms of Service",
-                            url: "https://cafe.app/terms"
+                            url: "https://halext.org/terms"
                         )
                     }
                     .padding(.horizontal)
 
                     // Copyright
                     VStack(spacing: 8) {
-                        Text("© 2024 Cafe")
+                        Text("© 2024 Halext")
                             .font(.caption)
                             .foregroundColor(.secondary)
 
-                        Text("Made with ❤️ for productivity enthusiasts")
+                        Text("Experimental project")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }

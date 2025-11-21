@@ -18,6 +18,7 @@ struct MessagesView: View {
     var body: some View {
         NavigationStack {
             Group {
+                themeManager.backgroundColor.ignoresSafeArea()
                 if viewModel.isLoading {
                     ProgressView()
                 } else if viewModel.conversations.isEmpty {
@@ -95,11 +96,14 @@ struct MessagesView: View {
                         .onDelete(perform: deleteConversations)
                     }
                     .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
+                    .background(themeManager.backgroundColor.ignoresSafeArea())
                     .refreshable {
                         await viewModel.load()
                     }
                 }
             }
+            .background(themeManager.backgroundColor.ignoresSafeArea())
             .navigationTitle("Messages")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
@@ -283,7 +287,7 @@ struct EmptyConversationsView: View {
                 .font(.title2)
                 .fontWeight(.semibold)
 
-            Text("Start a conversation with your team members")
+            Text("Start a conversation or chat with AI agents")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)

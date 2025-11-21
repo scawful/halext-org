@@ -142,7 +142,7 @@ struct SettingsView: View {
         } header: {
             Label("AI Features", systemImage: "sparkles")
         } footer: {
-            Text("Configure AI assistants, models, and generative features. Hive Mind goals help track collaborative progress in conversations.")
+            Text("Configure AI assistants, models, and generative features. AI features are accessible from the Dashboard and Messages views.")
         }
     }
 
@@ -613,33 +613,6 @@ struct SettingsView: View {
                     subtitle: nil
                 )
             }
-
-            Button(action: { contactSupport() }) {
-                SettingsItemLabel(
-                    icon: "envelope.fill",
-                    iconColor: .green,
-                    title: "Contact Support",
-                    subtitle: nil
-                )
-            }
-
-            Button(action: { rateApp() }) {
-                SettingsItemLabel(
-                    icon: "star.fill",
-                    iconColor: .yellow,
-                    title: "Rate App",
-                    subtitle: nil
-                )
-            }
-
-            Button(action: { shareApp() }) {
-                SettingsItemLabel(
-                    icon: "square.and.arrow.up",
-                    iconColor: .purple,
-                    title: "Share App",
-                    subtitle: nil
-                )
-            }
         } header: {
             Label("Quick Actions", systemImage: "bolt.fill")
         }
@@ -712,7 +685,7 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
 
-                Text("Made with care for productivity enthusiasts")
+                Text("An experimental productivity app")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -803,28 +776,6 @@ struct SettingsView: View {
         }
     }
 
-    private func contactSupport() {
-        if let url = URL(string: "mailto:support@cafe.app") {
-            UIApplication.shared.open(url)
-        }
-    }
-
-    private func rateApp() {
-        if let url = URL(string: "itms-apps://itunes.apple.com/app/id123456789") {
-            UIApplication.shared.open(url)
-        }
-    }
-
-    private func shareApp() {
-        let text = "Check out Cafe - The ultimate productivity app!"
-        let url = URL(string: "https://cafe.app")!
-        let activityController = UIActivityViewController(activityItems: [text, url], applicationActivities: nil)
-
-        if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let rootViewController = scene.windows.first?.rootViewController {
-            rootViewController.present(activityController, animated: true)
-        }
-    }
 }
 
 // MARK: - Settings Item Label

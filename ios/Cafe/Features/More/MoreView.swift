@@ -26,7 +26,7 @@ struct MoreView: View {
 
     private let aiAndComms: [MoreLink] = [
         MoreLink(title: "AI Chat", subtitle: "Ask anything with your selected model", icon: "sparkles", color: .purple, destination: .chat),
-        MoreLink(title: "Messages", subtitle: "Chat with teammates", icon: "bubble.left.and.bubble.right.fill", color: .blue, destination: .messages),
+        MoreLink(title: "Messages", subtitle: "Chat with contacts and AI agents", icon: "bubble.left.and.bubble.right.fill", color: .blue, destination: .messages),
         MoreLink(title: "Social Circles", subtitle: "See presence and updates", icon: "person.3.sequence.fill", color: .orange, destination: .social)
     ]
 

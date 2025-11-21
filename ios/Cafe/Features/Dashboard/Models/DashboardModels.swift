@@ -125,7 +125,7 @@ enum DashboardCardType: String, Codable, CaseIterable, Identifiable {
         case .recentActivity: return "Recent updates"
         case .notes: return "Quick notes"
         case .aiSuggestions: return "AI-powered tips"
-        case .socialActivity: return "Team activity"
+        case .socialActivity: return "Activity feed"
         case .mealPlanning: return "Recipe ideas and meal plans"
         case .iosFeatures: return "Discover iOS features"
         case .allApps: return "App grid"

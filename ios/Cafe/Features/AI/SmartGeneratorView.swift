@@ -9,6 +9,7 @@ import SwiftUI
 
 struct SmartGeneratorView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(ThemeManager.self) var themeManager
     @StateObject private var generator = AISmartGenerator.shared
 
     @State private var prompt = ""
@@ -24,6 +25,8 @@ struct SmartGeneratorView: View {
     var body: some View {
         NavigationStack {
             ZStack {
+                themeManager.backgroundColor.ignoresSafeArea()
+                
                 if generationResult == nil {
                     // Input view
                     inputView
