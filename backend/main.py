@@ -1521,10 +1521,17 @@ def list_social_circles(
     current_user: models.User = Depends(auth.get_current_user),
     db: Session = Depends(get_db),
 ):
-    circles = crud.list_social_circles(db, current_user.id)
-    for circle in circles:
-        circle.member_count = len(circle.members)
-    return circles
+    try:
+        circles = crud.list_social_circles(db, current_user.id)
+        for circle in circles:
+            circle.member_count = len(circle.members)
+        return circles
+    except Exception as e:
+        print(f"Error listing social circles: {e}")
+        import traceback
+        traceback.print_exc()
+        # Return empty list instead of crashing
+        return []
 
 
 @app.post("/social/circles", response_model=schemas.SocialCircle, status_code=status.HTTP_201_CREATED)

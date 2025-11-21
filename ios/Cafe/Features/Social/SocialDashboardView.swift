@@ -98,18 +98,22 @@ struct SocialDashboardView: View {
     }
 
     private func initializeSocial() async {
-        // Start presence tracking
-        presenceManager.startTrackingPresence()
-        presenceManager.startMonitoringPartnerPresence()
+        // Start presence tracking (only if CloudKit is available)
+        if socialManager.isCloudKitAvailable {
+            presenceManager.startTrackingPresence()
+            presenceManager.startMonitoringPartnerPresence()
+        }
 
-        // Load initial data
-        try? await socialManager.fetchConnections()
+        // Load initial data (only if CloudKit is available)
+        if socialManager.isCloudKitAvailable {
+            try? await socialManager.fetchConnections()
 
-        do {
-            try await socialManager.fetchSharedTasks()
-            try await socialManager.fetchActivities()
-        } catch {
-            print("Failed to load social data: \(error)")
+            do {
+                try await socialManager.fetchSharedTasks()
+                try await socialManager.fetchActivities()
+            } catch {
+                print("⚠️ Failed to load social data: \(error.localizedDescription)")
+            }
         }
     }
 }

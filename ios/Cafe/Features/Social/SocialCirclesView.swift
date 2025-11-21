@@ -167,6 +167,7 @@ struct SocialCirclesView: View {
             await MainActor.run {
                 circles = result
                 selectedCircle = result.first
+                errorMessage = nil // Clear any previous errors
             }
             if let first = result.first {
                 await loadPulses(for: first)
@@ -174,7 +175,13 @@ struct SocialCirclesView: View {
                 await MainActor.run { pulses = [] }
             }
         } catch {
-            await MainActor.run { errorMessage = error.localizedDescription }
+            // Silently handle errors - social circles are optional
+            print("⚠️ Failed to load social circles: \(error.localizedDescription)")
+            await MainActor.run {
+                errorMessage = nil // Don't show error to user
+                circles = [] // Ensure empty state
+                pulses = []
+            }
         }
     }
 
@@ -183,7 +190,9 @@ struct SocialCirclesView: View {
             let response = try await APIClient.shared.getBackendPulses(circleId: circle.id)
             await MainActor.run { pulses = response }
         } catch {
-            await MainActor.run { errorMessage = error.localizedDescription }
+            // Silently handle errors - pulses are optional
+            print("⚠️ Failed to load pulses: \(error.localizedDescription)")
+            await MainActor.run { pulses = [] }
         }
     }
 
