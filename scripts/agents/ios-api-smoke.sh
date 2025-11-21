@@ -56,6 +56,57 @@ probe ai_info "/ai/provider-info"
 probe ai_models "/ai/models"
 probe conversations "/conversations/"
 
+# Optional AI reply probe (opt-in to avoid unnecessary provider calls)
+if [[ "${PROBE_AI_REPLY:-0}" == "1" ]]; then
+  echo "== AI reply probe =="
+  probe_model="${PROBE_MODEL:-${DEFAULT_PROBE_MODEL:-openai:gpt-5.1}}"
+  conv_payload=$(cat <<EOF
+{"title":"API Smoke AI","mode":"solo","with_ai":true,"default_model_id":"${probe_model}"}
+EOF
+)
+  conv_resp=$(curl "${curl_opts[@]}" -X POST -H "Content-Type: application/json" -d "${conv_payload}" "${BASE_URL}/conversations/" || true)
+  conv_status=$(printf "%s\n" "$conv_resp" | tail -n 1 | sed 's/HTTP //')
+  conv_body=$(printf "%s\n" "$conv_resp" | sed '$d')
+  echo "$conv_body"
+  echo "HTTP ${conv_status}"
+  conv_id=$(python3 - <<'PY' <<<"$conv_body" 2>/dev/null
+import json,sys
+try:
+    data=json.load(sys.stdin)
+    print(data.get("id",""))
+except Exception:
+    print("")
+PY
+)
+  if [[ -n "$conv_id" && "$conv_status" == "200" ]]; then
+    msg_resp=$(curl "${curl_opts[@]}" -X POST -H "Content-Type: application/json" -d '{"content":"Ping from ios-api-smoke AI probe"}' "${BASE_URL}/conversations/${conv_id}/messages" || true)
+    msg_status=$(printf "%s\n" "$msg_resp" | tail -n 1 | sed 's/HTTP //')
+    msg_body=$(printf "%s\n" "$msg_resp" | sed '$d')
+    echo "$msg_body"
+    echo "HTTP ${msg_status}"
+    ai_ok=$(python3 - <<'PY' <<<"$msg_body" 2>/dev/null
+import json,sys
+try:
+    data=json.load(sys.stdin)
+except Exception:
+    print("0"); sys.exit()
+for entry in data:
+    if entry.get("author_type") == "ai" and not str(entry.get("model_used") or "").startswith("mock:"):
+        print("1"); break
+else:
+    print("0")
+PY
+)
+    if [[ "$ai_ok" == "1" ]]; then
+        STATUS["ai_reply"]="200"
+    else
+        STATUS["ai_reply"]="mock"
+    fi
+  else
+    STATUS["ai_reply"]="${conv_status:-err}"
+  fi
+fi
+
 # Try to fetch messages for the first conversation if available
 FIRST_CONV_ID=""
 convo_json=$(curl -sS "${curl_opts[@]}" "${BASE_URL}/conversations/" || true)
@@ -72,6 +123,9 @@ for k in health user ai_info ai_models conversations messages; do
     printf "  %-14s %s\n" "$k" "${STATUS[$k]}"
   fi
 done
+if [[ -n "${STATUS[ai_reply]:-}" ]]; then
+  printf "  %-14s %s\n" "ai_reply" "${STATUS[ai_reply]}"
+fi
 
 if [[ -z "$ACCESS_CODE" ]]; then
   echo "Hint: set HAL_API_CODE/HAL_AI_CODE or pass access code as first arg if 401/403 occur." >&2

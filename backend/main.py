@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, status, Header, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Depends, HTTPException, status, Header, WebSocket, WebSocketDisconnect, Query
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
@@ -90,6 +90,16 @@ async def websocket_endpoint(websocket: WebSocket, conversation_id: str):
     except WebSocketDisconnect:
         manager.disconnect(websocket, conversation_id)
         await manager.broadcast(f"Client left the chat", conversation_id)
+
+@app.get("/ws/health")
+def websocket_health():
+    """
+    Lightweight websocket health indicator (counts active connections per conversation).
+    """
+    return {
+        "active_conversations": len(manager.active_connections),
+        "connections": {cid: len(conns) for cid, conns in manager.active_connections.items()},
+    }
 
 # Health and Info Endpoints
 @app.get("/api/health")
@@ -549,6 +559,7 @@ def create_conversation(
     current_user: models.User = Depends(auth.get_current_active_user),
     db: Session = Depends(get_db)
 ):
+    conversation.default_model_id = _resolve_default_model_id(conversation.default_model_id)
     participant_ids: List[int] = []
     for username in conversation.participant_usernames:
         target = crud.get_user_by_username(db, username=username)
@@ -570,6 +581,7 @@ def update_conversation(
     current_user: models.User = Depends(auth.get_current_active_user),
     db: Session = Depends(get_db)
 ):
+    update.default_model_id = _resolve_default_model_id(update.default_model_id)
     conversation = crud.get_conversation_for_user(db=db, conversation_id=conversation_id, user_id=current_user.id)
     if not conversation:
         raise HTTPException(status_code=404, detail="Conversation not found")
@@ -671,6 +683,12 @@ async def send_conversation_message(
                     db=db,
                     include_context=True,
                 )
+                print(f"AI route for conversation {conversation_id}: {route.identifier} (provider {route.key})")
+                if route.key == "mock" and any(ai_gateway.providers.get(p) for p in ("openai", "gemini")):
+                    raise HTTPException(
+                        status_code=503,
+                        detail="AI provider unavailable; configured provider fell back to mock.",
+                    )
             except Exception as e:
                 print(f"❌ Error generating AI reply: {e}")
                 import traceback
@@ -801,6 +819,43 @@ def openwebui_status():
     return schemas.OpenWebUiStatus(**status_payload)
 
 # AI Endpoints
+def _with_env_credentials(credential_status: List[dict]) -> List[dict]:
+    """
+    Ensure providers configured via environment are reflected as having keys so UI/tests stay aligned.
+    """
+    for provider_key in ("openai", "gemini"):
+        if ai_gateway.providers.get(provider_key):
+            existing = None
+            for entry in credential_status:
+                if isinstance(entry, dict) and entry.get("provider") == provider_key:
+                    existing = entry
+                    break
+            if existing is None:
+                credential_status.append(
+                    {
+                        "provider": provider_key,
+                        "has_key": True,
+                        "masked_key": None,
+                        "key_name": "env",
+                        "model": None,
+                    }
+                )
+            else:
+                existing["has_key"] = existing.get("has_key") or True
+                existing.setdefault("key_name", "env")
+    return credential_status
+
+def _resolve_default_model_id(payload_default: Optional[str]) -> Optional[str]:
+    """
+    Normalize/choose a default model identifier for new/updated conversations.
+    """
+    if payload_default:
+        if ":" in payload_default:
+            return payload_default
+        return f"{ai_gateway.provider}:{payload_default}"
+    return ai_gateway.default_model_identifier
+
+
 def _build_provider_info(db: Session, current_user: models.User) -> schemas.AiProviderInfo:
     # Load any user-scoped credentials before returning provider info
     try:
@@ -810,6 +865,7 @@ def _build_provider_info(db: Session, current_user: models.User) -> schemas.AiPr
 
     base = ai_gateway.get_provider_info()
     creds = crud.list_provider_credentials(db, owner_id=current_user.id)
+    creds = _with_env_credentials(creds)
     base["credentials"] = [schemas.ProviderCredentialStatus(**c) for c in creds]
     return schemas.AiProviderInfo(**base)
 
@@ -835,6 +891,8 @@ def get_ai_provider_info_alias(
 async def list_ai_models(
     current_user: models.User = Depends(auth.get_current_user),
     db: Session = Depends(get_db),
+    provider: Optional[str] = Query(None, description="Filter models by provider key (openai, gemini, ollama, etc.)"),
+    limit: int = Query(200, ge=1, le=500, description="Max models to return"),
 ):
     """List available AI models - always returns a valid response."""
     fallback_identifier = "mock:llama3.1"
@@ -880,6 +938,23 @@ async def list_ai_models(
                 )
             ]
 
+        normalized_provider = None
+        if provider:
+            normalized_provider = provider.lower()
+            if normalized_provider == "ollama-local":
+                normalized_provider = "ollama"
+            models_list = [
+                m for m in models_list if isinstance(m, dict) and (m.get("provider") or "").lower() == normalized_provider
+            ]
+            if not models_list:
+                models_list = [
+                    ai_gateway._format_model_entry(  # type: ignore[attr-defined]
+                        normalized_provider or "mock",
+                        name=ai_gateway.model,
+                        source=normalized_provider or "mock",
+                    )
+                ]
+
         try:
             credential_status = crud.list_provider_credentials(db, owner_id=current_user.id)
         except Exception as exc:
@@ -888,27 +963,10 @@ async def list_ai_models(
             traceback.print_exc()
             credential_status = []
 
-        # Treat env-provided provider clients as having keys even if DB secrets are absent
-        for provider_key in ("openai", "gemini"):
-            if ai_gateway.providers.get(provider_key):
-                existing = None
-                for entry in credential_status:
-                    if isinstance(entry, dict) and entry.get("provider") == provider_key:
-                        existing = entry
-                        break
-                if existing is None:
-                    credential_status.append(
-                        {
-                            "provider": provider_key,
-                            "has_key": True,
-                            "masked_key": None,
-                            "key_name": "env",
-                            "model": None,
-                        }
-                    )
-                else:
-                    existing["has_key"] = existing.get("has_key") or True
-                    existing.setdefault("key_name", "env")
+        credential_status = _with_env_credentials(credential_status)
+
+        if normalized_provider:
+            credential_status = [c for c in credential_status if c.get("provider") == normalized_provider]
 
         credential_has_key = {
             c.get("provider"): bool(c.get("has_key")) for c in credential_status if isinstance(c, dict)
@@ -953,6 +1011,8 @@ async def list_ai_models(
 
         if not default_model_id or default_model_id not in available_ids or not _has_credentials(_provider_from_identifier(default_model_id)):
             priorities = ["openai", "gemini", "openwebui", "ollama", "client"]
+            if normalized_provider:
+                priorities = [normalized_provider] + [p for p in priorities if p != normalized_provider]
             preferred = None
             for provider_key in priorities:
                 if not _has_credentials(provider_key):
@@ -994,6 +1054,11 @@ async def list_ai_models(
             provider_key = entry.get("provider") or "mock"
             name = entry.get("name") or entry.get("id") or model_name
             model_id = entry.get("id") or f"{provider_key}:{name}"
+            modified_at = entry.get("modified_at")
+            if isinstance(modified_at, datetime):
+                modified_at = modified_at.isoformat()
+            elif modified_at is not None and not isinstance(modified_at, str):
+                modified_at = str(modified_at)
             model_dict = {
                 "id": model_id,
                 "name": name or model_name,
@@ -1005,7 +1070,7 @@ async def list_ai_models(
                 "endpoint": entry.get("endpoint"),
                 "latency_ms": entry.get("latency_ms"),
                 "metadata": entry.get("metadata") or {},
-                "modified_at": entry.get("modified_at"),
+                "modified_at": modified_at,
                 "description": entry.get("description"),
                 "context_window": entry.get("context_window"),
                 "max_output_tokens": entry.get("max_output_tokens"),
@@ -1030,6 +1095,12 @@ async def list_ai_models(
                     source=provider,
                 )
             ]
+
+        if default_model_id:
+            model_schemas.sort(key=lambda m: 0 if m.id == default_model_id else 1)
+
+        if limit:
+            model_schemas = model_schemas[:limit]
 
         try:
             credential_schemas = [schemas.ProviderCredentialStatus(**c) for c in credential_status]
