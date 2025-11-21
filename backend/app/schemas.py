@@ -392,6 +392,15 @@ class AiModelInfo(BaseModel):
     supports_vision: Optional[bool] = None
     supports_function_calling: Optional[bool] = None
 
+
+class ProviderCredentialStatus(BaseModel):
+    provider: str
+    has_key: bool = False
+    masked_key: Optional[str] = None
+    key_name: Optional[str] = None
+    model: Optional[str] = None
+
+
 class AiModelsResponse(BaseModel):
     models: List[AiModelInfo]
     provider: str
@@ -420,14 +429,6 @@ class AiProviderInfo(BaseModel):
     openwebui_url: Optional[str] = None
     openwebui_public_url: Optional[str] = None
     credentials: Optional[List[ProviderCredentialStatus]] = None
-
-
-class ProviderCredentialStatus(BaseModel):
-    provider: str
-    has_key: bool = False
-    masked_key: Optional[str] = None
-    key_name: Optional[str] = None
-    model: Optional[str] = None
 
 
 class ProviderCredentialUpdate(BaseModel):
