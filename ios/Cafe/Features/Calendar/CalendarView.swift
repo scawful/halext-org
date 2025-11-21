@@ -122,7 +122,7 @@ struct MonthCalendarView: View {
 
             // Weekday headers
             LazyVGrid(columns: columns, spacing: 12) {
-                ForEach(weekdaySymbols, id: \.self) { weekday in
+                ForEach(Array(weekdaySymbols.enumerated()), id: \.offset) { index, weekday in
                     Text(weekday)
                         .font(.caption)
                         .fontWeight(.semibold)
@@ -132,7 +132,7 @@ struct MonthCalendarView: View {
 
             // Calendar days
             LazyVGrid(columns: columns, spacing: 12) {
-                ForEach(daysInMonth, id: \.self) { date in
+                ForEach(Array(daysInMonth.enumerated()), id: \.offset) { index, date in
                     if let date = date {
                         DayCell(
                             date: date,

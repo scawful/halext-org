@@ -75,7 +75,7 @@ struct ActivityFeedView: View {
                 } else {
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 24, pinnedViews: [.sectionHeaders]) {
-                            ForEach(sortedDates, id: \.self) { date in
+                            ForEach(Array(sortedDates.enumerated()), id: \.element.timeIntervalSince1970) { index, date in
                                 Section {
                                     if let activities = groupedActivities[date] {
                                         ForEach(activities) { activity in
