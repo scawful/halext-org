@@ -818,9 +818,26 @@ async def list_ai_models(
         available_ids = []
 
     # Keep defaults aligned with the models the backend can actually serve
+    # Prioritize cloud models (OpenAI, Gemini) over local models (Ollama, OpenWebUI)
     default_model_id = ai_gateway.default_model_identifier
+    
+    # If default is not available or not set, find the best cloud model
     if (not default_model_id or default_model_id not in available_ids) and available_ids:
-        default_model_id = available_ids[0]
+        # Prefer cloud providers in order: OpenAI > Gemini > OpenWebUI > Ollama > others
+        cloud_priorities = ["openai", "gemini", "openwebui", "ollama", "client"]
+        
+        # Find first available cloud model
+        found_cloud_model = None
+        for provider in cloud_priorities:
+            for model_id in available_ids:
+                if model_id.startswith(f"{provider}:"):
+                    found_cloud_model = model_id
+                    break
+            if found_cloud_model:
+                break
+        
+        # Use cloud model if found, otherwise fallback to first available
+        default_model_id = found_cloud_model or available_ids[0]
 
     try:
         provider, model_name, _ = (

@@ -134,9 +134,10 @@ class AiGateway:
             model_name = model_name or os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
             self.providers["gemini"] = GoogleGeminiProvider(secret["api_key"], model_name)
 
-        # Prefer cloud providers as the default when available
+        # Prefer cloud providers (OpenAI, Gemini) as the default when available
+        # Only override if current provider is mock, local (ollama/openwebui), or unavailable
         if (
-            self.provider in ("mock", "openwebui", "ollama-local")
+            self.provider in ("mock", "openwebui", "ollama-local", "ollama", "client")
             or self.provider not in self.providers
         ):
             self.provider = provider_key
@@ -226,9 +227,19 @@ class AiGateway:
             provider = self.providers.get(provider_key)
 
         if provider is None:
-            provider_key = "mock"
-            provider = self.providers.get("mock")
-            model_name = "mock"
+            # Fallback to cloud providers (OpenAI, Gemini) over mock if available
+            if self.providers.get("openai"):
+                provider_key = "openai"
+                provider = self.providers.get("openai")
+                model_name = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+            elif self.providers.get("gemini"):
+                provider_key = "gemini"
+                provider = self.providers.get("gemini")
+                model_name = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+            else:
+                provider_key = "mock"
+                provider = self.providers.get("mock")
+                model_name = "mock"
 
         identifier = self._build_identifier(provider_key, model_name, node)
         return _ProviderContext(
@@ -400,7 +411,10 @@ class AiGateway:
         try:
             entries = await provider.list_models()
         except Exception as exc:  # pragma: no cover - network failure logging
-            print(f"Error listing models for provider '{provider_key}': {exc}")
+            # Log error but don't crash - provider might be temporarily unavailable
+            print(f"⚠️ Error listing models for provider '{provider_key}': {exc}")
+            import traceback
+            traceback.print_exc()
             entries = []
 
         formatted: List[Dict[str, Any]] = []

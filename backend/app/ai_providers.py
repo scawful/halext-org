@@ -271,11 +271,21 @@ class OllamaProvider(AIProvider):
             }
         }
 
-        async with httpx.AsyncClient(timeout=60) as client:
-            response = await client.post(url, json=payload)
-            response.raise_for_status()
-            data = response.json()
-            return data["message"]["content"]
+        try:
+            async with httpx.AsyncClient(timeout=60) as client:
+                response = await client.post(url, json=payload)
+                response.raise_for_status()
+                data = response.json()
+                return data["message"]["content"]
+        except httpx.HTTPStatusError as e:
+            print(f"⚠️ Ollama HTTP error: {e.response.status_code} - {e.response.text}")
+            raise
+        except httpx.RequestError as e:
+            print(f"⚠️ Ollama connection error: {e}")
+            raise
+        except Exception as e:
+            print(f"⚠️ Ollama unexpected error: {e}")
+            raise
 
     async def generate_stream(self, prompt: str, history: List[dict], **kwargs) -> AsyncGenerator[str, None]:
         if httpx is None:
@@ -295,20 +305,30 @@ class OllamaProvider(AIProvider):
             }
         }
 
-        async with httpx.AsyncClient(timeout=120) as client:
-            async with client.stream("POST", url, json=payload) as response:
-                response.raise_for_status()
-                async for line in response.aiter_lines():
-                    if line.strip():
-                        try:
-                            data = json.loads(line)
-                            content = data.get("message", {}).get("content", "")
-                            if content:
-                                yield content
-                            if data.get("done", False):
-                                break
-                        except json.JSONDecodeError:
-                            continue
+        try:
+            async with httpx.AsyncClient(timeout=120) as client:
+                async with client.stream("POST", url, json=payload) as response:
+                    response.raise_for_status()
+                    async for line in response.aiter_lines():
+                        if line.strip():
+                            try:
+                                data = json.loads(line)
+                                content = data.get("message", {}).get("content", "")
+                                if content:
+                                    yield content
+                                if data.get("done", False):
+                                    break
+                            except json.JSONDecodeError:
+                                continue
+        except httpx.HTTPStatusError as e:
+            print(f"⚠️ Ollama streaming HTTP error: {e.response.status_code} - {e.response.text}")
+            raise
+        except httpx.RequestError as e:
+            print(f"⚠️ Ollama streaming connection error: {e}")
+            raise
+        except Exception as e:
+            print(f"⚠️ Ollama streaming unexpected error: {e}")
+            raise
 
     async def list_models(self) -> List[Dict[str, Any]]:
         if httpx is None:
