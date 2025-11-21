@@ -304,19 +304,59 @@ class AiGateway:
 
         try:
             if provider is None:
-                raise ValueError("No provider configured")
+                raise ValueError(f"No provider configured for model identifier: {model_identifier}")
             response = await provider.generate(prompt, payload, model=ctx.model)
         except Exception as exc:  # pragma: no cover - diagnostic only
-            print(f"AI provider '{ctx.key}' failed: {exc}")
-            response = self._mock_response(prompt, payload)
-            ctx = _ProviderContext(
-                key="mock",
-                model="mock",
-                identifier="mock:llama3.1",
-                provider=self.providers["mock"],
-                node=None,
-                base_url=None,
-            )
+            print(f"❌ AI provider '{ctx.key}' failed: {exc}")
+            import traceback
+            traceback.print_exc()
+            # Try to fall back to a cloud provider if available
+            if ctx.key not in ("openai", "gemini") and self.providers.get("openai"):
+                print(f"⚠️ Falling back to OpenAI provider")
+                try:
+                    ctx = await self._resolve_provider_context("openai:gpt-4o-mini", db, user_id)
+                    response = await ctx.provider.generate(prompt, payload, model=ctx.model)
+                except Exception as fallback_exc:
+                    print(f"❌ Fallback to OpenAI also failed: {fallback_exc}")
+                    # Final fallback to mock
+                    response = self._mock_response(prompt, payload)
+                    ctx = _ProviderContext(
+                        key="mock",
+                        model="mock",
+                        identifier="mock:llama3.1",
+                        provider=self.providers["mock"],
+                        node=None,
+                        base_url=None,
+                    )
+            elif ctx.key not in ("openai", "gemini") and self.providers.get("gemini"):
+                print(f"⚠️ Falling back to Gemini provider")
+                try:
+                    ctx = await self._resolve_provider_context("gemini:gemini-1.5-flash", db, user_id)
+                    response = await ctx.provider.generate(prompt, payload, model=ctx.model)
+                except Exception as fallback_exc:
+                    print(f"❌ Fallback to Gemini also failed: {fallback_exc}")
+                    # Final fallback to mock
+                    response = self._mock_response(prompt, payload)
+                    ctx = _ProviderContext(
+                        key="mock",
+                        model="mock",
+                        identifier="mock:llama3.1",
+                        provider=self.providers["mock"],
+                        node=None,
+                        base_url=None,
+                    )
+            else:
+                # No cloud providers available, use mock
+                print(f"⚠️ Using mock provider as fallback")
+                response = self._mock_response(prompt, payload)
+                ctx = _ProviderContext(
+                    key="mock",
+                    model="mock",
+                    identifier="mock:llama3.1",
+                    provider=self.providers["mock"],
+                    node=None,
+                    base_url=None,
+                )
 
         if include_context:
             return response, self._route_from_context(ctx)

@@ -602,91 +602,126 @@ async def send_conversation_message(
     current_user: models.User = Depends(auth.get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    conversation = crud.get_conversation_for_user(db=db, conversation_id=conversation_id, user_id=current_user.id)
-    if not conversation:
-        raise HTTPException(status_code=404, detail="Conversation not found")
-    user_message = crud.add_message_to_conversation(
-        db=db,
-        conversation_id=conversation_id,
-        content=message.content,
-        author_id=current_user.id,
-        author_type="user",
-    )
-    import json
-    # Convert ORM model to Pydantic schema for JSON serialization (Pydantic v1)
-    user_message_schema = schemas.ChatMessage.from_orm(user_message)
-    await manager.broadcast(json.dumps(user_message_schema.dict()), str(conversation_id))
-    
-    responses = [user_message_schema]
-    if conversation.with_ai:
-        if conversation.hive_mind_goal:
-            print(f"Hive Mind logic would be triggered for conversation {conversation_id}")
-
-        history_messages = crud.get_messages_for_conversation(db=db, conversation_id=conversation_id, limit=50)
-        history_payload = [
-            {"role": "assistant" if msg.author_type == "ai" else "user", "content": msg.content}
-            for msg in history_messages
-        ]
+    """Send a message to a conversation and get AI response if enabled"""
+    try:
+        conversation = crud.get_conversation_for_user(db=db, conversation_id=conversation_id, user_id=current_user.id)
+        if not conversation:
+            raise HTTPException(status_code=404, detail="Conversation not found")
         
-        # Enhanced Context Awareness
-        context_str = ""
-        try:
-            embedding_model = "all-minilm-l6-v2" # or some other default
-            embedding = await ai_gateway.generate_embeddings(message.content, embedding_model, user_id=current_user.id, db=db)
-            if embedding:
-                similar_items = crud.get_similar_embeddings(db, owner_id=current_user.id, query_embedding=embedding)
-                if similar_items:
-                    context_str = "\n\nHere is some additional context that might be relevant:\n"
-                    for item in similar_items:
-                        # TODO: Fetch the actual content from the source
-                        context_str += f"- From {item.source} (ID: {item.source_id})\n"
-        except Exception as e:
-            print(f"Warning: Failed to get context embeddings: {e}")
-            # Continue without context - not critical
-
-        # Use model from: 1) message override, 2) conversation default, 3) system default
-        model_to_use = message.model or conversation.default_model_id
-        import time
-        start_time = time.time()
-        
-        ai_reply, route = await ai_gateway.generate_reply(
-            message.content + context_str,
-            history_payload,
-            model_identifier=model_to_use,
-            user_id=current_user.id,
-            db=db,
-            include_context=True,
-        )
-        
-        # Log AI usage
-        latency_ms = int((time.time() - start_time) * 1000)
-        try:
-            log_ai_usage(
-                db=db,
-                user_id=current_user.id,
-                model_identifier=route.identifier,
-                endpoint="/conversations/{id}/messages",
-                prompt_tokens=estimate_token_count(message.content),
-                response_tokens=estimate_token_count(ai_reply),
-                conversation_id=conversation_id,
-                latency_ms=latency_ms,
-            )
-        except Exception as e:
-            print(f"Warning: Failed to log AI usage: {e}")
-        
-        ai_message = crud.add_message_to_conversation(
+        user_message = crud.add_message_to_conversation(
             db=db,
             conversation_id=conversation_id,
-            content=ai_reply,
-            author_id=None,
-            author_type="ai",
-            model_used=route.identifier,
+            content=message.content,
+            author_id=current_user.id,
+            author_type="user",
         )
+        import json
         # Convert ORM model to Pydantic schema for JSON serialization (Pydantic v1)
-        ai_message_schema = schemas.ChatMessage.from_orm(ai_message)
-        await manager.broadcast(json.dumps(ai_message_schema.dict()), str(conversation_id))
-        responses.append(ai_message_schema)
-    return responses
+        user_message_schema = schemas.ChatMessage.from_orm(user_message)
+        
+        try:
+            await manager.broadcast(json.dumps(user_message_schema.dict()), str(conversation_id))
+        except Exception as e:
+            print(f"⚠️ Warning: Failed to broadcast user message: {e}")
+            # Continue - broadcasting is not critical
+        
+        responses = [user_message_schema]
+        if conversation.with_ai:
+            if conversation.hive_mind_goal:
+                print(f"Hive Mind logic would be triggered for conversation {conversation_id}")
+
+            history_messages = crud.get_messages_for_conversation(db=db, conversation_id=conversation_id, limit=50)
+            history_payload = [
+                {"role": "assistant" if msg.author_type == "ai" else "user", "content": msg.content}
+                for msg in history_messages
+            ]
+            
+            # Enhanced Context Awareness
+            context_str = ""
+            try:
+                embedding_model = "all-minilm-l6-v2" # or some other default
+                embedding = await ai_gateway.generate_embeddings(message.content, embedding_model, user_id=current_user.id, db=db)
+                if embedding:
+                    similar_items = crud.get_similar_embeddings(db, owner_id=current_user.id, query_embedding=embedding)
+                    if similar_items:
+                        context_str = "\n\nHere is some additional context that might be relevant:\n"
+                        for item in similar_items:
+                            # TODO: Fetch the actual content from the source
+                            context_str += f"- From {item.source} (ID: {item.source_id})\n"
+            except Exception as e:
+                print(f"⚠️ Warning: Failed to get context embeddings: {e}")
+                # Continue without context - not critical
+
+            # Use model from: 1) message override, 2) conversation default, 3) system default
+            model_to_use = message.model or conversation.default_model_id
+            import time
+            start_time = time.time()
+            
+            try:
+                ai_reply, route = await ai_gateway.generate_reply(
+                    message.content + context_str,
+                    history_payload,
+                    model_identifier=model_to_use,
+                    user_id=current_user.id,
+                    db=db,
+                    include_context=True,
+                )
+            except Exception as e:
+                print(f"❌ Error generating AI reply: {e}")
+                import traceback
+                traceback.print_exc()
+                # Return user message only if AI generation fails
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to generate AI response: {str(e)}"
+                )
+            
+            # Log AI usage
+            latency_ms = int((time.time() - start_time) * 1000)
+            try:
+                log_ai_usage(
+                    db=db,
+                    user_id=current_user.id,
+                    model_identifier=route.identifier,
+                    endpoint="/conversations/{id}/messages",
+                    prompt_tokens=estimate_token_count(message.content),
+                    response_tokens=estimate_token_count(ai_reply),
+                    conversation_id=conversation_id,
+                    latency_ms=latency_ms,
+                )
+            except Exception as e:
+                print(f"⚠️ Warning: Failed to log AI usage: {e}")
+            
+            ai_message = crud.add_message_to_conversation(
+                db=db,
+                conversation_id=conversation_id,
+                content=ai_reply,
+                author_id=None,
+                author_type="ai",
+                model_used=route.identifier,
+            )
+            # Convert ORM model to Pydantic schema for JSON serialization (Pydantic v1)
+            ai_message_schema = schemas.ChatMessage.from_orm(ai_message)
+            
+            try:
+                await manager.broadcast(json.dumps(ai_message_schema.dict()), str(conversation_id))
+            except Exception as e:
+                print(f"⚠️ Warning: Failed to broadcast AI message: {e}")
+                # Continue - broadcasting is not critical
+            
+            responses.append(ai_message_schema)
+        return responses
+    except HTTPException:
+        # Re-raise HTTP exceptions (like 404) as-is
+        raise
+    except Exception as e:
+        print(f"❌ Unexpected error in send_conversation_message: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal server error: {str(e)}"
+        )
 
 
 @app.post("/conversations/{conversation_id}/hive-mind/goal", response_model=schemas.ConversationSummary)
