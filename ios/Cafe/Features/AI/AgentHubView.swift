@@ -19,6 +19,7 @@ struct AgentHubView: View {
     var body: some View {
         List {
             modelsListSection
+            providerSection
             controlsSection
         }
         .navigationTitle("Agents & LLMs")
@@ -56,6 +57,56 @@ struct AgentHubView: View {
                 ProgressView()
             } else {
                 Text("No models available. Add provider credentials or start the backend.")
+                    .font(.footnote)
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+
+    private var providerSection: some View {
+        Section("Backend Status") {
+            if let response = modelsResponse {
+                VStack(alignment: .leading, spacing: 6) {
+                    Label("Provider: \(response.provider)", systemImage: "antenna.radiowaves.left.and.right")
+                    Label("Current model: \(response.currentModel)", systemImage: "cpu")
+                    if let defaultId = response.defaultModelId {
+                        Label("Default: \(defaultId)", systemImage: "star.fill")
+                    }
+                }
+                .font(.subheadline)
+
+                if let creds = response.credentials, !creds.isEmpty {
+                    ForEach(creds, id: \.self) { cred in
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(cred.provider.capitalized)
+                                    .font(.subheadline)
+                                if let model = cred.model {
+                                    Text("Model: \(model)")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                                if let name = cred.keyName {
+                                    Text("Key: \(name)")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            Spacer()
+                            Image(systemName: cred.hasKey ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
+                                .foregroundColor(cred.hasKey ? .green : .orange)
+                        }
+                        .padding(.vertical, 4)
+                    }
+                } else {
+                    Text("No provider credentials detected for this user.")
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
+                }
+            } else if isLoading {
+                ProgressView()
+            } else {
+                Text("Load models to see backend status.")
                     .font(.footnote)
                     .foregroundColor(.secondary)
             }

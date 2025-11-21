@@ -9,11 +9,8 @@ import SwiftUI
 
 struct MessagesView: View {
     @Environment(ThemeManager.self) private var themeManager
-    @State private var socialManager = SocialManager.shared
+    @StateObject private var viewModel = ConversationsViewModel()
     @State private var presenceManager = SocialPresenceManager.shared
-    @State private var conversations: [Conversation] = []
-    @State private var isLoading = false
-    @State private var errorMessage: String?
     @State private var showingNewMessage = false
     @State private var activeConversation: Conversation?
     @State private var preferredContactUsername: String = "chris"
@@ -21,9 +18,9 @@ struct MessagesView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if isLoading {
+                if viewModel.isLoading {
                     ProgressView()
-                } else if conversations.isEmpty {
+                } else if viewModel.conversations.isEmpty {
                     EmptyConversationsView(onNewMessage: { showingNewMessage = true })
                 } else {
                     List {
@@ -87,19 +84,19 @@ struct MessagesView: View {
                         }
                         .listRowBackground(themeManager.cardBackgroundColor)
 
-        ForEach(conversations) { conversation in
-            NavigationLink(destination: GroupConversationView(conversation: conversation)) {
-                ConversationRowView(
-                    conversation: conversation,
-                    presence: nil
-                )
-            }
-        }
-        .onDelete(perform: deleteConversations)
-    }
+                        ForEach(viewModel.conversations) { conversation in
+                            NavigationLink(destination: destinationView(for: conversation)) {
+                                ConversationRowView(
+                                    conversation: conversation,
+                                    presence: nil
+                                )
+                            }
+                        }
+                        .onDelete(perform: deleteConversations)
+                    }
                     .listStyle(.plain)
                     .refreshable {
-                        await loadConversations()
+                        await viewModel.load()
                     }
                 }
             }
@@ -114,7 +111,7 @@ struct MessagesView: View {
             }
             .background(
                 NavigationLink(
-                    destination: GroupConversationView(conversation: activeConversation ?? Conversation(id: -1, title: "AI", mode: "solo", withAI: true, defaultModelId: nil, participants: [], participantUsernames: [], lastMessage: nil, unreadCount: 0, createdAt: nil, updatedAt: nil)),
+                    destination: destinationView(for: activeConversation ?? Conversation(id: -1, title: "AI", mode: "solo", withAI: true, defaultModelId: nil, hiveMindGoal: nil, participants: [], participantUsernames: [], lastMessage: nil, unreadCount: 0, createdAt: nil, updatedAt: nil)),
                     isActive: Binding(
                         get: { activeConversation != nil },
                         set: { newValue in
@@ -127,37 +124,38 @@ struct MessagesView: View {
             )
             .sheet(isPresented: $showingNewMessage) {
                 NewMessageView(onConversationCreated: { conversation in
-                    conversations.insert(conversation, at: 0)
+                    viewModel.insertOrUpdate(conversation)
                 })
             }
             .task {
                 presenceManager.startTrackingPresence()
                 presenceManager.startMonitoringPartnerPresence()
-                await loadConversations()
+                await viewModel.load()
+            }
+            .alert("Error", isPresented: Binding(get: { viewModel.error != nil }, set: { _ in viewModel.error = nil })) {
+                Button("OK", role: .cancel) { viewModel.error = nil }
+            } message: {
+                Text(viewModel.error ?? "")
             }
         }
     }
 
-    private func loadConversations() async {
-        isLoading = true
-        defer { isLoading = false }
-
-        do {
-            conversations = try await APIClient.shared.getConversations()
-            conversations.sort { ($0.updatedAt ?? .distantPast) > ($1.updatedAt ?? .distantPast) }
-        } catch {
-            errorMessage = error.localizedDescription
+    private func destinationView(for conversation: Conversation) -> some View {
+        Group {
+            if conversation.participants.count > 2 {
+                GroupConversationView(conversation: conversation) { updated in
+                    viewModel.insertOrUpdate(updated)
+                }
+            } else {
+                ConversationView(conversation: conversation) { updated in
+                    viewModel.insertOrUpdate(updated)
+                }
+            }
         }
     }
 
     private func deleteConversations(at offsets: IndexSet) {
-        for index in offsets {
-            let conversation = conversations[index]
-            _Concurrency.Task {
-                try? await APIClient.shared.deleteConversation(id: conversation.id)
-            }
-        }
-        conversations.remove(atOffsets: offsets)
+        viewModel.delete(at: offsets)
     }
 
     private func startAIConversation(modelId: String?) async {
@@ -168,10 +166,10 @@ struct MessagesView: View {
                 withAI: true,
                 defaultModelId: modelId
             )
-            conversations.insert(convo, at: 0)
+            viewModel.insertOrUpdate(convo)
             activeConversation = convo
         } catch {
-            errorMessage = error.localizedDescription
+            viewModel.error = error.localizedDescription
         }
     }
 }
@@ -223,10 +221,10 @@ struct ConversationRowView: View {
 
                         Spacer()
 
-                    if conversation.unreadCount > 0 {
-                        Text("\(conversation.unreadCount)")
-                            .font(.caption2)
-                            .fontWeight(.semibold)
+                        if conversation.unreadCount > 0 {
+                            Text("\(conversation.unreadCount)")
+                                .font(.caption2)
+                                .fontWeight(.semibold)
                                 .foregroundColor(.white)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
@@ -234,6 +232,35 @@ struct ConversationRowView: View {
                                 .cornerRadius(10)
                         }
                     }
+                }
+
+                HStack(spacing: 8) {
+                    if conversation.isAIEnabled {
+                        Label("AI", systemImage: "sparkles")
+                            .font(.caption2)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.purple.opacity(0.12))
+                            .foregroundColor(.purple)
+                            .cornerRadius(8)
+                    }
+
+                    if let model = conversation.defaultModelId, !model.isEmpty {
+                        Label(model, systemImage: "cpu")
+                            .font(.caption2)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.blue.opacity(0.1))
+                            .foregroundColor(.blue)
+                            .cornerRadius(8)
+                    }
+                }
+
+                if !conversation.participantDisplayNames.isEmpty {
+                    Text(conversation.participantDisplayNames)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
                 }
             }
         }

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, status, Header
+from fastapi import FastAPI, Depends, HTTPException, status, Header, WebSocket, WebSocketDisconnect
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
@@ -10,7 +10,7 @@ import os
 from app import crud, models, schemas, auth
 from app.database import SessionLocal, engine
 from app.ai import AiGateway
-from app.ai_features import AiTaskHelper, AiEventHelper, AiNoteHelper
+from app.ai_features import AiTaskHelper, AiEventHelper, AiNoteHelper, AiHiveMindHelper
 from app.smart_generation import AiSmartGenerator
 from app.recipe_ai import AiRecipeGenerator
 from app.openwebui_sync import OpenWebUISync
@@ -19,6 +19,7 @@ from app.ai_routes import router as ai_router
 from app.content_routes import router as content_router
 from app.ai_usage_logger import log_ai_usage, estimate_token_count
 from app.admin_utils import get_current_admin_user
+from app.websockets import manager
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -72,6 +73,19 @@ def startup_seed():
         crud.seed_layout_presets(db)
     finally:
         db.close()
+
+@app.websocket("/ws/{conversation_id}")
+async def websocket_endpoint(websocket: WebSocket, conversation_id: str):
+    await manager.connect(websocket, conversation_id)
+    try:
+        while True:
+            data = await websocket.receive_text()
+            # For now, we just broadcast the message.
+            # We can add more logic here later, like saving the message to the database.
+            await manager.broadcast(f"Message from client: {data}", conversation_id)
+    except WebSocketDisconnect:
+        manager.disconnect(websocket, conversation_id)
+        await manager.broadcast(f"Client left the chat", conversation_id)
 
 # Health and Info Endpoints
 @app.get("/api/health")
@@ -597,20 +611,39 @@ async def send_conversation_message(
         author_id=current_user.id,
         author_type="user",
     )
+    import json
+    await manager.broadcast(json.dumps(schemas.ChatMessage.from_orm(user_message).dict()), str(conversation_id))
+    
     responses = [user_message]
     if conversation.with_ai:
+        if conversation.hive_mind_goal:
+            print(f"Hive Mind logic would be triggered for conversation {conversation_id}")
+
         history_messages = crud.get_messages_for_conversation(db=db, conversation_id=conversation_id, limit=50)
         history_payload = [
             {"role": "assistant" if msg.author_type == "ai" else "user", "content": msg.content}
             for msg in history_messages
         ]
+        
+        # Enhanced Context Awareness
+        embedding_model = "all-minilm-l6-v2" # or some other default
+        embedding = await ai_gateway.generate_embeddings(message.content, embedding_model, user_id=current_user.id, db=db)
+        similar_items = crud.get_similar_embeddings(db, owner_id=current_user.id, query_embedding=embedding)
+        
+        context_str = ""
+        if similar_items:
+            context_str = "\n\nHere is some additional context that might be relevant:\n"
+            for item in similar_items:
+                # TODO: Fetch the actual content from the source
+                context_str += f"- From {item.source} (ID: {item.source_id})\n"
+
         # Use model from: 1) message override, 2) conversation default, 3) system default
         model_to_use = message.model or conversation.default_model_id
         import time
         start_time = time.time()
         
         ai_reply, route = await ai_gateway.generate_reply(
-            message.content,
+            message.content + context_str,
             history_payload,
             model_identifier=model_to_use,
             user_id=current_user.id,
@@ -642,8 +675,76 @@ async def send_conversation_message(
             author_type="ai",
             model_used=route.identifier,
         )
+        await manager.broadcast(json.dumps(schemas.ChatMessage.from_orm(ai_message).dict()), str(conversation_id))
         responses.append(ai_message)
     return responses
+
+
+@app.post("/conversations/{conversation_id}/hive-mind/goal", response_model=schemas.ConversationSummary)
+async def set_hive_mind_goal(
+    conversation_id: int,
+    goal: str,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    conversation = crud.get_conversation_for_user(db=db, conversation_id=conversation_id, user_id=current_user.id)
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    if conversation.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the owner can set the hive mind goal")
+
+    conversation.hive_mind_goal = goal
+    db.add(conversation)
+    db.commit()
+    db.refresh(conversation)
+    return _serialize_conversation(conversation)
+
+
+@app.get("/conversations/{conversation_id}/hive-mind/summary", response_model=str)
+async def get_hive_mind_summary(
+    conversation_id: int,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    conversation = crud.get_conversation_for_user(db=db, conversation_id=conversation_id, user_id=current_user.id)
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    if not conversation.hive_mind_goal:
+        raise HTTPException(status_code=400, detail="This conversation does not have a hive mind goal.")
+
+    history_messages = crud.get_messages_for_conversation(db=db, conversation_id=conversation_id, limit=50)
+    history_payload = [
+        {"role": "assistant" if msg.author_type == "ai" else "user", "content": msg.content}
+        for msg in history_messages
+    ]
+
+    helper = AiHiveMindHelper(ai_gateway, user_id=current_user.id, db=db)
+    summary = await helper.summarize_conversation(history_payload, conversation.hive_mind_goal)
+    return summary
+
+
+@app.get("/conversations/{conversation_id}/hive-mind/next-steps", response_model=List[str])
+async def get_hive_mind_next_steps(
+    conversation_id: int,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    conversation = crud.get_conversation_for_user(db=db, conversation_id=conversation_id, user_id=current_user.id)
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    if not conversation.hive_mind_goal:
+        raise HTTPException(status_code=400, detail="This conversation does not have a hive mind goal.")
+
+    history_messages = crud.get_messages_for_conversation(db=db, conversation_id=conversation_id, limit=50)
+    history_payload = [
+        {"role": "assistant" if msg.author_type == "ai" else "user", "content": msg.content}
+        for msg in history_messages
+    ]
+
+    helper = AiHiveMindHelper(ai_gateway, user_id=current_user.id, db=db)
+    next_steps = await helper.suggest_next_steps(history_payload, conversation.hive_mind_goal)
+    return next_steps
+
 
 @app.get("/integrations/openwebui", response_model=schemas.OpenWebUiStatus)
 def openwebui_status():
@@ -840,6 +941,26 @@ async def generate_embeddings(
     )
 
 # AI Task Features
+@app.post("/ai/tasks/suggest-stream")
+async def suggest_task_enhancements_stream(
+    request: schemas.AiTaskSuggestionsRequest,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get AI suggestions for task breakdown, labels, time estimate, and priority"""
+    helper = AiTaskHelper(ai_gateway, user_id=current_user.id, db=db)
+    
+    from fastapi.responses import StreamingResponse
+
+    async def generate():
+        stream = await helper.suggest_subtasks_stream(request.title, request.description)
+        async for chunk in stream:
+            yield f"data: {chunk}\n\n"
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
+
+
 @app.post("/ai/tasks/suggest", response_model=schemas.AiTaskSuggestionsResponse)
 async def suggest_task_enhancements(
     request: schemas.AiTaskSuggestionsRequest,

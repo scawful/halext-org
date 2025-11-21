@@ -26,6 +26,11 @@ struct SettingsView: View {
                 if !settingsManager.recentlyChangedSettings.isEmpty {
                     recentlyChangedSection
                 }
+                
+                // AI Features Section - Prioritized
+                if filteredSections.contains(.aiFeatures) {
+                    aiFeaturesSection
+                }
 
                 // All Settings Sections
                 if filteredSections.contains(.accountProfile) {
@@ -84,6 +89,60 @@ struct SettingsView: View {
             } message: {
                 Text("Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently deleted.")
             }
+        }
+    }
+
+    // MARK: - AI Features Section
+    
+    private var aiFeaturesSection: some View {
+        Section {
+            NavigationLink {
+                AISettingsView()
+            } label: {
+                SettingsItemLabel(
+                    icon: "brain",
+                    iconColor: .purple,
+                    title: "AI Models & Providers",
+                    subtitle: "Configure AI agents and models"
+                )
+            }
+            
+            NavigationLink {
+                AgentHubView(onStartChat: { _ in })
+            } label: {
+                SettingsItemLabel(
+                    icon: "atom",
+                    iconColor: .blue,
+                    title: "Agent Hub",
+                    subtitle: "Browse and manage AI agents"
+                )
+            }
+            
+            NavigationLink {
+                ChatSettingsView()
+            } label: {
+                SettingsItemLabel(
+                    icon: "bubble.left.and.bubble.right.fill",
+                    iconColor: .cyan,
+                    title: "Chat & Conversations",
+                    subtitle: "AI chat preferences"
+                )
+            }
+            
+            NavigationLink {
+                SmartGeneratorView()
+            } label: {
+                SettingsItemLabel(
+                    icon: "sparkles",
+                    iconColor: .orange,
+                    title: "Smart Generator",
+                    subtitle: "AI-powered task generation"
+                )
+            }
+        } header: {
+            Label("AI Features", systemImage: "sparkles")
+        } footer: {
+            Text("Configure AI assistants, models, and generative features. Hive Mind goals help track collaborative progress in conversations.")
         }
     }
 
@@ -250,6 +309,17 @@ struct SettingsView: View {
                     iconColor: .indigo,
                     title: "Navigation Bar",
                     subtitle: nil
+                )
+            }
+            
+            NavigationLink {
+                SplitViewSettingsView()
+            } label: {
+                SettingsItemLabel(
+                    icon: "rectangle.split.2x1",
+                    iconColor: .teal,
+                    title: "Split View",
+                    subtitle: "Multi-tasking mode"
                 )
             }
 
@@ -526,16 +596,6 @@ struct SettingsView: View {
                 )
             }
 
-            NavigationLink {
-                ChatSettingsView()
-            } label: {
-                SettingsItemLabel(
-                    icon: "bubble.left.and.bubble.right.fill",
-                    iconColor: .cyan,
-                    title: "Chat & AI",
-                    subtitle: "Configure AI agents"
-                )
-            }
         } header: {
             Label("Advanced Features", systemImage: "gearshape.2")
         }
@@ -805,6 +865,7 @@ struct SettingsItemLabel: View {
 // MARK: - Settings Section Enum
 
 enum SettingsSection: String, CaseIterable {
+    case aiFeatures = "AI Features"
     case accountProfile = "Account & Profile"
     case appearance = "Appearance"
     case privacySecurity = "Privacy & Security"
@@ -817,6 +878,8 @@ enum SettingsSection: String, CaseIterable {
 
     var searchableTerms: [String] {
         switch self {
+        case .aiFeatures:
+            return ["ai", "artificial intelligence", "agents", "models", "providers", "chat", "conversation", "hive mind", "generator", "smart generation", "llm", "gpt", "ollama"]
         case .accountProfile:
             return ["account", "profile", "user", "devices", "social", "connections"]
         case .appearance:
@@ -828,7 +891,7 @@ enum SettingsSection: String, CaseIterable {
         case .storageSync:
             return ["storage", "sync", "icloud", "cache", "offline", "data"]
         case .advancedFeatures:
-            return ["advanced", "labs", "experimental", "widgets", "shortcuts", "siri", "chat", "ai"]
+            return ["advanced", "labs", "experimental", "widgets", "shortcuts", "siri"]
         case .quickActions:
             return ["export", "support", "rate", "share", "contact"]
         case .about:

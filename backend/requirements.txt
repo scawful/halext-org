@@ -11,3 +11,5 @@ pytest
 pytest-asyncio
 pytest-cov
 psutil
+websockets
+numpy

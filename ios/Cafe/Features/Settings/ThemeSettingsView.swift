@@ -139,6 +139,17 @@ struct ThemeSettingsView: View {
             } header: {
                 Text("Color Preview")
             }
+            
+            // Background Customization
+            Section {
+                NavigationLink("Customize Background") {
+                    BackgroundCustomizationView()
+                }
+            } header: {
+                Text("Background")
+            } footer: {
+                Text("Set custom backgrounds with images, gradients, blur, and animations")
+            }
         }
         .navigationTitle("Theme & Appearance")
         .onAppear {

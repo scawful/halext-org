@@ -23,10 +23,22 @@ Task: {task_title}
 
 Return only the subtask titles, one per line, without numbers or bullets."""
 
-        response = await self.ai.generate_reply(prompt, user_id=self.user_id, model_identifier=model_identifier, db=self.db)
+        response, _ = await self.ai.generate_reply(prompt, user_id=self.user_id, model_identifier=model_identifier, db=self.db)
         # Parse response into list of subtasks
         subtasks = [line.strip() for line in response.split('\n') if line.strip() and not line.strip().startswith('#')]
         return subtasks[:5]  # Limit to 5
+
+    async def suggest_subtasks_stream(self, task_title: str, task_description: Optional[str] = None, model_identifier: Optional[str] = None):
+        """Stream suggested subtasks for a task"""
+        prompt = f"""Break down this task into 3-5 concrete, actionable subtasks:
+
+Task: {task_title}
+{f'Description: {task_description}' if task_description else ''}
+
+Return only the subtask titles, one per line, without numbers or bullets."""
+
+        stream, _ = await self.ai.generate_stream(prompt, user_id=self.user_id, model_identifier=model_identifier, db=self.db)
+        return stream
 
     async def estimate_time(self, task_title: str, task_description: Optional[str] = None, model_identifier: Optional[str] = None) -> Dict[str, Any]:
         """Estimate time required for a task"""
@@ -243,7 +255,7 @@ Return only the summary."""
 
 Return only the task titles, one per line."""
 
-        response = await self.ai.generate_reply(prompt, user_id=self.user_id, model_identifier=model_identifier, db=self.db)
+        response, _ = await self.ai.generate_reply(prompt, user_id=self.user_id, model_identifier=model_identifier, db=self.db)
         tasks = [line.strip() for line in response.split('\n') if line.strip() and not line.strip().startswith('#')]
         return tasks
 
@@ -265,6 +277,59 @@ Return the reformatted note."""
 
 Return only the tags, comma-separated."""
 
-        response = await self.ai.generate_reply(prompt, user_id=self.user_id, model_identifier=model_identifier, db=self.db)
+        response, _ = await self.ai.generate_reply(prompt, user_id=self.user_id, model_identifier=model_identifier, db=self.db)
         tags = [tag.strip().lower() for tag in response.replace('\n', ',').split(',') if tag.strip()]
         return tags[:5]
+
+
+class AiHiveMindHelper:
+    """AI assistant for Hive Mind conversations"""
+
+    def __init__(self, ai_gateway: AiGateway, user_id: Optional[int] = None, db=None):
+        self.ai = ai_gateway
+        self.user_id = user_id
+        self.db = db
+
+    async def summarize_conversation(self, conversation_history: List[Dict[str, str]], goal: str) -> str:
+        """Summarize the conversation so far"""
+        history = "\n".join([f"{msg['role']}: {msg['content']}" for msg in conversation_history])
+        prompt = f"""Given the following conversation history and the overall goal, provide a concise summary of the key points and progress so far.
+
+Goal: {goal}
+
+Conversation:
+{history}
+
+Summary:"""
+        summary, _ = await self.ai.generate_reply(prompt, user_id=self.user_id, db=self.db)
+        return summary
+
+    async def identify_action_items(self, conversation_history: List[Dict[str, str]], goal: str) -> List[str]:
+        """Identify key decisions and action items"""
+        history = "\n".join([f"{msg['role']}: {msg['content']}" for msg in conversation_history])
+        prompt = f"""Given the following conversation history and the overall goal, identify any clear action items or decisions that have been made.
+
+Goal: {goal}
+
+Conversation:
+{history}
+
+Return only the action items, one per line."""
+        response, _ = await self.ai.generate_reply(prompt, user_id=self.user_id, db=self.db)
+        action_items = [line.strip() for line in response.split('\n') if line.strip()]
+        return action_items
+
+    async def suggest_next_steps(self, conversation_history: List[Dict[str, str]], goal: str) -> List[str]:
+        """Suggest next steps to move the conversation towards its goal"""
+        history = "\n".join([f"{msg['role']}: {msg['content']}" for msg in conversation_history])
+        prompt = f"""Given the following conversation history and the overall goal, suggest 2-3 concrete next steps to help achieve the goal.
+
+Goal: {goal}
+
+Conversation:
+{history}
+
+Return only the suggested next steps, one per line."""
+        response, _ = await self.ai.generate_reply(prompt, user_id=self.user_id, db=self.db)
+        next_steps = [line.strip() for line in response.split('\n') if line.strip()]
+        return next_steps

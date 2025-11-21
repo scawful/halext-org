@@ -47,6 +47,18 @@ class ThemeManager {
             saveCustomization()
         }
     }
+    
+    var customBackground: CustomBackground {
+        didSet {
+            saveCustomBackground()
+        }
+    }
+    
+    var perViewBackgrounds: [String: CustomBackground] = [:] {
+        didSet {
+            savePerViewBackgrounds()
+        }
+    }
 
     // Private storage
     private let defaults = UserDefaults.standard
@@ -55,6 +67,8 @@ class ThemeManager {
     private let fontSizeKey = "fontSizePreference"
     private let appIconKey = "selectedAppIcon"
     private let customizationKey = "themeCustomization"
+    private let customBackgroundKey = "customBackground"
+    private let perViewBackgroundsKey = "perViewBackgrounds"
 
     // MARK: - Initialization
 
@@ -97,6 +111,22 @@ class ThemeManager {
             self.customization = customization
         } else {
             self.customization = .default
+        }
+        
+        // Load custom background
+        if let savedData = defaults.data(forKey: customBackgroundKey),
+           let background = try? JSONDecoder().decode(CustomBackground.self, from: savedData) {
+            self.customBackground = background
+        } else {
+            self.customBackground = .default
+        }
+        
+        // Load per-view backgrounds
+        if let savedData = defaults.data(forKey: perViewBackgroundsKey),
+           let backgrounds = try? JSONDecoder().decode([String: CustomBackground].self, from: savedData) {
+            self.perViewBackgrounds = backgrounds
+        } else {
+            self.perViewBackgrounds = [:]
         }
 
         applyTheme()
@@ -162,6 +192,32 @@ class ThemeManager {
             defaults.set(data, forKey: customizationKey)
         }
     }
+    
+    private func saveCustomBackground() {
+        if let data = try? JSONEncoder().encode(customBackground) {
+            defaults.set(data, forKey: customBackgroundKey)
+        }
+    }
+    
+    private func savePerViewBackgrounds() {
+        if let data = try? JSONEncoder().encode(perViewBackgrounds) {
+            defaults.set(data, forKey: perViewBackgroundsKey)
+        }
+    }
+    
+    // MARK: - Background Management
+    
+    func setBackgroundForView(viewId: String, background: CustomBackground) {
+        perViewBackgrounds[viewId] = background
+    }
+    
+    func getBackgroundForView(viewId: String) -> CustomBackground? {
+        return perViewBackgrounds[viewId]
+    }
+    
+    func clearBackgroundForView(viewId: String) {
+        perViewBackgrounds.removeValue(forKey: viewId)
+    }
 
     // MARK: - Apply Changes
 
@@ -195,6 +251,30 @@ class ThemeManager {
     }
 
     var backgroundStyle: AnyShapeStyle {
+        // Use custom background if set, otherwise use theme gradient or solid color
+        switch customBackground.style {
+        case .gradient:
+            if let gradient = customBackground.gradient {
+                return AnyShapeStyle(
+                    LinearGradient(
+                        colors: [
+                            Color(gradient.startColor),
+                            Color(gradient.endColor)
+                        ],
+                        startPoint: gradient.startPoint.unitPoint,
+                        endPoint: gradient.endPoint.unitPoint
+                    )
+                )
+            }
+        case .solid:
+            if let color = customBackground.solidColor {
+                return AnyShapeStyle(Color(color))
+            }
+        default:
+            break
+        }
+        
+        // Fall back to theme background
         if let gradient = currentTheme.backgroundGradient {
             return AnyShapeStyle(
                 LinearGradient(
@@ -208,6 +288,13 @@ class ThemeManager {
             )
         }
         return AnyShapeStyle(Color(currentTheme.backgroundColor))
+    }
+    
+    func backgroundStyleForView(viewId: String) -> CustomBackground {
+        if let viewBackground = getBackgroundForView(viewId: viewId) {
+            return viewBackground
+        }
+        return customBackground
     }
 
     var secondaryBackgroundColor: Color {
@@ -268,6 +355,11 @@ extension Notification.Name {
 extension View {
     func themedBackground() -> some View {
         self.background(ThemeManager.shared.backgroundStyle)
+    }
+    
+    func themedBackground(viewId: String) -> some View {
+        let background = ThemeManager.shared.backgroundStyleForView(viewId: viewId)
+        return self.customBackground(background)
     }
 
     func themedCard() -> some View {

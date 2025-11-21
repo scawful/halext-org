@@ -16,21 +16,49 @@ struct ConfigurableDashboardView: View {
     @State private var showingCustomization = false
     @State private var showingLayoutPicker = false
     @State private var draggedCard: DashboardCard?
+    @State private var dragOffset: CGSize = .zero
+    @State private var snapToGrid = false
+    @State private var showPlaceholder = false
+    @State private var placeholderIndex: Int?
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 LazyVStack(spacing: 16) {
-                    ForEach(visibleCards) { card in
-                        DashboardCardView(
+                    ForEach(Array(visibleCards.enumerated()), id: \.element.id) { index, card in
+                        CardWrapperView(
                             card: card,
+                            index: index,
                             isEditMode: isEditMode,
+                            isDragging: draggedCard?.id == card.id,
+                            showPlaceholder: showPlaceholder && placeholderIndex == index,
+                            snapToGrid: snapToGrid,
                             onConfigure: {
                                 // Open card configuration
                             },
                             onRemove: {
-                                withAnimation {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                     layoutManager.removeCard(card)
+                                }
+                            },
+                            onDrag: {
+                                draggedCard = card
+                                hapticFeedback(style: .medium)
+                            },
+                            onDrop: { info in
+                                handleDrop(card: card, info: info)
+                            },
+                            onDropEntered: {
+                                if draggedCard?.id != card.id {
+                                    placeholderIndex = index
+                                    showPlaceholder = true
+                                    hapticFeedback(style: .light)
+                                }
+                            },
+                            onDropExited: {
+                                if placeholderIndex == index {
+                                    showPlaceholder = false
+                                    placeholderIndex = nil
                                 }
                             }
                         ) {
@@ -41,16 +69,6 @@ struct ConfigurableDashboardView: View {
                             )
                         }
                         .transition(.scale.combined(with: .opacity))
-                        .onDrag {
-                            draggedCard = card
-                            return NSItemProvider(object: card.id.uuidString as NSString)
-                        }
-                        .onDrop(of: [.text], delegate: CardDropDelegate(
-                            card: card,
-                            draggedCard: $draggedCard,
-                            cards: $layoutManager.currentLayout.cards,
-                            layoutManager: layoutManager
-                        ))
                     }
                 }
                 .padding()
@@ -58,10 +76,15 @@ struct ConfigurableDashboardView: View {
             .navigationTitle("Dashboard")
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Menu {
+                        Menu {
                         Button {
-                            withAnimation {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                 isEditMode.toggle()
+                                if !isEditMode {
+                                    draggedCard = nil
+                                    showPlaceholder = false
+                                    placeholderIndex = nil
+                                }
                             }
                         } label: {
                             Label(isEditMode ? "Done Editing" : "Edit Layout",
@@ -73,13 +96,18 @@ struct ConfigurableDashboardView: View {
                         } label: {
                             Label("Customize Cards", systemImage: "square.grid.3x3")
                         }
+                        
+                        if isEditMode {
+                            Divider()
+                            Toggle("Snap to Grid", isOn: $snapToGrid)
+                        }
 
                         Divider()
 
                         Menu("Layout Presets") {
                             ForEach(DashboardLayout.allPresets) { preset in
                                 Button(preset.name) {
-                                    withAnimation {
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                         layoutManager.applyPreset(preset)
                                     }
                                 }
@@ -89,7 +117,7 @@ struct ConfigurableDashboardView: View {
                         Divider()
 
                         Button {
-                            withAnimation {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                 layoutManager.resetToDefaultLayout()
                             }
                         } label: {
@@ -137,33 +165,141 @@ struct ConfigurableDashboardView: View {
             return false
         }
     }
-}
+    
+    private func handleDrop(card: DashboardCard, info: DropInfo) -> Bool {
+        guard let draggedCard = draggedCard,
+              draggedCard.id != card.id else {
+            self.draggedCard = nil
+            showPlaceholder = false
+            placeholderIndex = nil
+            return false
+        }
 
-// MARK: - Card Drop Delegate
+        let sortedCards = visibleCards
+        guard let fromIndex = sortedCards.firstIndex(where: { $0.id == draggedCard.id }),
+              let toIndex = sortedCards.firstIndex(where: { $0.id == card.id }) else {
+            self.draggedCard = nil
+            showPlaceholder = false
+            placeholderIndex = nil
+            return false
+        }
 
-struct CardDropDelegate: DropDelegate {
-    let card: DashboardCard
-    @Binding var draggedCard: DashboardCard?
-    @Binding var cards: [DashboardCard]
-    let layoutManager: DashboardLayoutManager
-
-    func performDrop(info: DropInfo) -> Bool {
-        draggedCard = nil
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+            layoutManager.moveCard(from: fromIndex, to: toIndex)
+        }
+        
+        hapticFeedback(style: .medium)
+        self.draggedCard = nil
+        showPlaceholder = false
+        placeholderIndex = nil
         return true
     }
+    
+    private func hapticFeedback(style: UIImpactFeedbackGenerator.FeedbackStyle) {
+        let generator = UIImpactFeedbackGenerator(style: style)
+        generator.impactOccurred()
+    }
+}
 
-    func dropEntered(info: DropInfo) {
-        guard let draggedCard = draggedCard,
-              draggedCard.id != card.id else { return }
+// MARK: - Card Wrapper View
 
-        let fromIndex = cards.firstIndex { $0.id == draggedCard.id }
-        let toIndex = cards.firstIndex { $0.id == card.id }
+struct CardWrapperView<Content: View>: View {
+    let card: DashboardCard
+    let index: Int
+    let isEditMode: Bool
+    let isDragging: Bool
+    let showPlaceholder: Bool
+    let snapToGrid: Bool
+    let onConfigure: (() -> Void)?
+    let onRemove: (() -> Void)?
+    let onDrag: () -> Void
+    let onDrop: (DropInfo) -> Bool
+    let onDropEntered: () -> Void
+    let onDropExited: () -> Void
+    @ViewBuilder let content: () -> Content
+    
+    @State private var dragOffset: CGSize = .zero
+    @State private var isHighlighted = false
 
-        guard let from = fromIndex, let to = toIndex else { return }
-
-        withAnimation {
-            layoutManager.moveCard(from: from, to: to)
+    var body: some View {
+        ZStack {
+            // Placeholder
+            if showPlaceholder {
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color.blue.opacity(0.2))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(Color.blue, lineWidth: 2)
+                            .strokeBorder(style: StrokeStyle(lineWidth: 2, dash: [5, 5]))
+                    )
+                    .frame(height: 100)
+                    .transition(.opacity)
+            }
+            
+            // Actual card
+            DashboardCardView(
+                card: card,
+                isEditMode: isEditMode,
+                showDragHandle: isEditMode,
+                isDragging: isDragging,
+                onConfigure: onConfigure,
+                onRemove: onRemove
+            ) {
+                content()
+            }
+            .opacity(isDragging ? 0.5 : 1.0)
+            .scaleEffect(isDragging ? 0.95 : (isHighlighted ? 1.02 : 1.0))
+            .offset(isDragging ? dragOffset : .zero)
+            .shadow(
+                color: isDragging ? Color.black.opacity(0.3) : Color.clear,
+                radius: isDragging ? 10 : 0,
+                y: isDragging ? 5 : 0
+            )
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isDragging)
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isHighlighted)
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: showPlaceholder)
         }
+        .onDrag {
+            onDrag()
+            return NSItemProvider(object: card.id.uuidString as NSString)
+        }
+        .onDrop(of: [.text], delegate: EnhancedCardDropDelegate(
+            card: card,
+            onDrop: onDrop,
+            onDropEntered: {
+                isHighlighted = true
+                onDropEntered()
+            },
+            onDropExited: {
+                isHighlighted = false
+                onDropExited()
+            }
+        ))
+    }
+}
+
+// MARK: - Enhanced Card Drop Delegate
+
+struct EnhancedCardDropDelegate: DropDelegate {
+    let card: DashboardCard
+    let onDrop: (DropInfo) -> Bool
+    let onDropEntered: () -> Void
+    let onDropExited: () -> Void
+    
+    func performDrop(info: DropInfo) -> Bool {
+        return onDrop(info)
+    }
+    
+    func dropEntered(info: DropInfo) {
+        onDropEntered()
+    }
+    
+    func dropExited(info: DropInfo) {
+        onDropExited()
+    }
+    
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        return DropProposal(operation: .move)
     }
 }
 

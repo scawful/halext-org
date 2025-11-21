@@ -195,9 +195,10 @@ class Conversation(Base):
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String, nullable=False)
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    mode = Column(String, default="solo")  # solo, partner, group
+    mode = Column(String, default="solo")  # solo, partner, group, hive_mind
     with_ai = Column(Boolean, default=True)
     default_model_id = Column(String, nullable=True)  # AI model to use for this conversation
+    hive_mind_goal = Column(Text, nullable=True)  # Objective for the hive mind
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
@@ -453,3 +454,17 @@ class SocialPulse(Base):
 
     circle = relationship("SocialCircle", back_populates="pulses")
     author = relationship("User")
+
+
+class Embedding(Base):
+    __tablename__ = "embeddings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    source = Column(String, nullable=False)  # e.g., "note", "task"
+    source_id = Column(Integer, nullable=False)
+    embedding = Column(JSON, nullable=False)
+    model_identifier = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    owner = relationship("User", backref="embeddings")

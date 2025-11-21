@@ -12,17 +12,23 @@ struct DashboardCardView<Content: View>: View {
     let onConfigure: (() -> Void)?
     let onRemove: (() -> Void)?
     let isEditMode: Bool
+    let showDragHandle: Bool
+    let isDragging: Bool
     @ViewBuilder let content: () -> Content
 
     init(
         card: DashboardCard,
         isEditMode: Bool = false,
+        showDragHandle: Bool = false,
+        isDragging: Bool = false,
         onConfigure: (() -> Void)? = nil,
         onRemove: (() -> Void)? = nil,
         @ViewBuilder content: @escaping () -> Content
     ) {
         self.card = card
         self.isEditMode = isEditMode
+        self.showDragHandle = showDragHandle
+        self.isDragging = isDragging
         self.onConfigure = onConfigure
         self.onRemove = onRemove
         self.content = content
@@ -31,6 +37,16 @@ struct DashboardCardView<Content: View>: View {
     var body: some View {
         ZStack(alignment: .topTrailing) {
             VStack(spacing: 0) {
+                // Drag handle
+                if showDragHandle && isEditMode {
+                    HStack {
+                        Spacer()
+                        DragHandle()
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.top, 8)
+                }
+                
                 content()
             }
             .padding()
@@ -41,10 +57,13 @@ struct DashboardCardView<Content: View>: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 16)
-                    .stroke(isEditMode ? card.type.color.opacity(0.5) : Color.clear, lineWidth: 2)
+                    .stroke(
+                        isDragging ? card.type.color : (isEditMode ? card.type.color.opacity(0.5) : Color.clear),
+                        lineWidth: isDragging ? 3 : 2
+                    )
             )
 
-            if isEditMode {
+            if isEditMode && !isDragging {
                 HStack(spacing: 8) {
                     if let onConfigure = onConfigure {
                         Button(action: onConfigure) {
@@ -71,6 +90,21 @@ struct DashboardCardView<Content: View>: View {
                 .offset(x: 8, y: -8)
             }
         }
+    }
+}
+
+// MARK: - Drag Handle
+
+struct DragHandle: View {
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(0..<3) { _ in
+                RoundedRectangle(cornerRadius: 1)
+                    .fill(Color.secondary.opacity(0.5))
+                    .frame(width: 3, height: 12)
+            }
+        }
+        .padding(.vertical, 4)
     }
 }
 

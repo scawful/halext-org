@@ -21,7 +21,9 @@ struct DashboardCustomizationView: View {
                         CardListRow(card: card)
                             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                                 Button(role: .destructive) {
-                                    removeCard(card)
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                        removeCard(card)
+                                    }
                                 } label: {
                                     Label("Delete", systemImage: "trash")
                                 }
@@ -40,19 +42,27 @@ struct DashboardCustomizationView: View {
                                 }
 
                                 Button(role: .destructive) {
-                                    removeCard(card)
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                        removeCard(card)
+                                    }
                                 } label: {
                                     Label("Remove", systemImage: "trash")
                                 }
                             }
                     }
                     .onMove { from, to in
-                        moveCard(from: from, to: to)
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            moveCard(from: from, to: to)
+                        }
                     }
                 } header: {
-                    Text("Dashboard Cards")
+                    HStack {
+                        Image(systemName: "line.3.horizontal")
+                            .foregroundColor(.secondary)
+                        Text("Dashboard Cards")
+                    }
                 } footer: {
-                    Text("Drag to reorder, swipe to delete")
+                    Text("Hold and drag to reorder, swipe to delete. Drag handles appear in edit mode.")
                 }
 
                 Section("Card Management") {

@@ -15,6 +15,7 @@ struct Conversation: Codable, Identifiable {
     let mode: String?
     let withAI: Bool?
     let defaultModelId: String?
+    let hiveMindGoal: String?
     let participants: [User]
     let participantUsernames: [String]
     let lastMessage: Message?
@@ -26,6 +27,7 @@ struct Conversation: Codable, Identifiable {
         case id, title, mode
         case withAI = "with_ai"
         case defaultModelId = "default_model_id"
+        case hiveMindGoal = "hive_mind_goal"
         case participants
         case participantUsernames = "participant_usernames"
         case lastMessage = "last_message"
@@ -45,6 +47,7 @@ struct Conversation: Codable, Identifiable {
         mode = try container.decodeIfPresent(String.self, forKey: .mode)
         withAI = try container.decodeIfPresent(Bool.self, forKey: .withAI)
         defaultModelId = try container.decodeIfPresent(String.self, forKey: .defaultModelId)
+        hiveMindGoal = try container.decodeIfPresent(String.self, forKey: .hiveMindGoal)
         lastMessage = try container.decodeIfPresent(Message.self, forKey: .lastMessage)
         unreadCount = try container.decodeIfPresent(Int.self, forKey: .unreadCount) ?? 0
         createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt)
@@ -94,6 +97,7 @@ struct Conversation: Codable, Identifiable {
         try container.encodeIfPresent(mode, forKey: .mode)
         try container.encodeIfPresent(withAI, forKey: .withAI)
         try container.encodeIfPresent(defaultModelId, forKey: .defaultModelId)
+        try container.encodeIfPresent(hiveMindGoal, forKey: .hiveMindGoal)
         try container.encode(participantUsernames, forKey: .participantUsernames)
         try container.encode(participants, forKey: .participants)
         try container.encodeIfPresent(lastMessage, forKey: .lastMessage)
@@ -111,6 +115,7 @@ struct Conversation: Codable, Identifiable {
         mode: String?,
         withAI: Bool?,
         defaultModelId: String?,
+        hiveMindGoal: String? = nil,
         participants: [User],
         participantUsernames: [String],
         lastMessage: Message?,
@@ -123,6 +128,7 @@ struct Conversation: Codable, Identifiable {
         self.mode = mode
         self.withAI = withAI
         self.defaultModelId = defaultModelId
+        self.hiveMindGoal = hiveMindGoal
         self.participants = participants
         self.participantUsernames = participantUsernames
         self.lastMessage = lastMessage
@@ -218,6 +224,17 @@ struct MessageCreate: Codable {
     let model: String?
 }
 
+extension Conversation: Equatable {
+    static func == (lhs: Conversation, rhs: Conversation) -> Bool {
+        lhs.id == rhs.id &&
+        lhs.updatedAt == rhs.updatedAt &&
+        lhs.unreadCount == rhs.unreadCount &&
+        lhs.defaultModelId == rhs.defaultModelId &&
+        lhs.hiveMindGoal == rhs.hiveMindGoal &&
+        lhs.lastMessage?.id == rhs.lastMessage?.id
+    }
+}
+
 // Keychain extension for user ID
 extension KeychainManager {
     func getUserId() -> Int? {
@@ -228,5 +245,80 @@ extension KeychainManager {
 
     func saveUserId(_ userId: Int) {
         UserDefaults.standard.set(userId, forKey: "currentUserId")
+    }
+}
+
+// MARK: - Conversation helpers
+
+extension Conversation {
+    var isAIEnabled: Bool {
+        withAI ?? false
+    }
+    
+    var hasHiveMindGoal: Bool {
+        hiveMindGoal != nil && !(hiveMindGoal?.isEmpty ?? true)
+    }
+
+    var participantDisplayNames: String {
+        let others = participants.filter { $0.username != currentUsername }
+        if others.isEmpty {
+            return participantUsernames.filter { $0 != currentUsername }.joined(separator: ", ")
+        }
+        return others
+            .map { $0.fullName ?? $0.username }
+            .joined(separator: ", ")
+    }
+
+    func participantName(for userId: Int?) -> String? {
+        guard let userId else { return nil }
+        if let match = participants.first(where: { $0.id == userId }) {
+            return match.fullName ?? match.username
+        }
+        return nil
+    }
+
+    func updating(
+        lastMessage: Message? = nil,
+        unreadCount: Int? = nil,
+        participants: [User]? = nil,
+        defaultModelId: String? = nil,
+        hiveMindGoal: String? = nil,
+        updatedAt: Date? = nil
+    ) -> Conversation {
+        Conversation(
+            id: id,
+            title: title,
+            mode: mode,
+            withAI: withAI,
+            defaultModelId: defaultModelId ?? self.defaultModelId,
+            hiveMindGoal: hiveMindGoal ?? self.hiveMindGoal,
+            participants: participants ?? self.participants,
+            participantUsernames: participantUsernames,
+            lastMessage: lastMessage ?? self.lastMessage,
+            unreadCount: unreadCount ?? self.unreadCount,
+            createdAt: createdAt,
+            updatedAt: updatedAt ?? self.updatedAt
+        )
+    }
+}
+
+// MARK: - Message helpers
+
+extension Message {
+    var authorId: Int? { senderId }
+
+    func senderName(in participants: [User]) -> String {
+        if isFromAI { return "AI" }
+
+        if let authorId,
+           let match = participants.first(where: { $0.id == authorId }) {
+            return match.fullName ?? match.username
+        }
+
+        if isFromCurrentUser {
+            return "You"
+        }
+
+        return "User"
     }
 }

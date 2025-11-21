@@ -8,38 +8,40 @@
 import SwiftUI
 
 struct GroupConversationView: View {
-    let conversation: Conversation
-
-    @State private var messages: [Message] = []
+    @StateObject private var store: ConversationStore
     @State private var messageText = ""
-    @State private var isLoading = false
-    @State private var isSending = false
-    @State private var errorMessage: String?
     @State private var showingParticipants = false
     @State private var showingAddParticipant = false
+    private let onConversationUpdated: (Conversation) -> Void
 
-    @State private var chatSettings = ChatSettingsManager.shared
+    init(conversation: Conversation, onConversationUpdated: @escaping (Conversation) -> Void = { _ in }) {
+        _store = StateObject(wrappedValue: ConversationStore(conversation: conversation))
+        self.onConversationUpdated = onConversationUpdated
+    }
 
     var isGroupChat: Bool {
-        conversation.participants.count > 2
+        store.conversation.participants.count > 2
     }
 
     var body: some View {
         VStack(spacing: 0) {
-            // Messages list
+            ConversationInfoHeader(conversation: store.conversation)
+
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(spacing: 12) {
-                        if isLoading {
+                        if store.isLoading {
                             ProgressView()
                                 .frame(maxWidth: .infinity)
                                 .padding()
                         }
 
-                        ForEach(messages) { message in
-                            EnhancedMessageBubbleView(
+                        ForEach(store.messages) { message in
+                            ConversationMessageBubble(
                                 message: message,
-                                showSender: isGroupChat
+                                senderName: message.senderName(in: store.conversation.participants),
+                                isGroup: isGroupChat,
+                                defaultModelId: store.conversation.defaultModelId
                             )
                             .id(message.id)
                         }
@@ -47,8 +49,8 @@ struct GroupConversationView: View {
                     }
                     .padding()
                 }
-                .onChange(of: messages.count) { _, _ in
-                    if let lastMessage = messages.last {
+                .onChange(of: store.messages.count) { _, _ in
+                    if let lastMessage = store.messages.last {
                         withAnimation {
                             proxy.scrollTo(lastMessage.id, anchor: .bottom)
                         }
@@ -56,7 +58,6 @@ struct GroupConversationView: View {
                 }
             }
 
-            // Input bar
             HStack(spacing: 12) {
                 // Add participants button
                 Button(action: { showingAddParticipant = true }) {
@@ -70,16 +71,16 @@ struct GroupConversationView: View {
                     .lineLimit(1...5)
 
                 Button(action: sendMessage) {
-                    if isSending {
+                    if store.isSending {
                         ProgressView()
                             .frame(width: 24, height: 24)
                     } else {
                         Image(systemName: "arrow.up.circle.fill")
                             .font(.system(size: 28))
-                            .foregroundColor(messageText.isEmpty ? .gray : .blue)
+                            .foregroundColor(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? .gray : .blue)
                     }
                 }
-                .disabled(messageText.isEmpty || isSending)
+                .disabled(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || store.isSending)
             }
             .padding()
             .background(Color(.systemBackground))
@@ -89,122 +90,55 @@ struct GroupConversationView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button(action: { showingParticipants = true }) {
-                    ParticipantAvatarsView(participants: Array(conversation.participants.prefix(3)))
+                    ParticipantAvatarsView(participants: Array(store.conversation.participants.prefix(3)))
                 }
             }
         }
         .sheet(isPresented: $showingParticipants) {
-            ParticipantsListView(conversation: conversation)
+            ParticipantsListView(conversation: store.conversation)
         }
         .sheet(isPresented: $showingAddParticipant) {
-            AddParticipantView(conversation: conversation)
+            AddParticipantView(conversation: store.conversation)
         }
         .task {
-            await loadMessages()
-            await markAsRead()
+            await store.refresh()
+        }
+        .onChange(of: store.conversation) { _, updated in
+            onConversationUpdated(updated)
+        }
+        .alert("Error", isPresented: Binding(get: { store.error != nil }, set: { _ in store.error = nil })) {
+            Button("OK", role: .cancel) { store.error = nil }
+        } message: {
+            Text(store.error ?? "")
         }
     }
 
     private var conversationTitle: String {
         if isGroupChat {
-            let names = conversation.participants.prefix(3).compactMap { user in
+            let names = store.conversation.participants.prefix(3).compactMap { user in
                 user.fullName ?? user.username
             }
-            if conversation.participants.count > 3 {
-                return names.joined(separator: ", ") + " +\(conversation.participants.count - 3)"
+            if store.conversation.participants.count > 3 {
+                return names.joined(separator: ", ") + " +\(store.conversation.participants.count - 3)"
             }
             return names.joined(separator: ", ")
         }
-        return conversation.displayName
-    }
-
-    private func loadMessages() async {
-        isLoading = true
-        defer { isLoading = false }
-
-        do {
-            messages = try await APIClient.shared.getMessages(conversationId: conversation.id, limit: 100)
-            messages.sort { $0.createdAt < $1.createdAt }
-        } catch {
-            errorMessage = error.localizedDescription
-        }
+        return store.conversation.displayName
     }
 
     private func sendMessage() {
-        let content = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let pending = messageText
+        let content = pending.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !content.isEmpty else { return }
 
-        isSending = true
-        let originalText = messageText
         messageText = "" // Clear immediately for better UX
 
         _Concurrency.Task {
-            do {
-                let newMessage = try await APIClient.shared.sendMessage(
-                    conversationId: conversation.id,
-                    content: content
-                )
-                messages.append(newMessage)
-            } catch {
-                errorMessage = error.localizedDescription
-                messageText = originalText // Restore on error
-            }
-            isSending = false
-        }
-    }
-
-    private func markAsRead() async {
-        guard chatSettings.enableReadReceipts else { return }
-
-        do {
-            try await APIClient.shared.markConversationAsRead(conversationId: conversation.id)
-        } catch {
-            print("Failed to mark as read: \(error)")
-        }
-    }
-}
-
-// MARK: - Enhanced Message Bubble
-
-struct EnhancedMessageBubbleView: View {
-    let message: Message
-    let showSender: Bool
-
-    var body: some View {
-        HStack {
-            if message.isFromCurrentUser {
-                Spacer(minLength: 60)
-            }
-
-            VStack(alignment: message.isFromCurrentUser ? .trailing : .leading, spacing: 4) {
-                if showSender && !message.isFromCurrentUser {
-                    Text(senderName)
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.secondary)
-                }
-
-                Text(message.content)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(message.isFromCurrentUser ? Color.blue : Color(.secondarySystemBackground))
-                    .foregroundColor(message.isFromCurrentUser ? .white : .primary)
-                    .cornerRadius(16)
-
-                Text(message.createdAt, style: .time)
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-            }
-
-            if !message.isFromCurrentUser {
-                Spacer(minLength: 60)
+            await store.send(content: content)
+            if store.error != nil {
+                messageText = pending
             }
         }
-    }
-
-    private var senderName: String {
-        // In production, would look up sender from participants
-        "User"
     }
 }
 
@@ -452,6 +386,7 @@ struct AddAIAgentView: View {
             mode: "solo",
             withAI: false,
             defaultModelId: nil,
+            hiveMindGoal: nil,
             participants: [],
             participantUsernames: [],
             lastMessage: nil,

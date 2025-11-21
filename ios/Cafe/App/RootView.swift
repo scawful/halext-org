@@ -30,15 +30,39 @@ struct RootView: View {
 struct MainTabView: View {
     @Environment(AppState.self) var appState
     @State private var navManager = NavigationBarManager.shared
+    @State private var splitManager = SplitViewManager.shared
 
     var body: some View {
-        TabView {
-            ForEach(navManager.visibleTabs) { tab in
-                tabContent(for: tab)
-                    .tabItem {
-                        Label(tab.rawValue, systemImage: tab.icon)
+        ZStack {
+            if splitManager.isSplitMode {
+                // Split view mode
+                SplitViewContainer()
+            } else {
+                // Normal tab view mode
+                TabView {
+                    ForEach(navManager.visibleTabs) { tab in
+                        tabContent(for: tab)
+                            .tabItem {
+                                Label(tab.rawValue, systemImage: tab.icon)
+                            }
+                            .tag(tab)
                     }
-                    .tag(tab)
+                }
+            }
+            
+            // Reorderable tab bar overlay (only in normal mode)
+            if !splitManager.isSplitMode {
+                ReorderableTabBarOverlay(
+                    tabs: navManager.visibleTabs,
+                    onReorder: { sourceIndex, destinationIndex in
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            var tabs = navManager.visibleTabs
+                            let item = tabs.remove(at: sourceIndex)
+                            tabs.insert(item, at: destinationIndex)
+                            navManager.updateVisibleTabs(tabs)
+                        }
+                    }
+                )
             }
         }
     }

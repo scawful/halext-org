@@ -351,6 +351,38 @@ def get_messages_for_conversation(db: Session, conversation_id: int, limit: int 
         .all()
     )
 
+
+def create_embedding(db: Session, owner_id: int, source: str, source_id: int, embedding: List[float], model_identifier: str):
+    db_embedding = models.Embedding(
+        owner_id=owner_id,
+        source=source,
+        source_id=source_id,
+        embedding=embedding,
+        model_identifier=model_identifier,
+    )
+    db.add(db_embedding)
+    db.commit()
+    db.refresh(db_embedding)
+    return db_embedding
+
+
+def get_similar_embeddings(db: Session, owner_id: int, query_embedding: List[float], limit: int = 5):
+    import numpy as np
+
+    all_embeddings = db.query(models.Embedding).filter(models.Embedding.owner_id == owner_id).all()
+    
+    query_vector = np.array(query_embedding)
+    
+    similarities = []
+    for emb in all_embeddings:
+        db_vector = np.array(emb.embedding)
+        cosine_similarity = np.dot(query_vector, db_vector) / (np.linalg.norm(query_vector) * np.linalg.norm(db_vector))
+        similarities.append((cosine_similarity, emb))
+        
+    similarities.sort(key=lambda x: x[0], reverse=True)
+    
+    return [emb for _, emb in similarities[:limit]]
+
 # AI Provider Credentials
 def _get_default_provider_config(db: Session, provider_type: str, owner_id: Optional[int] = None):
     query = db.query(models.AIProviderConfig).filter(

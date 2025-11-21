@@ -66,6 +66,16 @@ class NavigationBarManager {
         visibleTabs.move(fromOffsets: source, toOffset: destination)
         saveTabs()
     }
+    
+    func moveTab(from sourceIndex: Int, to destinationIndex: Int) {
+        guard sourceIndex >= 0 && sourceIndex < visibleTabs.count,
+              destinationIndex >= 0 && destinationIndex < visibleTabs.count else {
+            return
+        }
+        let item = visibleTabs.remove(at: sourceIndex)
+        visibleTabs.insert(item, at: destinationIndex)
+        saveTabs()
+    }
 
     func resetToDefaults() {
         visibleTabs = NavigationTab.defaultTabs

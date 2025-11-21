@@ -273,6 +273,18 @@ class APIClient {
     }
 
     internal func performRequest<T: Decodable>(_ request: URLRequest) async throws -> T {
+        let (data, _) = try await executeRequest(request)
+
+        // Handle empty response for DELETE requests
+        if T.self == EmptyResponse.self {
+            return EmptyResponse() as! T
+        }
+
+        return try decodeResponse(T.self, from: data)
+    }
+
+    /// Executes a request and applies shared error handling before decoding.
+    internal func executeRequest(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
         let (data, response) = try await URLSession.shared.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
@@ -283,19 +295,16 @@ class APIClient {
         print("📡 HTTP Status: \(httpResponse.statusCode)")
 
         guard (200...299).contains(httpResponse.statusCode) else {
-            // Handle 401 Unauthorized first (before trying to decode error response)
             if httpResponse.statusCode == 401 {
                 print("❌ Unauthorized - invalid or expired token")
                 throw APIError.unauthorized
             }
 
-            // Try to decode error message for other errors
-            if let errorResponse = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
+            if let errorResponse = try? decodeResponse(ErrorResponse.self, from: data) {
                 print("❌ Server error: \(errorResponse.detail)")
                 throw APIError.serverError(errorResponse.detail)
             }
 
-            // Try to get raw response text
             if let responseText = String(data: data, encoding: .utf8) {
                 print("❌ Server response (\(httpResponse.statusCode)): \(responseText)")
             }
@@ -303,11 +312,11 @@ class APIClient {
             throw APIError.httpError(httpResponse.statusCode)
         }
 
-        // Handle empty response for DELETE requests
-        if T.self == EmptyResponse.self {
-            return EmptyResponse() as! T
-        }
+        return (data, httpResponse)
+    }
 
+    /// Decodes an API response with consistent decoding strategies.
+    internal func decodeResponse<T: Decodable>(_ type: T.Type, from data: Data) throws -> T {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
 
