@@ -831,30 +831,33 @@ async def list_ai_models(
     current_user: models.User = Depends(auth.get_current_user),
     db: Session = Depends(get_db),
 ):
-    """List available AI models"""
-    try:
-        models_list = await ai_gateway.get_models(db=db, user_id=current_user.id)
-    except Exception as exc:
-        print(f"Error listing AI models: {exc}")
-        import traceback
-        traceback.print_exc()
-        models_list = [
-            ai_gateway._format_model_entry(  # type: ignore[attr-defined]
-                ai_gateway.provider or "mock",
-                ai_gateway.model or "llama3.1",
-                source=ai_gateway.provider or "mock",
-            )
-        ]
+    """List available AI models - always returns valid JSON even on errors"""
+    try:  # Top-level try-except to catch all errors
+        try:
+            models_list = await ai_gateway.get_models(db=db, user_id=current_user.id)
+        except Exception as exc:
+            print(f"Error listing AI models: {exc}")
+            import traceback
+            traceback.print_exc()
+            models_list = [
+                ai_gateway._format_model_entry(  # type: ignore[attr-defined]
+                    ai_gateway.provider or "mock",
+                    ai_gateway.model or "llama3.1",
+                    source=ai_gateway.provider or "mock",
+                )
+            ]
     
     try:
-        available_ids = [m["id"] for m in models_list]
-    except (KeyError, TypeError) as e:
-        print(f"Error extracting model IDs: {e}")
+        available_ids = [m.get("id", "") for m in models_list if isinstance(m, dict) and m.get("id")]
+    except (KeyError, TypeError, AttributeError) as e:
+        print(f"❌ Error extracting model IDs: {e}")
+        import traceback
+        traceback.print_exc()
         available_ids = []
 
     # Keep defaults aligned with the models the backend can actually serve
     # Prioritize cloud models (OpenAI, Gemini) over local models (Ollama, OpenWebUI)
-    default_model_id = ai_gateway.default_model_identifier
+    default_model_id = ai_gateway.default_model_identifier or None
     
     # If default is not available or not set, find the best cloud model
     if (not default_model_id or default_model_id not in available_ids) and available_ids:
@@ -865,25 +868,32 @@ async def list_ai_models(
         found_cloud_model = None
         for provider in cloud_priorities:
             for model_id in available_ids:
-                if model_id.startswith(f"{provider}:"):
+                if model_id and isinstance(model_id, str) and model_id.startswith(f"{provider}:"):
                     found_cloud_model = model_id
                     break
             if found_cloud_model:
                 break
         
         # Use cloud model if found, otherwise fallback to first available
-        default_model_id = found_cloud_model or available_ids[0]
+        default_model_id = found_cloud_model or (available_ids[0] if available_ids else None)
+    
+    # Ensure we have a default model ID
+    if not default_model_id:
+        default_model_id = "mock:llama3.1"
 
     try:
         provider, model_name, _ = (
             ai_gateway._parse_identifier(default_model_id)  # type: ignore[attr-defined]
             if default_model_id
-            else (ai_gateway.provider, ai_gateway.model, None)
+            else ("mock", "llama3.1", None)
         )
     except Exception as e:
-        print(f"Error parsing model identifier: {e}")
-        provider = ai_gateway.provider or "mock"
-        model_name = ai_gateway.model or "llama3.1"
+        print(f"❌ Error parsing model identifier '{default_model_id}': {e}")
+        import traceback
+        traceback.print_exc()
+        provider = "mock"
+        model_name = "llama3.1"
+        default_model_id = "mock:llama3.1"
 
     # Persist resolved defaults so downstream AI calls pick a reachable route
     if default_model_id:
@@ -903,18 +913,21 @@ async def list_ai_models(
     model_schemas = []
     for m in models_list:
         try:
+            if not isinstance(m, dict):
+                print(f"⚠️ Warning: Model entry is not a dict: {type(m)}")
+                continue
             # Ensure all required fields are present
             model_dict = {
-                "id": m.get("id", ""),
-                "name": m.get("name", ""),
-                "provider": m.get("provider", "mock"),
+                "id": m.get("id") or "",
+                "name": m.get("name") or "",
+                "provider": m.get("provider") or "mock",
                 "size": m.get("size"),
-                "source": m.get("source"),
+                "source": m.get("source") or m.get("provider") or "mock",
                 "node_id": m.get("node_id"),
                 "node_name": m.get("node_name"),
                 "endpoint": m.get("endpoint"),
                 "latency_ms": m.get("latency_ms"),
-                "metadata": m.get("metadata", {}),
+                "metadata": m.get("metadata") or {},
                 "modified_at": m.get("modified_at"),
                 "description": m.get("description"),
                 "context_window": m.get("context_window"),
@@ -924,9 +937,12 @@ async def list_ai_models(
                 "supports_vision": m.get("supports_vision"),
                 "supports_function_calling": m.get("supports_function_calling"),
             }
+            # Ensure id is not empty
+            if not model_dict["id"]:
+                model_dict["id"] = f"{model_dict['provider']}:{model_dict['name']}"
             model_schemas.append(schemas.AiModelInfo(**model_dict))
         except Exception as e:
-            print(f"Error creating AiModelInfo for model {m.get('id', 'unknown')}: {e}")
+            print(f"❌ Error creating AiModelInfo for model {m.get('id', 'unknown')}: {e}")
             import traceback
             traceback.print_exc()
             continue
@@ -960,10 +976,29 @@ async def list_ai_models(
         )
         return response
     except Exception as e:
-        print(f"Error creating AiModelsResponse: {e}")
+        print(f"❌ Error creating AiModelsResponse: {e}")
         import traceback
         traceback.print_exc()
         # Return a minimal valid response
+        return schemas.AiModelsResponse(
+            models=[
+                schemas.AiModelInfo(
+                    id="mock:llama3.1",
+                    name="llama3.1",
+                    provider="mock",
+                    source="mock",
+                )
+            ],
+            provider="mock",
+            current_model="llama3.1",
+            default_model_id="mock:llama3.1",
+            credentials=[],
+        )
+    except Exception as e:
+        # Top-level error handler - always return valid JSON
+        print(f"❌ CRITICAL: Unexpected error in list_ai_models: {e}")
+        import traceback
+        traceback.print_exc()
         return schemas.AiModelsResponse(
             models=[
                 schemas.AiModelInfo(
