@@ -38,6 +38,12 @@ class SocialPresenceManager {
         guard !isTrackingPresence else {
             return
         }
+        
+        // Only start tracking if CloudKit is available and profile exists
+        guard socialManager.isCloudKitAvailable, socialManager.currentProfile != nil else {
+            print("⚠️ Presence tracking not started: CloudKit unavailable or no profile")
+            return
+        }
 
         isTrackingPresence = true
         print("Starting presence tracking...")
@@ -50,7 +56,14 @@ class SocialPresenceManager {
         // Schedule periodic updates
         updateTimer = Timer.scheduledTimer(withTimeInterval: updateInterval, repeats: true) { [weak self] _ in
             _Concurrency.Task { @MainActor [weak self] in
-                await self?.updatePresence(isOnline: true)
+                guard let self = self,
+                      self.socialManager.isCloudKitAvailable,
+                      self.socialManager.currentProfile != nil else {
+                    // Stop tracking if conditions are no longer met
+                    self?.stopTrackingPresence()
+                    return
+                }
+                await self.updatePresence(isOnline: true)
             }
         }
 
@@ -75,6 +88,18 @@ class SocialPresenceManager {
     }
 
     func updatePresence(isOnline: Bool, currentActivity: String? = nil, statusMessage: String? = nil) async {
+        // Check if CloudKit is available and profile exists before attempting update
+        guard socialManager.isCloudKitAvailable else {
+            // CloudKit not available - presence features disabled
+            return
+        }
+        
+        guard socialManager.currentProfile != nil else {
+            // No profile yet - presence features require a profile
+            // This is expected on first launch before profile is created
+            return
+        }
+        
         do {
             try await socialManager.updatePresence(
                 isOnline: isOnline,
@@ -85,7 +110,18 @@ class SocialPresenceManager {
             lastPresenceUpdate = Date()
             print("Updated presence: online=\(isOnline)")
         } catch {
-            print("Failed to update presence: \(error)")
+            // Only log errors that aren't expected (like noProfile or cloudKitUnavailable)
+            if let socialError = error as? SocialError {
+                switch socialError {
+                case .noProfile, .cloudKitUnavailable:
+                    // These are expected when CloudKit/profile isn't set up
+                    return
+                default:
+                    print("Failed to update presence: \(error)")
+                }
+            } else {
+                print("Failed to update presence: \(error)")
+            }
         }
     }
 
@@ -138,10 +174,25 @@ class SocialPresenceManager {
     }
 
     func fetchPartnerPresence() async {
+        // Only fetch if CloudKit is available
+        guard socialManager.isCloudKitAvailable else {
+            return
+        }
+        
         do {
             try await socialManager.fetchPartnerPresence()
         } catch {
-            print("Failed to fetch partner presence: \(error)")
+            // Only log unexpected errors
+            if let socialError = error as? SocialError {
+                switch socialError {
+                case .cloudKitUnavailable:
+                    return
+                default:
+                    print("Failed to fetch partner presence: \(error)")
+                }
+            } else {
+                print("Failed to fetch partner presence: \(error)")
+            }
         }
     }
 
