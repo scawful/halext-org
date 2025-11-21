@@ -801,6 +801,8 @@ async def list_ai_models(
         models_list = await ai_gateway.get_models(db=db, user_id=current_user.id)
     except Exception as exc:
         print(f"Error listing AI models: {exc}")
+        import traceback
+        traceback.print_exc()
         models_list = [
             ai_gateway._format_model_entry(  # type: ignore[attr-defined]
                 ai_gateway.provider or "mock",
@@ -808,18 +810,28 @@ async def list_ai_models(
                 source=ai_gateway.provider or "mock",
             )
         ]
-    available_ids = [m["id"] for m in models_list]
+    
+    try:
+        available_ids = [m["id"] for m in models_list]
+    except (KeyError, TypeError) as e:
+        print(f"Error extracting model IDs: {e}")
+        available_ids = []
 
     # Keep defaults aligned with the models the backend can actually serve
     default_model_id = ai_gateway.default_model_identifier
     if (not default_model_id or default_model_id not in available_ids) and available_ids:
         default_model_id = available_ids[0]
 
-    provider, model_name, _ = (
-        ai_gateway._parse_identifier(default_model_id)  # type: ignore[attr-defined]
-        if default_model_id
-        else (ai_gateway.provider, ai_gateway.model, None)
-    )
+    try:
+        provider, model_name, _ = (
+            ai_gateway._parse_identifier(default_model_id)  # type: ignore[attr-defined]
+            if default_model_id
+            else (ai_gateway.provider, ai_gateway.model, None)
+        )
+    except Exception as e:
+        print(f"Error parsing model identifier: {e}")
+        provider = ai_gateway.provider or "mock"
+        model_name = ai_gateway.model or "llama3.1"
 
     # Persist resolved defaults so downstream AI calls pick a reachable route
     if default_model_id:
@@ -827,15 +839,89 @@ async def list_ai_models(
         ai_gateway.provider = provider
         ai_gateway.model = model_name
 
-    credential_status = crud.list_provider_credentials(db, owner_id=current_user.id)
+    try:
+        credential_status = crud.list_provider_credentials(db, owner_id=current_user.id)
+    except Exception as e:
+        print(f"Error getting credential status: {e}")
+        credential_status = []
 
-    return schemas.AiModelsResponse(
-        models=[schemas.AiModelInfo(**m) for m in models_list],
-        provider=provider,
-        current_model=model_name,
-        default_model_id=default_model_id,
-        credentials=[schemas.ProviderCredentialStatus(**c) for c in credential_status],
-    )
+    # Convert models to schemas with error handling
+    model_schemas = []
+    for m in models_list:
+        try:
+            # Ensure all required fields are present
+            model_dict = {
+                "id": m.get("id", ""),
+                "name": m.get("name", ""),
+                "provider": m.get("provider", "mock"),
+                "size": m.get("size"),
+                "source": m.get("source"),
+                "node_id": m.get("node_id"),
+                "node_name": m.get("node_name"),
+                "endpoint": m.get("endpoint"),
+                "latency_ms": m.get("latency_ms"),
+                "metadata": m.get("metadata", {}),
+                "modified_at": m.get("modified_at"),
+                "description": m.get("description"),
+                "context_window": m.get("context_window"),
+                "max_output_tokens": m.get("max_output_tokens"),
+                "input_cost_per_1m": m.get("input_cost_per_1m"),
+                "output_cost_per_1m": m.get("output_cost_per_1m"),
+                "supports_vision": m.get("supports_vision"),
+                "supports_function_calling": m.get("supports_function_calling"),
+            }
+            model_schemas.append(schemas.AiModelInfo(**model_dict))
+        except Exception as e:
+            print(f"Error creating AiModelInfo for model {m.get('id', 'unknown')}: {e}")
+            import traceback
+            traceback.print_exc()
+            continue
+
+    # Ensure we have at least one model
+    if not model_schemas:
+        model_schemas = [
+            schemas.AiModelInfo(
+                id="mock:llama3.1",
+                name="llama3.1",
+                provider="mock",
+                source="mock",
+            )
+        ]
+
+    try:
+        credential_schemas = [schemas.ProviderCredentialStatus(**c) for c in credential_status]
+    except Exception as e:
+        print(f"Error creating credential schemas: {e}")
+        credential_schemas = []
+
+    try:
+        response = schemas.AiModelsResponse(
+            models=model_schemas,
+            provider=provider,
+            current_model=model_name,
+            default_model_id=default_model_id,
+            credentials=credential_schemas,
+        )
+        return response
+    except Exception as e:
+        print(f"Error creating AiModelsResponse: {e}")
+        import traceback
+        traceback.print_exc()
+        # Return a minimal valid response
+        return schemas.AiModelsResponse(
+            models=[
+                schemas.AiModelInfo(
+                    id="mock:llama3.1",
+                    name="llama3.1",
+                    provider="mock",
+                    source="mock",
+                )
+            ],
+            provider="mock",
+            current_model="llama3.1",
+            default_model_id="mock:llama3.1",
+            credentials=[],
+        )
 
 @app.post("/admin/ai/default-model", response_model=schemas.AiModelsResponse)
 async def set_default_ai_model(
