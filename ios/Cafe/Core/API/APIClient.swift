@@ -247,8 +247,8 @@ class APIClient {
         return ChatStreamResult(stream: stream, modelIdentifier: resolvedModel)
     }
 
-    func getTaskSuggestions(title: String, description: String? = nil) async throws -> AITaskSuggestions {
-        let suggestionRequest = AITaskSuggestionsRequest(title: title, description: description)
+    func getTaskSuggestions(title: String, description: String? = nil, context: TaskSuggestionContext? = nil) async throws -> AITaskSuggestions {
+        let suggestionRequest = AITaskSuggestionsRequest(title: title, description: description, context: context)
         var request = try authorizedRequest(path: "/ai/tasks/suggest", method: "POST")
         request.httpBody = try JSONEncoder().encode(suggestionRequest)
         return try await performRequest(request)

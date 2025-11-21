@@ -80,8 +80,18 @@ struct RecipeDetailView: View {
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 HStack(spacing: 12) {
-                    Button(action: { showingShareSheet = true }) {
-                        Image(systemName: "square.and.arrow.up")
+                    Menu {
+                        Button(action: convertToTasks) {
+                            Label("Create Shopping & Prep Tasks", systemImage: "list.bullet.rectangle")
+                        }
+                        
+                        Divider()
+                        
+                        Button(action: { showingShareSheet = true }) {
+                            Label("Share", systemImage: "square.and.arrow.up")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
                     }
 
                     Button(action: { isSaved.toggle() }) {
@@ -93,6 +103,61 @@ struct RecipeDetailView: View {
         }
         .sheet(isPresented: $showingShareSheet) {
             ShareSheet(items: [generateShareText()])
+        }
+    }
+    
+    // MARK: - Recipe to Task Conversion
+    
+    private func convertToTasks() {
+        _Concurrency.Task {
+            do {
+                let scaled = scaledRecipe
+                
+                // Create shopping list task
+                let ingredientsList = scaled.ingredients.map { ingredient in
+                    var item = "• \(ingredient.name)"
+                    if !ingredient.amount.isEmpty {
+                        item += " - \(ingredient.amount)"
+                        if let unit = ingredient.unit, !unit.isEmpty {
+                            item += " \(unit)"
+                        }
+                    }
+                    return item
+                }.joined(separator: "\n")
+                
+                let shoppingTask = TaskCreate(
+                    title: "Shopping: \(scaled.name)",
+                    description: "Ingredients needed:\n\(ingredientsList)",
+                    dueDate: Date().addingTimeInterval(86400), // Due tomorrow
+                    labels: ["Shopping", "Recipe"]
+                )
+                _ = try await APIClient.shared.createTask(shoppingTask)
+                
+                // Create meal prep task
+                let prepTask = TaskCreate(
+                    title: "Meal Prep: \(scaled.name)",
+                    description: "Prep time: \(scaled.prepTimeMinutes) minutes\nCook time: \(scaled.cookTimeMinutes) minutes\nTotal: \(scaled.totalTimeMinutes) minutes",
+                    dueDate: Date().addingTimeInterval(86400 * 2), // Due in 2 days
+                    labels: ["Meal Prep", "Recipe"]
+                )
+                _ = try await APIClient.shared.createTask(prepTask)
+                
+                // Create cooking task
+                let cookingTask = TaskCreate(
+                    title: "Cook: \(scaled.name)",
+                    description: "Follow recipe instructions. Estimated time: \(scaled.totalTimeMinutes) minutes",
+                    dueDate: Date().addingTimeInterval(86400 * 2), // Due in 2 days
+                    labels: ["Cooking", "Recipe"]
+                )
+                _ = try await APIClient.shared.createTask(cookingTask)
+                
+                // Show success feedback
+                await MainActor.run {
+                    HapticManager.success()
+                }
+            } catch {
+                print("Failed to create tasks from recipe: \(error)")
+            }
         }
     }
 

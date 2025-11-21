@@ -198,6 +198,23 @@ struct StreamChunk: Codable {
 struct AITaskSuggestionsRequest: Codable {
     let title: String
     let description: String?
+    let context: TaskSuggestionContext?
+}
+
+struct TaskSuggestionContext: Codable {
+    let currentTime: String?
+    let currentLocation: String?
+    let upcomingEvents: [String]?
+    let recentTasks: [String]?
+    let dayOfWeek: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case currentTime = "current_time"
+        case currentLocation = "current_location"
+        case upcomingEvents = "upcoming_events"
+        case recentTasks = "recent_tasks"
+        case dayOfWeek = "day_of_week"
+    }
 }
 
 struct AITaskSuggestions: Codable {

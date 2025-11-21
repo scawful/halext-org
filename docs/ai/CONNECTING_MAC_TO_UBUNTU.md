@@ -342,8 +342,7 @@ Based on your setup (Mac at home, Ubuntu remote VPS):
 
 ## Reference Documents
 
-- Full remote setup guide: [REMOTE_OLLAMA_SETUP.md](./REMOTE_OLLAMA_SETUP.md)
-- Distributed Ollama architecture: [DISTRIBUTED_OLLAMA_SETUP.md](./DISTRIBUTED_OLLAMA_SETUP.md)
+- Complete Ollama setup guide: [OLLAMA_SETUP.md](./OLLAMA_SETUP.md) (includes both local network and remote/exposed scenarios)
 - Deployment scripts: [../scripts/README.md](../scripts/README.md)
 
 ---

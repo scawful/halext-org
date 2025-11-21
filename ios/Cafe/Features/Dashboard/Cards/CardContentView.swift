@@ -67,7 +67,7 @@ struct CardContentView: View {
                 NotesCardContent()
 
             case .aiSuggestions:
-                AISuggestionsCardContent()
+                AISuggestionsCardContent(viewModel: viewModel)
 
             case .socialActivity:
                 SocialActivityCardContent()
@@ -614,28 +614,149 @@ struct NotesCardContent: View {
 // MARK: - AI Suggestions Card
 
 struct AISuggestionsCardContent: View {
+    let viewModel: DashboardViewModel
+    @State private var insights: [DashboardInsight] = []
+    @State private var isLoading = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             CardHeader(
                 icon: "brain.head.profile",
-                title: "AI Suggestions",
+                title: "AI Insights",
                 color: .pink
             )
 
-            VStack(alignment: .leading, spacing: 10) {
-                SuggestionRow(
-                    icon: "lightbulb.fill",
-                    text: "You have 3 overdue tasks. Consider rescheduling them.",
-                    color: .orange
-                )
-
-                SuggestionRow(
-                    icon: "calendar",
-                    text: "Tomorrow is lightly scheduled. Good day for focused work.",
-                    color: .blue
-                )
+            if isLoading {
+                ProgressView()
+                    .frame(maxWidth: .infinity)
+                    .padding()
+            } else if insights.isEmpty {
+                Text("No insights available yet")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding()
+            } else {
+                VStack(alignment: .leading, spacing: 10) {
+                    ForEach(insights.prefix(3)) { insight in
+                        SuggestionRow(
+                            icon: insight.icon,
+                            text: insight.message,
+                            color: insight.color
+                        )
+                    }
+                }
             }
         }
+        .task {
+            await generateInsights()
+        }
+    }
+    
+    private func generateInsights() async {
+        isLoading = true
+        
+        var generatedInsights: [DashboardInsight] = []
+        
+        // Generate insights based on user data
+        let calendar = Calendar.current
+        let now = Date()
+        let weekday = calendar.component(.weekday, from: now)
+        
+        // Overdue tasks insight
+        if !viewModel.overdueTasks.isEmpty {
+            generatedInsights.append(DashboardInsight(
+                icon: "exclamationmark.triangle.fill",
+                message: "You have \(viewModel.overdueTasks.count) overdue task\(viewModel.overdueTasks.count > 1 ? "s" : ""). Consider rescheduling or breaking them down.",
+                color: .red,
+                priority: .high
+            ))
+        }
+        
+        // Productivity pattern insight
+        if viewModel.completedToday > 0 {
+            let completionRate = Double(viewModel.completedToday) / Double(max(viewModel.todaysTasks.count + viewModel.completedToday, 1))
+            if completionRate > 0.7 {
+                generatedInsights.append(DashboardInsight(
+                    icon: "star.fill",
+                    message: "Great progress today! You've completed \(Int(completionRate * 100))% of today's tasks.",
+                    color: .green,
+                    priority: .medium
+                ))
+            }
+        }
+        
+        // Task distribution insight
+        if viewModel.tasksThisWeek > 10 {
+            generatedInsights.append(DashboardInsight(
+                icon: "chart.bar.fill",
+                message: "You have \(viewModel.tasksThisWeek) tasks this week. Consider prioritizing or delegating some.",
+                color: .orange,
+                priority: .medium
+            ))
+        }
+        
+        // Day of week insights
+        if weekday == 2 { // Monday
+            generatedInsights.append(DashboardInsight(
+                icon: "calendar",
+                message: "Start of the week! Good time to review and plan your priorities.",
+                color: .blue,
+                priority: .low
+            ))
+        } else if weekday == 6 { // Friday
+            generatedInsights.append(DashboardInsight(
+                icon: "calendar",
+                message: "End of the week! Consider wrapping up loose ends.",
+                color: .blue,
+                priority: .low
+            ))
+        }
+        
+        // Event preparation insight
+        if !viewModel.upcomingEvents.isEmpty {
+            let nextEvent = viewModel.upcomingEvents.first!
+            let daysUntil = calendar.dateComponents([.day], from: now, to: nextEvent.startTime).day ?? 0
+            if daysUntil <= 2 && daysUntil > 0 {
+                generatedInsights.append(DashboardInsight(
+                    icon: "calendar.badge.clock",
+                    message: "\"\(nextEvent.title)\" is in \(daysUntil) day\(daysUntil > 1 ? "s" : ""). Time to prepare!",
+                    color: .purple,
+                    priority: .high
+                ))
+            }
+        }
+        
+        // Task completion pattern
+        let tasksWithLabels = viewModel.tasks.filter { !$0.labels.isEmpty }
+        if tasksWithLabels.count > 5 {
+            generatedInsights.append(DashboardInsight(
+                icon: "tag.fill",
+                message: "Tasks with labels tend to get completed faster. Consider adding labels to important tasks.",
+                color: .teal,
+                priority: .low
+            ))
+        }
+        
+        await MainActor.run {
+            // Sort by priority
+            insights = generatedInsights.sorted { $0.priority.rawValue > $1.priority.rawValue }
+            isLoading = false
+        }
+    }
+}
+
+struct DashboardInsight: Identifiable {
+    let id = UUID()
+    let icon: String
+    let message: String
+    let color: Color
+    let priority: InsightPriority
+    
+    enum InsightPriority: Int {
+        case low = 1
+        case medium = 2
+        case high = 3
     }
 }
 

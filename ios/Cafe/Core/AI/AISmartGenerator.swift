@@ -190,7 +190,7 @@ class AISmartGenerator: ObservableObject {
     }
 
     /// Create actual tasks/events from generated items
-    func createItems(from result: GenerationResult, selectedTaskIds: Set<UUID>, selectedEventIds: Set<UUID>) async throws {
+    func createItems(from result: GenerationResult, selectedTaskIds: Set<UUID>, selectedEventIds: Set<UUID>, selectedSmartListIds: Set<UUID> = []) async throws {
         // Create selected tasks
         for task in result.tasks where selectedTaskIds.contains(task.id) {
             let taskCreate = TaskCreate(
@@ -237,6 +237,78 @@ class AISmartGenerator: ObservableObject {
                 print("Failed to create event '\(event.title)': \(error)")
                 throw error
             }
+        }
+
+        // Create selected smart lists
+        let listManager = SmartListManager.shared
+        for smartList in result.smartLists where selectedSmartListIds.contains(smartList.id) {
+            // Convert GeneratedSmartList to SmartList
+            // The items in GeneratedSmartList are likely keywords or task titles
+            // We'll create filters based on the category and items
+            var filters: [TaskFilter] = []
+            
+            // Add label filter if category matches a common label
+            if !smartList.category.isEmpty {
+                filters.append(.label(smartList.category))
+            }
+            
+            // If items are provided, we could create tasks from them or use them as keywords
+            // For now, we'll create a smart list with the category filter
+            // The items can be used as a description or to create tasks separately
+            
+            let newSmartList = SmartList(
+                name: smartList.name,
+                icon: iconForCategory(smartList.category),
+                color: colorForCategory(smartList.category),
+                filters: filters,
+                sortOrder: .dueDate
+            )
+            
+            listManager.addList(newSmartList)
+        }
+    }
+    
+    /// Get appropriate icon for smart list category
+    private func iconForCategory(_ category: String) -> String {
+        switch category.lowercased() {
+        case "travel", "trip":
+            return "airplane"
+        case "work", "project":
+            return "briefcase"
+        case "home", "house":
+            return "house"
+        case "health", "fitness":
+            return "heart"
+        case "shopping", "groceries":
+            return "cart"
+        case "learning", "education":
+            return "book"
+        case "event", "party":
+            return "calendar"
+        default:
+            return "list.bullet.rectangle"
+        }
+    }
+    
+    /// Get appropriate color for smart list category
+    private func colorForCategory(_ category: String) -> String {
+        switch category.lowercased() {
+        case "travel", "trip":
+            return "blue"
+        case "work", "project":
+            return "purple"
+        case "home", "house":
+            return "orange"
+        case "health", "fitness":
+            return "red"
+        case "shopping", "groceries":
+            return "green"
+        case "learning", "education":
+            return "indigo"
+        case "event", "party":
+            return "pink"
+        default:
+            return "blue"
         }
     }
 }

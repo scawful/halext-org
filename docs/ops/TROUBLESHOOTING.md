@@ -513,7 +513,7 @@ cloudflared tunnel run mac-ollama
 cloudflared tunnel route dns mac-ollama ollama.yourname.com
 ```
 
-Now use `https://ollama.yourname.com` in admin panel instead of public IP. See `docs/REMOTE_OLLAMA_SETUP.md` for complete guide.
+Now use `https://ollama.yourname.com` in admin panel instead of public IP. See `docs/ai/OLLAMA_SETUP.md` for complete guide.
 
 ---
 
@@ -909,7 +909,7 @@ sudo /usr/libexec/ApplicationFirewall/socketfilterfw --add /Applications/Ollama.
 ```
 
 **Option 2: Cloudflare Access:**
-Use Cloudflare Tunnel with Access policy (requires login). See `docs/REMOTE_OLLAMA_SETUP.md`.
+Use Cloudflare Tunnel with Access policy (requires login). See `docs/ai/OLLAMA_SETUP.md` (Part 2: Remote/Exposed Setup).
 
 **Option 3: VPN:**
 ```bash
@@ -1034,7 +1034,7 @@ lsof -i :11434 -P -n
 
 - [Architecture Overview](ARCHITECTURE_OVERVIEW.md) - System design and components
 - [Quickstart Guide](QUICKSTART.md) - 15-minute setup
-- [Remote Ollama Setup](REMOTE_OLLAMA_SETUP.md) - Port forwarding and Cloudflare Tunnel
+- [Ollama Setup Guide](../ai/OLLAMA_SETUP.md) - Complete setup guide (local network + remote/exposed scenarios)
 - [Port Forwarding Guide](../PORT_FORWARDING_GUIDE.md) - Router configuration
 - [Emergency Recovery](EMERGENCY_SERVER_RECOVERY.md) - When things go wrong
 

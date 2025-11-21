@@ -242,15 +242,60 @@ struct NewTaskView: View {
         isLoadingSuggestions = true
 
         do {
+            // Build context-aware suggestion context
+            let context = await buildSuggestionContext()
+            
             aiSuggestions = try await APIClient.shared.getTaskSuggestions(
                 title: title,
-                description: description.isEmpty ? nil : description
+                description: description.isEmpty ? nil : description,
+                context: context
             )
             isLoadingSuggestions = false
         } catch {
             print("❌ Failed to load AI suggestions:", error)
             isLoadingSuggestions = false
         }
+    }
+    
+    private func buildSuggestionContext() async -> TaskSuggestionContext? {
+        let formatter = ISO8601DateFormatter()
+        let now = Date()
+        let calendar = Calendar.current
+        let weekday = calendar.component(.weekday, from: now)
+        let weekdayName = calendar.weekdaySymbols[weekday - 1]
+        
+        // Get upcoming events
+        var upcomingEventTitles: [String] = []
+        do {
+            let events = try await APIClient.shared.getEvents()
+            let weekFromNow = calendar.date(byAdding: .day, value: 7, to: now)!
+            upcomingEventTitles = events
+                .filter { $0.startTime >= now && $0.startTime <= weekFromNow }
+                .prefix(5)
+                .map { $0.title }
+        } catch {
+            // Context is optional
+        }
+        
+        // Get recent tasks
+        var recentTaskTitles: [String] = []
+        do {
+            let tasks = try await APIClient.shared.getTasks()
+            recentTaskTitles = tasks
+                .sorted { $0.createdAt > $1.createdAt }
+                .prefix(10)
+                .map { $0.title }
+        } catch {
+            // Context is optional
+        }
+        
+        return TaskSuggestionContext(
+            currentTime: formatter.string(from: now),
+            currentLocation: nil, // Could be enhanced with location services
+            upcomingEvents: upcomingEventTitles.isEmpty ? nil : upcomingEventTitles,
+            recentTasks: recentTaskTitles.isEmpty ? nil : recentTaskTitles,
+            dayOfWeek: weekdayName
+        )
     }
 
     private func priorityColor(_ priority: String) -> Color {

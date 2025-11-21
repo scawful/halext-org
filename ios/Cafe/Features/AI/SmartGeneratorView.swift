@@ -17,6 +17,7 @@ struct SmartGeneratorView: View {
     @State private var generationResult: GenerationResult?
     @State private var selectedTaskIds = Set<UUID>()
     @State private var selectedEventIds = Set<UUID>()
+    @State private var selectedSmartListIds = Set<UUID>()
     @State private var showError = false
     @State private var isCreating = false
 
@@ -51,10 +52,10 @@ struct SmartGeneratorView: View {
 
                 if generationResult != nil {
                     ToolbarItem(placement: .primaryAction) {
-                        Button("Create All") {
+                        Button("Create Selected") {
                             createSelectedItems()
                         }
-                        .disabled(selectedTaskIds.isEmpty && selectedEventIds.isEmpty)
+                        .disabled(selectedTaskIds.isEmpty && selectedEventIds.isEmpty && selectedSmartListIds.isEmpty)
                         .fontWeight(.semibold)
                     }
                 }
@@ -253,6 +254,7 @@ struct SmartGeneratorView: View {
                             generationResult = nil
                             selectedTaskIds.removeAll()
                             selectedEventIds.removeAll()
+                            selectedSmartListIds.removeAll()
                         }
                     } label: {
                         HStack {
@@ -338,7 +340,7 @@ struct SmartGeneratorView: View {
                     }
                 }
 
-                // Smart lists (placeholder for future implementation)
+                // Smart lists
                 if let smartLists = generationResult?.smartLists, !smartLists.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
@@ -346,13 +348,32 @@ struct SmartGeneratorView: View {
                                 .foregroundColor(.green)
                             Text("Smart Lists (\(smartLists.count))")
                                 .font(.headline)
+                            Spacer()
+                            Button(selectedSmartListIds.count == smartLists.count ? "Deselect All" : "Select All") {
+                                if selectedSmartListIds.count == smartLists.count {
+                                    selectedSmartListIds.removeAll()
+                                } else {
+                                    selectedSmartListIds = Set(smartLists.map { $0.id })
+                                }
+                            }
+                            .font(.caption)
+                            .foregroundColor(.blue)
                         }
                         .padding(.horizontal)
 
-                        Text("Smart lists will be available in a future update")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                        ForEach(smartLists) { smartList in
+                            GeneratedSmartListPreviewView(
+                                smartList: smartList,
+                                isSelected: selectedSmartListIds.contains(smartList.id)
+                            ) {
+                                if selectedSmartListIds.contains(smartList.id) {
+                                    selectedSmartListIds.remove(smartList.id)
+                                } else {
+                                    selectedSmartListIds.insert(smartList.id)
+                                }
+                            }
                             .padding(.horizontal)
+                        }
                     }
                 }
             }
@@ -421,6 +442,7 @@ struct SmartGeneratorView: View {
                 // Auto-select all items
                 selectedTaskIds = Set(result.tasks.map { $0.id })
                 selectedEventIds = Set(result.events.map { $0.id })
+                selectedSmartListIds = Set(result.smartLists.map { $0.id })
 
                 withAnimation {
                     generationResult = result
@@ -441,7 +463,8 @@ struct SmartGeneratorView: View {
                 try await generator.createItems(
                     from: result,
                     selectedTaskIds: selectedTaskIds,
-                    selectedEventIds: selectedEventIds
+                    selectedEventIds: selectedEventIds,
+                    selectedSmartListIds: selectedSmartListIds
                 )
 
                 // Success - dismiss view

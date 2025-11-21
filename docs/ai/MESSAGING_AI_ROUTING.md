@@ -429,6 +429,6 @@ def test_per_message_override():
 
 ## Related Documentation
 
-- [AI Routing Implementation Plan](./AI_ROUTING_IMPLEMENTATION_PLAN.md)
-- [AI Routing Roadmap](./AI_ROUTING_ROADMAP.md)
+- [AI Architecture](./AI_ARCHITECTURE.md) - Overall AI system architecture
+- [Ollama Setup Guide](./OLLAMA_SETUP.md) - Ollama server setup guide
 - [Distributed Model Router](./DISTRIBUTED_MODEL_ROUTER_PLAN.md)

@@ -20,12 +20,16 @@ The documentation set is grouped so you can jump directly to the area you need:
 
 ## AI Infrastructure (`docs/ai/`)
 - [AI_ARCHITECTURE.md](ai/AI_ARCHITECTURE.md) – distributed model hub design.
-- [AI_ROUTING_IMPLEMENTATION_PLAN.md](ai/AI_ROUTING_IMPLEMENTATION_PLAN.md) & [AI_ROUTING_ROADMAP.md](ai/AI_ROUTING_ROADMAP.md) – current rollout tasks.
-- [DISTRIBUTED_OLLAMA_SETUP.md](ai/DISTRIBUTED_OLLAMA_SETUP.md), [REMOTE_OLLAMA_SETUP.md](ai/REMOTE_OLLAMA_SETUP.md) – client compute onboarding.
+- [OLLAMA_SETUP.md](ai/OLLAMA_SETUP.md) – complete Ollama setup guide (local network + remote/exposed scenarios).
 - [CONNECTING_MAC_TO_UBUNTU.md](ai/CONNECTING_MAC_TO_UBUNTU.md), [OPENWEBUI_SETUP.md](ai/OPENWEBUI_SETUP.md) – tunnels, OpenWebUI automation, best practices.
+- [MESSAGING_AI_ROUTING.md](ai/MESSAGING_AI_ROUTING.md) – messaging-specific AI routing details.
+
+**Note**: Multiple AI routing implementation docs have been consolidated. Historical reference files are archived in `docs/ai/_ARCHIVE/`.
 
 ## iOS & Product Integrations (`docs/ios/`)
 - [IOS_DEVELOPMENT_PLAN.md](ios/IOS_DEVELOPMENT_PLAN.md) – native roadmap.
 - [ZENIEA_ZEN3MP_INTEGRATION.md](ios/ZENIEA_ZEN3MP_INTEGRATION.md) – cross-product notes.
+
+**Note**: Multiple iOS setup and feature docs have been consolidated into `ios/README.md` and `ios/SETUP.md`. Historical reference files are archived in `ios/_ARCHIVE/`.
 
 Each file keeps its original title/content; only the paths changed so the repo root stays tidy. Update this index whenever you add a new long-form guide.

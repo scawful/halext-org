@@ -328,7 +328,7 @@ sudo ufw enable
 ```
 
 4. **Restrict Ollama access:**
-Add IP allowlist to your Mac's firewall or use Cloudflare Tunnel (see [REMOTE_OLLAMA_SETUP.md](REMOTE_OLLAMA_SETUP.md))
+Add IP allowlist to your Mac's firewall or use Cloudflare Tunnel (see [OLLAMA_SETUP.md](../ai/OLLAMA_SETUP.md))
 
 ### Add More Features
 
@@ -403,7 +403,7 @@ For more issues, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
 Now that your system is running, explore:
 
 - [Architecture Overview](ARCHITECTURE_OVERVIEW.md) - Understand how it all works
-- [Distributed Ollama Setup](DISTRIBUTED_OLLAMA_SETUP.md) - Advanced node configuration
+- [Ollama Setup Guide](../ai/OLLAMA_SETUP.md) - Complete setup guide for local and remote scenarios
 - [Port Forwarding Guide](../PORT_FORWARDING_GUIDE.md) - Detailed router setup
 - [Emergency Recovery](EMERGENCY_SERVER_RECOVERY.md) - When things break
 

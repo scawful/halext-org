@@ -12,6 +12,9 @@ struct TaskTemplatesView: View {
     @State private var searchText = ""
     @State private var showingNewTemplate = false
     @State private var selectedTemplate: TaskTemplate?
+    @State private var isGeneratingTemplates = false
+    @State private var generatedTemplates: [TaskTemplate] = []
+    @State private var showingGeneratedTemplates = false
 
     var filteredTemplates: [TaskTemplate] {
         templateManager.searchTemplates(query: searchText)
@@ -65,8 +68,23 @@ struct TaskTemplatesView: View {
             .searchable(text: $searchText, prompt: "Search templates")
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    Button(action: { showingNewTemplate = true }) {
-                        Image(systemName: "plus")
+                    Menu {
+                        Button(action: { showingNewTemplate = true }) {
+                            Label("New Template", systemImage: "plus")
+                        }
+                        
+                        Divider()
+                        
+                        Button(action: generateTemplatesFromHistory) {
+                            Label("Generate from History", systemImage: "sparkles")
+                        }
+                        .disabled(isGeneratingTemplates)
+                    } label: {
+                        if isGeneratingTemplates {
+                            ProgressView()
+                        } else {
+                            Image(systemName: "ellipsis.circle")
+                        }
                     }
                 }
             }
@@ -75,6 +93,34 @@ struct TaskTemplatesView: View {
             }
             .sheet(item: $selectedTemplate) { template in
                 TemplateDetailView(template: template)
+            }
+            .sheet(isPresented: $showingGeneratedTemplates) {
+                GeneratedTemplatesView(
+                    templates: generatedTemplates,
+                    onSave: { template in
+                        templateManager.addTemplate(template)
+                    }
+                )
+            }
+        }
+    }
+    
+    private func generateTemplatesFromHistory() {
+        isGeneratingTemplates = true
+        
+        _Concurrency.Task {
+            do {
+                let templates = try await SmartTemplateGenerator.shared.generateTemplatesFromHistory()
+                await MainActor.run {
+                    generatedTemplates = templates
+                    isGeneratingTemplates = false
+                    showingGeneratedTemplates = !templates.isEmpty
+                }
+            } catch {
+                print("Failed to generate templates: \(error)")
+                await MainActor.run {
+                    isGeneratingTemplates = false
+                }
             }
         }
     }

@@ -187,16 +187,35 @@ struct FinanceOverviewView: View {
                     }
                 }
 
-                // Recent Transactions placeholder
+                // Recent Transactions
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Recent Transactions")
                         .font(.headline)
                         .padding(.horizontal)
 
-                    Text("Transactions will appear here")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .padding()
+                    if let summary = summary, summary.transactionCount > 0 {
+                        NavigationLink(destination: TransactionsListView()) {
+                            HStack {
+                                Text("\(summary.transactionCount) transactions")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding()
+                            .background(Color(.secondarySystemBackground))
+                            .cornerRadius(8)
+                        }
+                        .padding(.horizontal)
+                    } else {
+                        Text("No transactions yet")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .padding()
+                            .padding(.horizontal)
+                    }
                 }
             }
             .padding(.vertical)
@@ -346,22 +365,566 @@ struct AccountDetailView: View {
 }
 
 struct TransactionsListView: View {
+    @State private var transactions: [Transaction] = []
+    @State private var isLoading = false
+    @State private var errorMessage: String?
+    @State private var selectedAccountId: Int?
+    @State private var showingAddTransaction = false
+    @State private var accounts: [BankAccount] = []
+    
+    private func transactionAddedCallback() {
+        _Concurrency.Task {
+            await loadTransactions()
+        }
+    }
+
     var body: some View {
         List {
-            Text("Transactions feature coming soon")
-                .foregroundColor(.secondary)
+            if isLoading && transactions.isEmpty {
+                ProgressView()
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding()
+            } else if transactions.isEmpty {
+                VStack(spacing: 16) {
+                    Image(systemName: "list.bullet.rectangle")
+                        .font(.system(size: 50))
+                        .foregroundColor(.secondary)
+                    Text("No Transactions")
+                        .font(.headline)
+                        .foregroundColor(.secondary)
+                    Text("Add a transaction to get started")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+            } else {
+                ForEach(transactions) { transaction in
+                    TransactionRowView(transaction: transaction)
+                }
+            }
         }
         .listStyle(.plain)
+        .refreshable {
+            await loadTransactions()
+        }
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button(action: { showingAddTransaction = true }) {
+                    Image(systemName: "plus")
+                }
+            }
+        }
+        .sheet(isPresented: $showingAddTransaction) {
+            AddTransactionView(accounts: accounts, onTransactionAdded: { transactionAddedCallback() })
+        }
+        .task {
+            await loadAccounts()
+            await loadTransactions()
+        }
+    }
+
+    private func loadAccounts() async {
+        do {
+            accounts = try await APIClient.shared.getBankAccounts()
+        } catch {
+            print("Failed to load accounts: \(error)")
+        }
+    }
+
+    private func loadTransactions() async {
+        isLoading = true
+        defer { isLoading = false }
+
+        do {
+            transactions = try await APIClient.shared.getTransactions(accountId: selectedAccountId, limit: 100)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+}
+
+struct TransactionRowView: View {
+    let transaction: Transaction
+
+    var body: some View {
+        HStack(spacing: 12) {
+            // Category icon
+            Image(systemName: transaction.category.icon)
+                .font(.title3)
+                .foregroundColor(colorFromString(transaction.category.color))
+                .frame(width: 40, height: 40)
+                .background(colorFromString(transaction.category.color).opacity(0.1))
+                .clipShape(Circle())
+
+            // Details
+            VStack(alignment: .leading, spacing: 4) {
+                Text(transaction.description)
+                    .font(.body)
+                    .fontWeight(.medium)
+
+                HStack(spacing: 8) {
+                    Text(transaction.category.rawValue.capitalized)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    if let merchant = transaction.merchant {
+                        Text("•")
+                            .foregroundColor(.secondary)
+                        Text(merchant)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+
+            Spacer()
+
+            // Amount
+            VStack(alignment: .trailing, spacing: 4) {
+                Text(transaction.transactionType == .debit ? "-$\(formattedAmount(abs(transaction.amount)))" : "+$\(formattedAmount(transaction.amount))")
+                    .font(.body)
+                    .fontWeight(.semibold)
+                    .foregroundColor(transaction.transactionType == .debit ? .red : .green)
+
+                Text(transaction.transactionDate, style: .date)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    private func formattedAmount(_ amount: Decimal) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.minimumFractionDigits = 2
+        formatter.maximumFractionDigits = 2
+        return formatter.string(from: amount as NSDecimalNumber) ?? "0.00"
+    }
+
+    private func colorFromString(_ colorName: String) -> Color {
+        switch colorName {
+        case "blue": return .blue
+        case "red": return .red
+        case "green": return .green
+        case "orange": return .orange
+        case "purple": return .purple
+        case "yellow": return .yellow
+        case "pink": return .pink
+        case "teal": return .teal
+        case "brown": return .brown
+        case "indigo": return .indigo
+        case "cyan": return .cyan
+        case "mint": return .mint
+        case "gray": return .gray
+        default: return .blue
+        }
+    }
+}
+
+struct AddTransactionView: View {
+    @Environment(\.dismiss) var dismiss
+    let accounts: [BankAccount]
+    let onTransactionAdded: () -> Void
+
+    @State private var selectedAccountId: Int?
+    @State private var amount = ""
+    @State private var description = ""
+    @State private var category: TransactionCategory = .other
+    @State private var transactionType: TransactionType = .debit
+    @State private var merchant = ""
+    @State private var notes = ""
+    @State private var transactionDate = Date()
+    @State private var isSubmitting = false
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Transaction Details") {
+                    Picker("Account", selection: $selectedAccountId) {
+                        Text("Select Account").tag(nil as Int?)
+                        ForEach(accounts) { account in
+                            Text(account.accountName).tag(account.id as Int?)
+                        }
+                    }
+
+                    TextField("Amount", text: $amount)
+                        .keyboardType(.decimalPad)
+
+                    TextField("Description", text: $description)
+
+                    Picker("Category", selection: $category) {
+                        ForEach(TransactionCategory.allCases, id: \.self) { cat in
+                            Label(cat.rawValue.capitalized, systemImage: cat.icon).tag(cat)
+                        }
+                    }
+
+                    Picker("Type", selection: $transactionType) {
+                        Text("Debit").tag(TransactionType.debit)
+                        Text("Credit").tag(TransactionType.credit)
+                    }
+
+                    DatePicker("Date", selection: $transactionDate, displayedComponents: .date)
+                }
+
+                Section("Additional Information") {
+                    TextField("Merchant (optional)", text: $merchant)
+                    TextField("Notes (optional)", text: $notes, axis: .vertical)
+                        .lineLimit(3...6)
+                }
+
+                Section {
+                    Button(action: submitTransaction) {
+                        if isSubmitting {
+                            ProgressView()
+                                .frame(maxWidth: .infinity)
+                        } else {
+                            Text("Add Transaction")
+                                .frame(maxWidth: .infinity)
+                        }
+                    }
+                    .disabled(isSubmitting || !isValid)
+                }
+            }
+            .navigationTitle("Add Transaction")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+            }
+        }
+    }
+
+    var isValid: Bool {
+        guard selectedAccountId != nil,
+              Decimal(string: amount) != nil,
+              !description.isEmpty else {
+            return false
+        }
+        return true
+    }
+
+    private func submitTransaction() {
+        guard let accountId = selectedAccountId,
+              let amountDecimal = Decimal(string: amount) else { return }
+
+        isSubmitting = true
+
+        _Concurrency.Task {
+            do {
+                let transaction = TransactionCreate(
+                    accountId: accountId,
+                    amount: amountDecimal,
+                    description: description,
+                    category: category.rawValue,
+                    transactionDate: transactionDate,
+                    transactionType: transactionType.rawValue,
+                    merchant: merchant.isEmpty ? nil : merchant,
+                    notes: notes.isEmpty ? nil : notes,
+                    tags: []
+                )
+
+                _ = try await APIClient.shared.createTransaction(transaction)
+                onTransactionAdded()
+                dismiss()
+            } catch {
+                print("Failed to create transaction: \(error)")
+            }
+
+            isSubmitting = false
+        }
     }
 }
 
 struct BudgetsListView: View {
+    @State private var budgets: [Budget] = []
+    @State private var isLoading = false
+    @State private var errorMessage: String?
+    @State private var showingAddBudget = false
+    @State private var budgetProgress: [Int: BudgetProgress] = [:]
+    
+    private func budgetAddedCallback() {
+        _Concurrency.Task {
+            await loadBudgets()
+        }
+    }
+
     var body: some View {
         List {
-            Text("Budgets feature coming soon")
-                .foregroundColor(.secondary)
+            if isLoading && budgets.isEmpty {
+                ProgressView()
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding()
+            } else if budgets.isEmpty {
+                VStack(spacing: 16) {
+                    Image(systemName: "chart.bar")
+                        .font(.system(size: 50))
+                        .foregroundColor(.secondary)
+                    Text("No Budgets")
+                        .font(.headline)
+                        .foregroundColor(.secondary)
+                    Text("Create a budget to track your spending")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+            } else {
+                ForEach(budgets) { budget in
+                    BudgetRowView(budget: budget, progress: budgetProgress[budget.id])
+                }
+                .onDelete(perform: deleteBudgets)
+            }
         }
         .listStyle(.plain)
+        .refreshable {
+            await loadBudgets()
+        }
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button(action: { showingAddBudget = true }) {
+                    Image(systemName: "plus")
+                }
+            }
+        }
+        .sheet(isPresented: $showingAddBudget) {
+            AddBudgetView(onBudgetAdded: { budgetAddedCallback() })
+        }
+        .task {
+            await loadBudgets()
+        }
+    }
+
+    private func loadBudgets() async {
+        isLoading = true
+        defer { isLoading = false }
+
+        do {
+            budgets = try await APIClient.shared.getBudgets()
+            // TODO: Load budget progress from API
+            // For now, we'll calculate it client-side if we have transactions
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func deleteBudgets(at offsets: IndexSet) {
+        for index in offsets {
+            let budget = budgets[index]
+            _Concurrency.Task {
+                do {
+                    try await APIClient.shared.deleteBudget(id: budget.id)
+                    await loadBudgets()
+                } catch {
+                    print("Failed to delete budget: \(error)")
+                }
+            }
+        }
+    }
+}
+
+struct BudgetRowView: View {
+    let budget: Budget
+    let progress: BudgetProgress?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: budget.category.icon)
+                    .font(.title3)
+                    .foregroundColor(colorFromString(budget.category.color))
+                    .frame(width: 40, height: 40)
+                    .background(colorFromString(budget.category.color).opacity(0.1))
+                    .clipShape(Circle())
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(budget.name)
+                        .font(.headline)
+
+                    Text(budget.category.rawValue.capitalized)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
+                Spacer()
+
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text("$\(formattedAmount(budget.amount))")
+                        .font(.headline)
+
+                    Text(budget.period.rawValue.capitalized)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+
+            if let progress = progress {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Spent: $\(formattedAmount(progress.spent))")
+                            .font(.subheadline)
+                            .foregroundColor(progress.isOverBudget ? .red : .primary)
+
+                        Spacer()
+
+                        Text("\(Int(progress.percentUsed))%")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(progress.isOverBudget ? .red : .primary)
+                    }
+
+                    GeometryReader { geometry in
+                        ZStack(alignment: .leading) {
+                            Rectangle()
+                                .fill(Color.gray.opacity(0.2))
+                                .frame(height: 8)
+                                .cornerRadius(4)
+
+                            Rectangle()
+                                .fill(progress.isOverBudget ? Color.red : Color.green)
+                                .frame(width: geometry.size.width * min(progress.percentUsed / 100, 1.0), height: 8)
+                                .cornerRadius(4)
+                        }
+                    }
+                    .frame(height: 8)
+
+                    if progress.isOverBudget {
+                        Text("Over budget by $\(formattedAmount(progress.spent - budget.amount))")
+                            .font(.caption)
+                            .foregroundColor(.red)
+                    } else {
+                        Text("$\(formattedAmount(progress.remaining)) remaining")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    private func formattedAmount(_ amount: Decimal) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.minimumFractionDigits = 2
+        formatter.maximumFractionDigits = 2
+        return formatter.string(from: amount as NSDecimalNumber) ?? "0.00"
+    }
+
+    private func colorFromString(_ colorName: String) -> Color {
+        switch colorName {
+        case "blue": return .blue
+        case "red": return .red
+        case "green": return .green
+        case "orange": return .orange
+        case "purple": return .purple
+        case "yellow": return .yellow
+        case "pink": return .pink
+        case "teal": return .teal
+        case "brown": return .brown
+        case "indigo": return .indigo
+        case "cyan": return .cyan
+        case "mint": return .mint
+        case "gray": return .gray
+        default: return .blue
+        }
+    }
+}
+
+struct AddBudgetView: View {
+    @Environment(\.dismiss) var dismiss
+    let onBudgetAdded: () -> Void
+
+    @State private var name = ""
+    @State private var category: TransactionCategory = .other
+    @State private var amount = ""
+    @State private var period: BudgetPeriod = .monthly
+    @State private var startDate = Date()
+    @State private var endDate: Date?
+    @State private var isSubmitting = false
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Budget Details") {
+                    TextField("Budget Name", text: $name)
+
+                    Picker("Category", selection: $category) {
+                        ForEach(TransactionCategory.allCases, id: \.self) { cat in
+                            Label(cat.rawValue.capitalized, systemImage: cat.icon).tag(cat)
+                        }
+                    }
+
+                    TextField("Amount", text: $amount)
+                        .keyboardType(.decimalPad)
+
+                    Picker("Period", selection: $period) {
+                        ForEach(BudgetPeriod.allCases, id: \.self) { p in
+                            Text(p.rawValue.capitalized).tag(p)
+                        }
+                    }
+
+                    DatePicker("Start Date", selection: $startDate, displayedComponents: .date)
+                }
+
+                Section {
+                    Button(action: submitBudget) {
+                        if isSubmitting {
+                            ProgressView()
+                                .frame(maxWidth: .infinity)
+                        } else {
+                            Text("Create Budget")
+                                .frame(maxWidth: .infinity)
+                        }
+                    }
+                    .disabled(isSubmitting || !isValid)
+                }
+            }
+            .navigationTitle("New Budget")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+            }
+        }
+    }
+
+    var isValid: Bool {
+        guard !name.isEmpty,
+              Decimal(string: amount) != nil else {
+            return false
+        }
+        return true
+    }
+
+    private func submitBudget() {
+        guard let amountDecimal = Decimal(string: amount) else { return }
+
+        isSubmitting = true
+
+        _Concurrency.Task {
+            do {
+                let budget = BudgetCreate(
+                    name: name,
+                    category: category.rawValue,
+                    amount: amountDecimal,
+                    period: period.rawValue,
+                    startDate: startDate,
+                    endDate: endDate
+                )
+
+                _ = try await APIClient.shared.createBudget(budget)
+                onBudgetAdded()
+                dismiss()
+            } catch {
+                print("Failed to create budget: \(error)")
+            }
+
+            isSubmitting = false
+        }
     }
 }
 

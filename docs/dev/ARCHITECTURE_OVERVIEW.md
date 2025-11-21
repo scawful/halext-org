@@ -495,7 +495,7 @@ See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for common issues and solutions.
 ## Related Documentation
 
 - [Quickstart Guide](QUICKSTART.md) - Get running in 15 minutes
-- [Distributed Ollama Setup](DISTRIBUTED_OLLAMA_SETUP.md) - Detailed node setup
+- [Ollama Setup Guide](../ai/OLLAMA_SETUP.md) - Detailed node setup (local network + remote/exposed)
 - [Port Forwarding Guide](../PORT_FORWARDING_GUIDE.md) - Router configuration
 - [Emergency Recovery](EMERGENCY_SERVER_RECOVERY.md) - When things go wrong
 - [API Reference](API_REFERENCE.md) - Backend API documentation (TODO)

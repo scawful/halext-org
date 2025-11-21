@@ -34,9 +34,9 @@ struct AdminAICredentialsView: View {
     ]
 
     private let geminiModels = [
-        "gemini-1.5-pro",
-        "gemini-1.5-flash",
-        "gemini-pro"
+        "gemini-3.0-preview",
+        "gemini-2.5-pro",
+        "gemini-2.5-flash"
     ]
 
     var body: some View {

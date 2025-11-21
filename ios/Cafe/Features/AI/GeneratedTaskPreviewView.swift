@@ -398,6 +398,161 @@ struct GeneratedEventPreviewView: View {
     }
 }
 
+// MARK: - Generated Smart List Preview
+
+struct GeneratedSmartListPreviewView: View {
+    let smartList: GeneratedSmartList
+    let isSelected: Bool
+    let onToggle: () -> Void
+
+    @State private var showDetails = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Main content
+            HStack(alignment: .top, spacing: 12) {
+                // Selection checkbox
+                Button(action: onToggle) {
+                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                        .font(.title3)
+                        .foregroundColor(isSelected ? .green : .secondary)
+                }
+                .buttonStyle(.plain)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    // Title
+                    Text(smartList.name)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.primary)
+
+                    // Category
+                    if !smartList.category.isEmpty {
+                        HStack(spacing: 4) {
+                            Image(systemName: "tag")
+                                .font(.caption2)
+                            Text(smartList.category.capitalized)
+                                .font(.caption)
+                        }
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            Capsule()
+                                .fill(Color.green.opacity(0.15))
+                        )
+                    }
+
+                    // Description
+                    if let description = smartList.description, !description.isEmpty {
+                        Text(description)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .lineLimit(showDetails ? nil : 2)
+                    }
+
+                    // Items count
+                    if !smartList.items.isEmpty {
+                        HStack(spacing: 4) {
+                            Image(systemName: "list.bullet")
+                                .font(.caption2)
+                            Text("\(smartList.items.count) items")
+                                .font(.caption)
+                        }
+                        .foregroundColor(.secondary)
+                    }
+
+                    // Show details button
+                    Button {
+                        withAnimation {
+                            showDetails.toggle()
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text(showDetails ? "Hide Details" : "Show Details")
+                            Image(systemName: showDetails ? "chevron.up" : "chevron.down")
+                        }
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                    }
+                }
+
+                Spacer()
+            }
+            .padding()
+
+            // Expandable details
+            if showDetails {
+                VStack(alignment: .leading, spacing: 12) {
+                    Divider()
+
+                    // Items list
+                    if !smartList.items.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Items")
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.secondary)
+
+                            ForEach(Array(smartList.items.prefix(20).enumerated()), id: \.offset) { index, item in
+                                HStack(spacing: 8) {
+                                    Image(systemName: "circle.fill")
+                                        .font(.system(size: 4))
+                                        .foregroundColor(.secondary)
+                                    Text(item)
+                                        .font(.caption)
+                                        .foregroundColor(.primary)
+                                }
+                            }
+                            if smartList.items.count > 20 {
+                                Text("+ \(smartList.items.count - 20) more")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .italic()
+                            }
+                        }
+                    }
+
+                    // AI reasoning
+                    if let reasoning = smartList.aiReasoning {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "sparkles")
+                                    .font(.caption2)
+                                Text("AI Insight")
+                                    .font(.caption)
+                                    .fontWeight(.semibold)
+                            }
+                            .foregroundColor(.purple)
+
+                            Text(reasoning)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .italic()
+                        }
+                        .padding(8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(Color.purple.opacity(0.05))
+                        )
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.bottom)
+            }
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(.systemBackground))
+                .shadow(color: .black.opacity(0.05), radius: 4, y: 2)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(isSelected ? Color.green : Color.clear, lineWidth: 2)
+        )
+    }
+}
+
 // MARK: - Color Extension
 // Note: Color hex initializer is defined in ColorExtensions.swift
 
@@ -469,6 +624,37 @@ struct GeneratedEventPreviewView: View {
                 location: "Local Gym",
                 recurrenceType: "daily",
                 aiReasoning: "Recurring event to maintain consistency"
+            ),
+            isSelected: false,
+            onToggle: {}
+        )
+    }
+    .padding()
+}
+
+#Preview("Smart List Preview") {
+    VStack(spacing: 16) {
+        GeneratedSmartListPreviewView(
+            smartList: GeneratedSmartList(
+                id: UUID(),
+                name: "Japan Packing List",
+                description: "Essential items for 2-week Japan trip",
+                category: "travel",
+                items: ["Passport", "Yen", "Travel adapter", "Camera", "Comfortable shoes"],
+                aiReasoning: "Essential travel items for Japan"
+            ),
+            isSelected: true,
+            onToggle: {}
+        )
+
+        GeneratedSmartListPreviewView(
+            smartList: GeneratedSmartList(
+                id: UUID(),
+                name: "Meal Prep Shopping",
+                description: "Weekly grocery list for meal prep",
+                category: "shopping",
+                items: ["Chicken breast", "Rice", "Vegetables", "Spices"],
+                aiReasoning: nil
             ),
             isSelected: false,
             onToggle: {}

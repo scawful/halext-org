@@ -319,7 +319,7 @@ After successful deployment, you should have:
 - `scripts/ubuntu-test-mac-ollama.sh` - NEW: Ubuntu test script
 
 ### Documentation
-- `docs/DISTRIBUTED_OLLAMA_SETUP.md` - NEW: Complete guide
+- `docs/ai/OLLAMA_SETUP.md` - Complete Ollama setup guide (local network + remote/exposed scenarios)
 - `scripts/README.md` - Updated with new scripts
 
 ## Next Steps After Deployment
@@ -363,5 +363,5 @@ sudo systemctl restart nginx
 
 If issues persist:
 - Check logs: `sudo journalctl -u halext-backend -f`
-- Review [DISTRIBUTED_OLLAMA_SETUP.md](docs/DISTRIBUTED_OLLAMA_SETUP.md)
+- Review [Ollama Setup Guide](../ai/OLLAMA_SETUP.md)
 - Verify Mac is still accessible: `./scripts/ubuntu-test-mac-ollama.sh YOUR_MAC_LOCAL_IP`

@@ -314,24 +314,59 @@ extension NotificationManager: UNUserNotificationCenterDelegate {
         case "COMPLETE_TASK":
             if let taskId = userInfo["taskId"] as? Int {
                 print("✅ Complete task: \(taskId)")
-                // TODO: Update task completion via API
+                _Concurrency.Task {
+                    do {
+                        _ = try await APIClient.shared.updateTask(id: taskId, completed: true)
+                        print("✅ Task \(taskId) marked as completed")
+                        // Cancel the notification since task is complete
+                        cancelTaskReminder(taskId: taskId)
+                    } catch {
+                        print("❌ Failed to complete task \(taskId): \(error)")
+                    }
+                }
             }
 
         case "SNOOZE_TASK":
             if let taskId = userInfo["taskId"] as? Int {
                 print("⏰ Snooze task: \(taskId)")
-                // TODO: Reschedule notification
+                // Reschedule notification for 1 hour from now
+                let snoozeDate = Date().addingTimeInterval(3600) // 1 hour from now
+                // Get task title from userInfo or use a generic title
+                let taskTitle = userInfo["taskTitle"] as? String ?? "Task"
+                _Concurrency.Task {
+                    await scheduleTaskReminder(taskId: taskId, title: taskTitle, dueDate: snoozeDate)
+                    print("⏰ Task \(taskId) snoozed until \(snoozeDate)")
+                }
             }
 
         case "VIEW_EVENT":
             if let eventId = userInfo["eventId"] as? Int {
                 print("📅 View event: \(eventId)")
-                // TODO: Navigate to event details
+                // Post notification to navigate to event
+                NotificationCenter.default.post(
+                    name: Notification.Name("NavigateToEvent"),
+                    object: nil,
+                    userInfo: ["eventId": eventId]
+                )
             }
 
         case UNNotificationDefaultActionIdentifier:
             // User tapped notification
             print("👆 Default tap action")
+            // Handle default tap - navigate based on notification type
+            if let taskId = userInfo["taskId"] as? Int {
+                NotificationCenter.default.post(
+                    name: Notification.Name("NavigateToTask"),
+                    object: nil,
+                    userInfo: ["taskId": taskId]
+                )
+            } else if let eventId = userInfo["eventId"] as? Int {
+                NotificationCenter.default.post(
+                    name: Notification.Name("NavigateToEvent"),
+                    object: nil,
+                    userInfo: ["eventId": eventId]
+                )
+            }
 
         default:
             break
