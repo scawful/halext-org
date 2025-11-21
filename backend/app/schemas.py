@@ -169,12 +169,29 @@ class ChatMessage(ChatMessageBase):
     id: int
     conversation_id: int
     author_id: Optional[int] = None
+    sender_id: Optional[int] = None  # Alias for author_id for iOS compatibility
     author_type: str
     model_used: Optional[str] = None
     created_at: datetime
+    updated_at: Optional[datetime] = None  # Optional for iOS compatibility
 
     class Config:
-        from_attributes = True
+        orm_mode = True
+        
+    @classmethod
+    def from_orm(cls, obj):
+        """Custom from_orm to set sender_id from author_id for iOS compatibility"""
+        return cls(
+            id=obj.id,
+            conversation_id=obj.conversation_id,
+            author_id=obj.author_id,
+            sender_id=obj.author_id,  # Set sender_id to match author_id for iOS
+            author_type=obj.author_type,
+            content=obj.content,
+            model_used=obj.model_used,
+            created_at=obj.created_at,
+            updated_at=None,  # ChatMessage doesn't have updated_at in DB
+        )
 
 class UserBase(BaseModel):
     username: str

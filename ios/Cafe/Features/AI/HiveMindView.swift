@@ -160,7 +160,7 @@ struct HiveMindView: View {
         isSettingGoal = true
         error = nil
         
-        Task { @MainActor in
+        _Concurrency.Task { @MainActor in
             do {
                 conversation = try await api.setHiveMindGoal(conversationId: conversationId, goal: goal.trimmingCharacters(in: .whitespacesAndNewlines))
                 summary = nil
@@ -176,7 +176,7 @@ struct HiveMindView: View {
         isFetchingSummary = true
         error = nil
         
-        Task { @MainActor in
+        _Concurrency.Task { @MainActor in
             do {
                 summary = try await api.getHiveMindSummary(conversationId: conversationId)
             } catch {
@@ -190,7 +190,7 @@ struct HiveMindView: View {
         isFetchingNextSteps = true
         error = nil
         
-        Task { @MainActor in
+        _Concurrency.Task { @MainActor in
             do {
                 nextSteps = try await api.getHiveMindNextSteps(conversationId: conversationId)
             } catch {
@@ -200,4 +200,3 @@ struct HiveMindView: View {
         }
     }
 }
-

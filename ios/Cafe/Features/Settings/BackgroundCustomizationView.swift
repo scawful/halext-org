@@ -66,7 +66,7 @@ struct BackgroundCustomizationView: View {
     
     #if canImport(PhotosUI)
     private func loadImage(from item: PhotosPickerItem) {
-        Task.detached { @MainActor in
+        _Concurrency.Task {
             if let data = try? await item.loadTransferable(type: Data.self) {
                 await MainActor.run {
                     customBackground.imageData = data
@@ -103,9 +103,9 @@ struct BackgroundCustomizationView: View {
     private var patternSection: some View {
         Section {
             Picker("Pattern Overlay", selection: Binding(
-                get: { customBackground.pattern ?? .none },
+                get: { customBackground.pattern ?? BackgroundPattern.none },
                 set: { newPattern in
-                    customBackground.pattern = newPattern == .none ? nil : newPattern
+                    customBackground.pattern = newPattern == BackgroundPattern.none ? nil : newPattern
                     saveBackground()
                 }
             )) {

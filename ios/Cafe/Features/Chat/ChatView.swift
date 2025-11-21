@@ -13,6 +13,10 @@ struct ChatView: View {
     @State private var scrollProxy: ScrollViewProxy?
     @FocusState private var isInputFocused: Bool
     @State private var settingsManager = SettingsManager.shared
+    
+    init() {
+        // Ensure AppState is available
+    }
 
     var body: some View {
         NavigationStack {
@@ -70,6 +74,12 @@ struct ChatView: View {
                 .padding()
             }
             .navigationTitle("AI Assistant")
+            .task {
+                // Ensure models are loaded when view appears
+                if appState.aiModels == nil && !appState.isLoadingModels {
+                    await appState.loadAIModels()
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
@@ -110,9 +120,29 @@ struct ChatView: View {
         HStack {
             Spacer()
 
-            AIModelCompactPicker(selectedModelId: $settingsManager.selectedAiModelId)
+            if appState.aiModels != nil || appState.isLoadingModels {
+                AIModelCompactPicker(selectedModelId: $settingsManager.selectedAiModelId)
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+            } else {
+                Button {
+                    _Concurrency.Task {
+                        await appState.loadAIModels()
+                    }
+                } label: {
+                    HStack {
+                        Image(systemName: "cpu")
+                        Text("Load Models")
+                    }
+                    .font(.caption)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color(.systemGray6))
+                    .cornerRadius(12)
+                }
                 .padding(.horizontal)
                 .padding(.top, 8)
+            }
 
             Spacer()
         }

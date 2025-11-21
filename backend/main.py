@@ -592,7 +592,8 @@ def get_conversation_messages(
     if not conversation:
         raise HTTPException(status_code=404, detail="Conversation not found")
     messages = crud.get_messages_for_conversation(db=db, conversation_id=conversation_id, limit=200)
-    return messages
+    # Convert ORM models to Pydantic schemas using from_orm (Pydantic v1)
+    return [schemas.ChatMessage.from_orm(msg) for msg in messages]
 
 @app.post("/conversations/{conversation_id}/messages", response_model=List[schemas.ChatMessage])
 async def send_conversation_message(
@@ -612,9 +613,11 @@ async def send_conversation_message(
         author_type="user",
     )
     import json
-    await manager.broadcast(json.dumps(schemas.ChatMessage.from_orm(user_message).dict()), str(conversation_id))
+    # Convert ORM model to Pydantic schema for JSON serialization (Pydantic v1)
+    user_message_schema = schemas.ChatMessage.from_orm(user_message)
+    await manager.broadcast(json.dumps(user_message_schema.dict()), str(conversation_id))
     
-    responses = [user_message]
+    responses = [user_message_schema]
     if conversation.with_ai:
         if conversation.hive_mind_goal:
             print(f"Hive Mind logic would be triggered for conversation {conversation_id}")
@@ -626,16 +629,20 @@ async def send_conversation_message(
         ]
         
         # Enhanced Context Awareness
-        embedding_model = "all-minilm-l6-v2" # or some other default
-        embedding = await ai_gateway.generate_embeddings(message.content, embedding_model, user_id=current_user.id, db=db)
-        similar_items = crud.get_similar_embeddings(db, owner_id=current_user.id, query_embedding=embedding)
-        
         context_str = ""
-        if similar_items:
-            context_str = "\n\nHere is some additional context that might be relevant:\n"
-            for item in similar_items:
-                # TODO: Fetch the actual content from the source
-                context_str += f"- From {item.source} (ID: {item.source_id})\n"
+        try:
+            embedding_model = "all-minilm-l6-v2" # or some other default
+            embedding = await ai_gateway.generate_embeddings(message.content, embedding_model, user_id=current_user.id, db=db)
+            if embedding:
+                similar_items = crud.get_similar_embeddings(db, owner_id=current_user.id, query_embedding=embedding)
+                if similar_items:
+                    context_str = "\n\nHere is some additional context that might be relevant:\n"
+                    for item in similar_items:
+                        # TODO: Fetch the actual content from the source
+                        context_str += f"- From {item.source} (ID: {item.source_id})\n"
+        except Exception as e:
+            print(f"Warning: Failed to get context embeddings: {e}")
+            # Continue without context - not critical
 
         # Use model from: 1) message override, 2) conversation default, 3) system default
         model_to_use = message.model or conversation.default_model_id
@@ -675,8 +682,10 @@ async def send_conversation_message(
             author_type="ai",
             model_used=route.identifier,
         )
-        await manager.broadcast(json.dumps(schemas.ChatMessage.from_orm(ai_message).dict()), str(conversation_id))
-        responses.append(ai_message)
+        # Convert ORM model to Pydantic schema for JSON serialization (Pydantic v1)
+        ai_message_schema = schemas.ChatMessage.from_orm(ai_message)
+        await manager.broadcast(json.dumps(ai_message_schema.dict()), str(conversation_id))
+        responses.append(ai_message_schema)
     return responses
 
 

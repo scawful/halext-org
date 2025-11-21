@@ -3,7 +3,7 @@
 # Build UNSIGNED IPA for AltStore
 # AltStore will sign it with your free Apple ID when installing
 
-set -e
+set -euo pipefail
 
 echo "🏗️  Building unsigned IPA for AltStore..."
 echo "📝 AltStore will sign this with your Apple ID when you install it"
@@ -12,27 +12,69 @@ echo ""
 # Configuration
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BUILD_DIR="$PROJECT_DIR/build"
+DERIVED_DATA="$BUILD_DIR/DerivedData"
+PAYLOAD_DIR="$BUILD_DIR/Payload"
+LOG_FILE="$BUILD_DIR/altstore-build.log"
 SCHEME="Cafe"
 
-# Clean
-echo "🧹 Cleaning previous builds..."
-rm -rf "$BUILD_DIR"
-xcodebuild clean -scheme "$SCHEME" -quiet -derivedDataPath "$BUILD_DIR/DerivedData" 2>/dev/null || true
+run_build() {
+  local attempt_label="$1"
+  echo "📦 Building app bundle (${attempt_label})..."
 
-# Build for device (unsigned)
-echo "📦 Building app bundle..."
-xcodebuild build \
-  -scheme "$SCHEME" \
-  -configuration Release \
-  -destination 'generic/platform=iOS' \
-  -derivedDataPath "$BUILD_DIR/DerivedData" \
-  CODE_SIGN_IDENTITY="" \
-  CODE_SIGNING_REQUIRED=NO \
-  CODE_SIGNING_ALLOWED=NO \
-  AD_HOC_CODE_SIGNING_ALLOWED=NO
+  # Capture full logs for debugging (including .pcm/module cache hiccups)
+  set +e
+  xcodebuild build \
+    -scheme "$SCHEME" \
+    -configuration Release \
+    -destination 'generic/platform=iOS' \
+    -sdk iphoneos \
+    -derivedDataPath "$DERIVED_DATA" \
+    SUPPORTED_PLATFORMS=iphoneos \
+    CODE_SIGN_IDENTITY="" \
+    CODE_SIGNING_REQUIRED=NO \
+    CODE_SIGNING_ALLOWED=NO \
+    AD_HOC_CODE_SIGNING_ALLOWED=NO \
+    | tee "$LOG_FILE"
+  local status=${PIPESTATUS[0]}
+  set -e
+  return "$status"
+}
+
+ensure_clean_build_dir() {
+  rm -rf "$BUILD_DIR"
+  mkdir -p "$BUILD_DIR"
+}
+
+detect_module_cache_failure() {
+  [[ -f "$LOG_FILE" ]] && grep -E "ModuleCache\\.noindex|\\.pcm|Cafe-dependencies" "$LOG_FILE" >/dev/null
+}
+
+echo "🧹 Cleaning previous builds..."
+ensure_clean_build_dir
+xcodebuild clean -scheme "$SCHEME" -quiet -derivedDataPath "$DERIVED_DATA" 2>/dev/null || true
+
+build_status=0
+run_build "attempt 1" || build_status=$?
+
+# Auto-retry once after nuking DerivedData if we see .pcm/module cache flakiness
+if [[ $build_status -ne 0 ]] && detect_module_cache_failure; then
+  echo "♻️  Detected module cache/pcm errors. Cleaning DerivedData and retrying..."
+  rm -rf "$DERIVED_DATA"
+  run_build "retry after cache clean" || build_status=$?
+fi
+
+if [[ $build_status -ne 0 ]]; then
+  if [[ -f "$LOG_FILE" ]] && grep -q "No available simulator runtimes for platform" "$LOG_FILE"; then
+    echo "ℹ️  Xcode can't see any simulator runtimes. Install one via Xcode Settings → Platforms or run 'xcodebuild -downloadAllSimulatorRuntimes' if needed."
+  fi
+  echo "❌ Build failed. Full log: $LOG_FILE"
+  exit "$build_status"
+fi
+
+echo "✅ Build succeeded. Log: $LOG_FILE"
 
 # Find the built app
-APP_PATH=$(find "$BUILD_DIR/DerivedData" -name "*.app" -path "*/Build/Products/*" | head -1)
+APP_PATH=$(find "$DERIVED_DATA" -name "*.app" -path "*/Build/Products/*" | head -1)
 
 if [ -z "$APP_PATH" ]; then
     echo "❌ Could not find built .app bundle"
@@ -43,7 +85,6 @@ echo "✅ Built app at: $APP_PATH"
 
 # Create Payload directory structure
 echo "📦 Creating IPA structure..."
-PAYLOAD_DIR="$BUILD_DIR/Payload"
 mkdir -p "$PAYLOAD_DIR"
 cp -r "$APP_PATH" "$PAYLOAD_DIR/"
 
