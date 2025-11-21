@@ -208,7 +208,7 @@ struct SettingsView: View {
                 ConnectedDevicesView()
             } label: {
                 SettingsItemLabel(
-                    icon: "devices",
+                    icon: "iphone.gen3",
                     iconColor: .blue,
                     title: "Connected Devices",
                     subtitle: "\(settingsManager.connectedDevicesCount) devices"

@@ -300,13 +300,32 @@ class APIClient {
                 throw APIError.unauthorized
             }
 
+            // Check if response is HTML (like nginx 502 Bad Gateway)
+            if let responseText = String(data: data, encoding: .utf8),
+               responseText.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("<html") {
+                let errorMessage: String
+                if httpResponse.statusCode == 502 {
+                    errorMessage = "Backend server is unavailable. Please try again later."
+                } else if httpResponse.statusCode == 503 {
+                    errorMessage = "Service temporarily unavailable. Please try again later."
+                } else if httpResponse.statusCode == 504 {
+                    errorMessage = "Gateway timeout. The server took too long to respond."
+                } else {
+                    errorMessage = "Server error (\(httpResponse.statusCode)): \(responseText.prefix(100))"
+                }
+                print("❌ HTML error response (\(httpResponse.statusCode)): \(errorMessage)")
+                throw APIError.serverError(errorMessage)
+            }
+
+            // Try to decode as JSON error response
             if let errorResponse = try? decodeResponse(ErrorResponse.self, from: data) {
                 print("❌ Server error: \(errorResponse.detail)")
                 throw APIError.serverError(errorResponse.detail)
             }
 
+            // Fallback: use status code
             if let responseText = String(data: data, encoding: .utf8) {
-                print("❌ Server response (\(httpResponse.statusCode)): \(responseText)")
+                print("❌ Server response (\(httpResponse.statusCode)): \(responseText.prefix(200))")
             }
 
             throw APIError.httpError(httpResponse.statusCode)
@@ -317,6 +336,13 @@ class APIClient {
 
     /// Decodes an API response with consistent decoding strategies.
     internal func decodeResponse<T: Decodable>(_ type: T.Type, from data: Data) throws -> T {
+        // Check if response is HTML (like nginx error pages)
+        if let responseText = String(data: data, encoding: .utf8),
+           responseText.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("<html") {
+            print("❌ Attempted to decode HTML as JSON")
+            throw APIError.decodingError
+        }
+        
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
 
@@ -324,7 +350,13 @@ class APIClient {
             return try decoder.decode(T.self, from: data)
         } catch {
             print("❌ Decoding error:", error)
-            print("Response data:", String(data: data, encoding: .utf8) ?? "Unable to decode")
+            if let responseText = String(data: data, encoding: .utf8) {
+                // Only print first 200 chars to avoid spam
+                let preview = responseText.count > 200 ? String(responseText.prefix(200)) + "..." : responseText
+                print("Response data preview:", preview)
+            } else {
+                print("Response data: Unable to decode as UTF-8")
+            }
             throw APIError.decodingError
         }
     }
