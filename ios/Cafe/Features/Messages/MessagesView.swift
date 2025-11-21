@@ -13,7 +13,10 @@ struct MessagesView: View {
     @State private var presenceManager = SocialPresenceManager.shared
     @State private var showingNewMessage = false
     @State private var activeConversation: Conversation?
-    @State private var preferredContactUsername: String = "chris"
+    @State private var preferredContactUsername: String = "magicalgirl"
+    @State private var chrisConversation: Conversation?
+    @State private var isLoadingChris = false
+    @State private var chrisPresence: SocialPresenceStatus?
 
     var body: some View {
         NavigationStack {
@@ -64,24 +67,64 @@ struct MessagesView: View {
                                 .padding(.vertical, 4)
                             }
 
+                            // Enhanced Chris quick access button
                             Button {
-                                showingNewMessage = true
-                                // seed search for preferred contact
-                                NotificationCenter.default.post(
-                                    name: Notification.Name("MessagesViewSeedSearch"),
-                                    object: preferredContactUsername
-                                )
+                                _Concurrency.Task {
+                                    await openOrCreateChrisConversation()
+                                }
                             } label: {
                                 HStack {
-                                    Image(systemName: "person.2.fill")
-                                        .foregroundColor(.green)
-                                    Text("Message \(preferredContactUsername.capitalized)")
+                                    ZStack {
+                                        Circle()
+                                            .fill(
+                                                LinearGradient(
+                                                    colors: [.pink, .purple],
+                                                    startPoint: .topLeading,
+                                                    endPoint: .bottomTrailing
+                                                )
+                                            )
+                                            .frame(width: 40, height: 40)
+                                        
+                                        Image(systemName: "sparkles")
+                                            .font(.title3)
+                                            .foregroundStyle(.white)
+                                    }
+                                    
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        HStack(spacing: 6) {
+                                            Text("Message Chris")
+                                                .font(.headline)
+                                            
+                                            if let presence = chrisPresence {
+                                                PresenceDot(isOnline: presence.isOnline)
+                                            }
+                                            
+                                            if isLoadingChris {
+                                                ProgressView()
+                                                    .scaleEffect(0.7)
+                                            }
+                                        }
+                                        
+                                        if let presence = chrisPresence, let activity = presence.currentActivity {
+                                            Text(activity)
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                                .lineLimit(1)
+                                        } else {
+                                            Text("Start a conversation")
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                        }
+                                    }
+                                    
                                     Spacer()
+                                    
                                     Image(systemName: "chevron.right")
                                         .foregroundColor(.secondary)
                                 }
                                 .padding(.vertical, 4)
                             }
+                            .disabled(isLoadingChris)
                         }
                         .listRowBackground(themeManager.cardBackgroundColor)
 
@@ -135,6 +178,7 @@ struct MessagesView: View {
                 presenceManager.startTrackingPresence()
                 presenceManager.startMonitoringPartnerPresence()
                 await viewModel.load()
+                await loadChrisPresence()
             }
             .alert("Error", isPresented: Binding(get: { viewModel.error != nil }, set: { _ in viewModel.error = nil })) {
                 Button("OK", role: .cancel) { viewModel.error = nil }
@@ -174,6 +218,64 @@ struct MessagesView: View {
             activeConversation = convo
         } catch {
             viewModel.error = error.localizedDescription
+        }
+    }
+    
+    // MARK: - Chris Conversation Helpers
+    
+    private func openOrCreateChrisConversation() async {
+        isLoadingChris = true
+        defer { isLoadingChris = false }
+        
+        // First, try to find existing conversation with Chris
+        if let existing = viewModel.conversations.first(where: { conv in
+            conv.participantUsernames.contains(preferredContactUsername) && !conv.isAIEnabled
+        }) {
+            chrisConversation = existing
+            activeConversation = existing
+            return
+        }
+        
+        // If not found, search for Chris user and create conversation
+        do {
+            let users = try await APIClient.shared.searchUsers(query: preferredContactUsername)
+            if let chrisUser = users.first(where: { $0.username.lowercased() == preferredContactUsername.lowercased() }) {
+                let convo = try await APIClient.shared.createConversation(
+                    title: "Chat with \(chrisUser.fullName ?? chrisUser.username)",
+                    participantUsernames: [chrisUser.username],
+                    withAI: false
+                )
+                viewModel.insertOrUpdate(convo)
+                chrisConversation = convo
+                activeConversation = convo
+            } else {
+                viewModel.error = "Could not find user '\(preferredContactUsername)'"
+            }
+        } catch {
+            viewModel.error = "Failed to start conversation: \(error.localizedDescription)"
+        }
+    }
+    
+    private func loadChrisPresence() async {
+        // Try to get Chris's presence status
+        // This will be enhanced when we add presence API
+        do {
+            let users = try await APIClient.shared.searchUsers(query: preferredContactUsername)
+            if let chrisUser = users.first(where: { $0.username.lowercased() == preferredContactUsername.lowercased() }) {
+                // For now, we'll use a placeholder presence
+                // This will be replaced with actual presence API call
+                await MainActor.run {
+                    chrisPresence = SocialPresenceStatus(
+                        profileId: "\(chrisUser.id)",
+                        isOnline: false,
+                        currentActivity: nil,
+                        statusMessage: nil,
+                        lastUpdated: Date()
+                    )
+                }
+            }
+        } catch {
+            // Silently fail - presence is optional
         }
     }
 }

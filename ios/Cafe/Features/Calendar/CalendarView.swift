@@ -27,7 +27,8 @@ struct CalendarView: View {
                     if !viewModel.selectedDateEvents.isEmpty {
                         EventListSection(
                             title: "Events on \(viewModel.selectedDate.formatted(.dateTime.month().day()))",
-                            events: viewModel.selectedDateEvents
+                            events: viewModel.selectedDateEvents,
+                            sharedEvents: viewModel.sharedEvents(for: viewModel.selectedDate)
                         )
                         .padding(.horizontal)
                     } else {
@@ -221,6 +222,13 @@ struct DayCell: View {
 struct EventListSection: View {
     let title: String
     let events: [Event]
+    let sharedEvents: [Event]?
+    
+    init(title: String, events: [Event], sharedEvents: [Event]? = nil) {
+        self.title = title
+        self.events = events
+        self.sharedEvents = sharedEvents
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -229,7 +237,8 @@ struct EventListSection: View {
 
             VStack(spacing: 8) {
                 ForEach(events) { event in
-                    EventCard(event: event)
+                    let isShared = sharedEvents?.contains(where: { $0.id == event.id }) ?? false
+                    EventCard(event: event, isShared: isShared)
                 }
             }
         }
@@ -238,6 +247,12 @@ struct EventListSection: View {
 
 struct EventCard: View {
     let event: Event
+    let isShared: Bool
+    
+    init(event: Event, isShared: Bool = false) {
+        self.event = event
+        self.isShared = isShared
+    }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -254,14 +269,22 @@ struct EventCard: View {
             .frame(width: 60)
 
             Rectangle()
-                .fill(Color.purple)
+                .fill(isShared ? Color.pink : Color.purple)
                 .frame(width: 3)
                 .cornerRadius(1.5)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(event.title)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
+                HStack {
+                    Text(event.title)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                    
+                    if isShared {
+                        Image(systemName: "person.2.fill")
+                            .font(.caption2)
+                            .foregroundColor(.pink)
+                    }
+                }
 
                 if let description = event.description {
                     Text(description)

@@ -56,6 +56,27 @@ struct CafeShortcuts: AppShortcutsProvider {
             shortTitle: "Ask AI",
             systemImageName: "sparkles"
         )
+        
+        AppShortcut(
+            intent: MessageChrisIntent(),
+            phrases: [
+                "Message Chris in \(.applicationName)",
+                "Send message to Chris in \(.applicationName)",
+                "Text Chris in \(.applicationName)"
+            ],
+            shortTitle: "Message Chris",
+            systemImageName: "sparkles"
+        )
+        
+        AppShortcut(
+            intent: ShareWithChrisIntent(),
+            phrases: [
+                "Share this with Chris in \(.applicationName)",
+                "Send to Chris in \(.applicationName)"
+            ],
+            shortTitle: "Share with Chris",
+            systemImageName: "person.2.fill"
+        )
     }
 }
 
@@ -269,6 +290,63 @@ struct TaskEntity: AppEntity {
             subtitle: completed ? "Completed" : (dueDate != nil ? "Due: \(dueDate!.formatted(.dateTime.month().day()))" : "No due date"),
             image: .init(systemName: completed ? "checkmark.circle.fill" : "circle")
         )
+    }
+}
+
+// MARK: - Message Chris Intent
+
+struct MessageChrisIntent: AppIntent {
+    static var title: LocalizedStringResource = "Message Chris"
+    static var description = IntentDescription("Send a message to Chris")
+    static var openAppWhenRun: Bool = true
+
+    @Parameter(title: "Message", requestValueDialog: "What would you like to say?")
+    var message: String
+
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        do {
+            let messageResult = try await APIClient.shared.sendQuickMessage(
+                to: "magicalgirl",
+                content: message
+            )
+            return .result(dialog: "Message sent to Chris")
+        } catch {
+            throw $message.needsValueError("Failed to send message: \(error.localizedDescription)")
+        }
+    }
+}
+
+// MARK: - Share with Chris Intent
+
+struct ShareWithChrisIntent: AppIntent {
+    static var title: LocalizedStringResource = "Share with Chris"
+    static var description = IntentDescription("Share something with Chris")
+    static var openAppWhenRun: Bool = true
+
+    @Parameter(title: "Content", requestValueDialog: "What would you like to share?")
+    var content: String
+
+    @Parameter(title: "Type")
+    var shareType: ShareType
+
+    enum ShareType: String, AppEnum {
+        case task
+        case event
+        case memory
+        case goal
+
+        static var typeDisplayRepresentation: TypeDisplayRepresentation = "Share Type"
+        static var caseDisplayRepresentations: [ShareType: DisplayRepresentation] = [
+            .task: "Task",
+            .event: "Event",
+            .memory: "Memory",
+            .goal: "Goal"
+        ]
+    }
+
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        // This would open the app and navigate to the appropriate sharing flow
+        return .result(dialog: "Opening app to share \(shareType.rawValue) with Chris")
     }
 }
 

@@ -11,6 +11,7 @@ import SwiftUI
 @Observable
 class CalendarViewModel {
     var events: [Event] = []
+    var sharedEvents: [Event] = []
     var selectedDate: Date = Date()
     var isLoading = false
     var errorMessage: String?
@@ -35,6 +36,9 @@ class CalendarViewModel {
             if networkMonitor.isConnected {
                 await syncManager.syncAll()
                 events = try syncManager.loadEventsFromCache()
+                
+                // Load shared events
+                sharedEvents = try await api.getSharedEvents()
             }
         } catch {
             errorMessage = error.localizedDescription
@@ -59,13 +63,25 @@ class CalendarViewModel {
         showingNewEvent = false
     }
 
-    // Get events for a specific date
+    // Get events for a specific date (including shared)
     func events(for date: Date) -> [Event] {
         let calendar = Calendar.current
         let startOfDay = calendar.startOfDay(for: date)
         let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
 
-        return events.filter { event in
+        let allEvents = events + sharedEvents
+        return allEvents.filter { event in
+            event.startTime >= startOfDay && event.startTime < endOfDay
+        }.sorted { $0.startTime < $1.startTime }
+    }
+    
+    // Get only shared events for a date
+    func sharedEvents(for date: Date) -> [Event] {
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: date)
+        let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
+
+        return sharedEvents.filter { event in
             event.startTime >= startOfDay && event.startTime < endOfDay
         }.sorted { $0.startTime < $1.startTime }
     }

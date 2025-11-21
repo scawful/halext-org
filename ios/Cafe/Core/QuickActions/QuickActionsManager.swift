@@ -16,6 +16,9 @@ class QuickActionsManager {
         case newEvent = "org.halext.cafe.newEvent"
         case todaysTasks = "org.halext.cafe.todaysTasks"
         case chat = "org.halext.cafe.chat"
+        case messageChris = "org.halext.cafe.messageChris"
+        case sharedCalendar = "org.halext.cafe.sharedCalendar"
+        case sharedEvent = "org.halext.cafe.sharedEvent"
     }
 
     private init() {}
@@ -55,9 +58,27 @@ class QuickActionsManager {
             userInfo: nil
         )
 
+        let messageChrisAction = UIApplicationShortcutItem(
+            type: ActionType.messageChris.rawValue,
+            localizedTitle: "Message Chris",
+            localizedSubtitle: "Send a message",
+            icon: UIApplicationShortcutIcon(systemImageName: "sparkles"),
+            userInfo: nil
+        )
+
+        let sharedCalendarAction = UIApplicationShortcutItem(
+            type: ActionType.sharedCalendar.rawValue,
+            localizedTitle: "Shared Calendar",
+            localizedSubtitle: "View shared events",
+            icon: UIApplicationShortcutIcon(systemImageName: "person.2.fill"),
+            userInfo: nil
+        )
+
         UIApplication.shared.shortcutItems = [
             newTaskAction,
             newEventAction,
+            messageChrisAction,
+            sharedCalendarAction,
             todaysTasksAction,
             chatAction
         ]
@@ -86,6 +107,15 @@ class QuickActionsManager {
 
         case .chat:
             return .chat
+            
+        case .messageChris:
+            return .messageChris
+            
+        case .sharedCalendar:
+            return .sharedCalendar
+            
+        case .sharedEvent:
+            return .sharedEvent
         }
     }
 
@@ -122,4 +152,7 @@ enum QuickActionResult {
     case newEvent
     case todaysTasks
     case chat
+    case messageChris
+    case sharedCalendar
+    case sharedEvent
 }

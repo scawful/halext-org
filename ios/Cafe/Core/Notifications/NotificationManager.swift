@@ -276,6 +276,126 @@ class NotificationManager: NSObject {
         notificationCenter.removeAllPendingNotificationRequests()
         print("🗑️ Removed all pending notifications")
     }
+    
+    // MARK: - Collaboration Notifications
+    
+    func scheduleMessageFromChrisNotification(messageId: Int, content: String) async {
+        guard isAuthorized else { return }
+        
+        let notificationContent = UNMutableNotificationContent()
+        notificationContent.title = "Message from Chris"
+        notificationContent.body = content
+        notificationContent.sound = .default
+        notificationContent.badge = 1
+        notificationContent.categoryIdentifier = "MESSAGE_FROM_CHRIS"
+        notificationContent.userInfo = ["messageId": messageId, "type": "message_chris", "from": "magicalgirl"]
+        notificationContent.threadIdentifier = "chris_messages"
+        
+        let request = UNNotificationRequest(
+            identifier: "message_chris_\(messageId)",
+            content: notificationContent,
+            trigger: nil
+        )
+        
+        do {
+            try await notificationCenter.add(request)
+        } catch {
+            print("❌ Failed to schedule message notification: \(error)")
+        }
+    }
+    
+    func scheduleSharedEventNotification(eventId: Int, title: String, startTime: Date) async {
+        guard isAuthorized else { return }
+        
+        let notificationContent = UNMutableNotificationContent()
+        notificationContent.title = "Shared Event: \(title)"
+        notificationContent.body = "Starting at \(startTime.formatted(.dateTime.hour().minute()))"
+        notificationContent.sound = .default
+        notificationContent.badge = 1
+        notificationContent.categoryIdentifier = "SHARED_EVENT"
+        notificationContent.userInfo = ["eventId": eventId, "type": "shared_event"]
+        
+        let reminderDate = startTime.addingTimeInterval(-900)
+        
+        if reminderDate > Date() {
+            let components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: reminderDate)
+            let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+            
+            let request = UNNotificationRequest(
+                identifier: "shared_event_\(eventId)",
+                content: notificationContent,
+                trigger: trigger
+            )
+            
+            do {
+                try await notificationCenter.add(request)
+            } catch {
+                print("❌ Failed to schedule shared event notification: \(error)")
+            }
+        }
+    }
+    
+    func scheduleSharedTaskCompletedNotification(taskId: Int, taskTitle: String, completedBy: String) async {
+        guard isAuthorized else { return }
+        
+        let notificationContent = UNMutableNotificationContent()
+        notificationContent.title = "Task Completed!"
+        notificationContent.body = "\(completedBy) completed: \(taskTitle)"
+        notificationContent.sound = .default
+        notificationContent.badge = 1
+        notificationContent.categoryIdentifier = "SHARED_TASK_COMPLETED"
+        notificationContent.userInfo = ["taskId": taskId, "type": "shared_task_completed"]
+        
+        let request = UNNotificationRequest(
+            identifier: "shared_task_completed_\(taskId)",
+            content: notificationContent,
+            trigger: nil
+        )
+        
+        do {
+            try await notificationCenter.add(request)
+        } catch {
+            print("❌ Failed to schedule task completion notification: \(error)")
+        }
+    }
+    
+    func setupCollaborationNotificationCategories() {
+        let messageCategory = UNNotificationCategory(
+            identifier: "MESSAGE_FROM_CHRIS",
+            actions: [
+                UNNotificationAction(identifier: "REPLY", title: "Reply", options: [.foreground]),
+                UNNotificationAction(identifier: "VIEW", title: "View", options: [.foreground])
+            ],
+            intentIdentifiers: [],
+            options: []
+        )
+        
+        let sharedEventCategory = UNNotificationCategory(
+            identifier: "SHARED_EVENT",
+            actions: [
+                UNNotificationAction(identifier: "VIEW_EVENT", title: "View Event", options: [.foreground]),
+                UNNotificationAction(identifier: "SNOOZE", title: "Snooze 15 min", options: [])
+            ],
+            intentIdentifiers: [],
+            options: []
+        )
+        
+        let taskCompletedCategory = UNNotificationCategory(
+            identifier: "SHARED_TASK_COMPLETED",
+            actions: [
+                UNNotificationAction(identifier: "VIEW_TASK", title: "View Task", options: [.foreground]),
+                UNNotificationAction(identifier: "CELEBRATE", title: "Celebrate!", options: [])
+            ],
+            intentIdentifiers: [],
+            options: []
+        )
+        
+        notificationCenter.setNotificationCategories([
+            messageCategory,
+            sharedEventCategory,
+            taskCompletedCategory
+        ])
+    }
 }
 
 // MARK: - UNUserNotificationCenterDelegate

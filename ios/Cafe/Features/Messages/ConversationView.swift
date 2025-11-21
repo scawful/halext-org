@@ -10,7 +10,21 @@ import SwiftUI
 struct ConversationView: View {
     @StateObject private var store: ConversationStore
     @State private var messageText = ""
+    @State private var showingQuickTemplates = false
     private let onConversationUpdated: (Conversation) -> Void
+    
+    private let quickTemplates = [
+        "On my way",
+        "Thinking of you",
+        "Love you",
+        "See you soon",
+        "How's your day?",
+        "Miss you"
+    ]
+    
+    private var isChrisConversation: Bool {
+        store.conversation.participantUsernames.contains(where: { $0.lowercased() == "magicalgirl" || $0.lowercased() == "chris" })
+    }
 
     init(conversation: Conversation, onConversationUpdated: @escaping (Conversation) -> Void = { _ in }) {
         _store = StateObject(wrappedValue: ConversationStore(conversation: conversation))
@@ -51,25 +65,67 @@ struct ConversationView: View {
                 }
             }
 
-            HStack(spacing: 12) {
-                TextField("Message", text: $messageText, axis: .vertical)
-                    .textFieldStyle(.roundedBorder)
-                    .lineLimit(1...5)
-
-                Button(action: sendMessage) {
-                    if store.isSending {
-                        ProgressView()
-                            .frame(width: 24, height: 24)
-                    } else {
-                        Image(systemName: "arrow.up.circle.fill")
-                            .font(.system(size: 28))
-                            .foregroundColor(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? .gray : .blue)
+            VStack(spacing: 0) {
+                // Quick templates (only for Chris conversations)
+                if isChrisConversation && showingQuickTemplates {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(quickTemplates, id: \.self) { template in
+                                Button {
+                                    messageText = template
+                                    showingQuickTemplates = false
+                                } label: {
+                                    Text(template)
+                                        .font(.subheadline)
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 6)
+                                        .background(
+                                            Capsule()
+                                                .fill(Color.blue.opacity(0.1))
+                                        )
+                                        .foregroundColor(.blue)
+                                }
+                            }
+                        }
+                        .padding(.horizontal)
                     }
+                    .padding(.vertical, 8)
+                    .background(Color(.systemGray6))
                 }
-                .disabled(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || store.isSending)
+                
+                HStack(spacing: 12) {
+                    // Quick templates button (only for Chris)
+                    if isChrisConversation {
+                        Button {
+                            withAnimation {
+                                showingQuickTemplates.toggle()
+                            }
+                        } label: {
+                            Image(systemName: showingQuickTemplates ? "xmark.circle.fill" : "sparkles")
+                                .font(.system(size: 20))
+                                .foregroundColor(.pink)
+                        }
+                    }
+                    
+                    TextField("Message", text: $messageText, axis: .vertical)
+                        .textFieldStyle(.roundedBorder)
+                        .lineLimit(1...5)
+
+                    Button(action: sendMessage) {
+                        if store.isSending {
+                            ProgressView()
+                                .frame(width: 24, height: 24)
+                        } else {
+                            Image(systemName: "arrow.up.circle.fill")
+                                .font(.system(size: 28))
+                                .foregroundColor(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? .gray : .blue)
+                        }
+                    }
+                    .disabled(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || store.isSending)
+                }
+                .padding()
+                .background(Color(.systemBackground))
             }
-            .padding()
-            .background(Color(.systemBackground))
         }
         .navigationTitle(store.conversation.displayName)
         .navigationBarTitleDisplayMode(.inline)

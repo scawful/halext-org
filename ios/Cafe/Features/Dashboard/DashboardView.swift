@@ -22,6 +22,10 @@ struct DashboardView: View {
                     WelcomeHeader()
                         .padding(.horizontal)
 
+                    // Partner Status Card (Chris)
+                    PartnerStatusCard()
+                        .padding(.horizontal)
+
                     // AI Features Section
                     AIFeaturesSection(
                         showAIGenerator: $showAIGenerator,
@@ -50,6 +54,14 @@ struct DashboardView: View {
                         UpcomingEventsWidget(events: viewModel.upcomingEvents)
                             .padding(.horizontal)
                     }
+                    
+                    // Upcoming Together Card (Shared Events)
+                    UpcomingTogetherCard()
+                        .padding(.horizontal)
+                    
+                    // Shared Tasks Card
+                    SharedTasksCard()
+                        .padding(.horizontal)
 
                     // Meal Planning Widget
                     MealPlanningWidget()

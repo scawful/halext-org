@@ -22,6 +22,8 @@ struct NewEventView: View {
     @State private var showingPrepTasks = false
     @State private var prepTasks: [String] = []
     @State private var isLoadingPrepTasks = false
+    @State private var shareWithChris = false
+    @State private var preferredContactUsername: String = "magicalgirl"
 
     private let recurrenceOptions = [
         ("none", "None"),
@@ -64,6 +66,22 @@ struct NewEventView: View {
 
                     if recurrenceType != "none" {
                         Text("This event will repeat \(recurrenceType)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                
+                Section("Sharing") {
+                    Toggle(isOn: $shareWithChris) {
+                        HStack {
+                            Image(systemName: "person.2.fill")
+                                .foregroundColor(.pink)
+                            Text("Share with \(preferredContactUsername.capitalized)")
+                        }
+                    }
+                    
+                    if shareWithChris {
+                        Text("This event will be visible to \(preferredContactUsername.capitalized)")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -157,16 +175,35 @@ struct NewEventView: View {
         isSubmitting = true
         errorMessage = nil
 
-        let event = EventCreate(
-            title: title,
-            description: description.isEmpty ? nil : description,
-            startTime: startTime,
-            endTime: endTime,
-            location: location.isEmpty ? nil : location
-        )
-
         do {
-            try await viewModel.createEvent(event)
+            if shareWithChris {
+                // Use shared event creation
+                let sharedWith = [preferredContactUsername]
+                let event = try await APIClient.shared.createSharedEvent(
+                    EventCreate(
+                        title: title,
+                        description: description.isEmpty ? nil : description,
+                        startTime: startTime,
+                        endTime: endTime,
+                        location: location.isEmpty ? nil : location
+                    ),
+                    sharedWith: sharedWith
+                )
+                // Add to view model
+                await MainActor.run {
+                    viewModel.events.append(event)
+                }
+            } else {
+                // Regular event creation
+                let event = EventCreate(
+                    title: title,
+                    description: description.isEmpty ? nil : description,
+                    startTime: startTime,
+                    endTime: endTime,
+                    location: location.isEmpty ? nil : location
+                )
+                try await viewModel.createEvent(event)
+            }
             dismiss()
         } catch {
             errorMessage = error.localizedDescription
