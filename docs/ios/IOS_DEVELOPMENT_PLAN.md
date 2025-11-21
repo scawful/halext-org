@@ -338,10 +338,10 @@ jobs:
    - Window > Devices and Simulators
    - Drag IPA to device
 
-   # Using AltStore (easier for non-developers)
-   - Install AltStore on device
-   - Open AltStore
-   - Install IPA
+   # Using SideStore (tetherless for non-developers)
+   - Install SideStore on device and complete anisette/VPN setup
+   - Open SideStore
+   - Import the IPA (AirDrop > Share > Open in SideStore)
    ```
 
 ### Recommended Deployment Flow

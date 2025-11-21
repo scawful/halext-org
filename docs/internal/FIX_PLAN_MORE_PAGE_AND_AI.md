@@ -348,12 +348,12 @@ Make sure we're editing and using the RIGHT one.
 1. **Build and Test:**
    ```bash
    cd ios
-   ./build-for-altstore.sh
+   ./build-for-sidestore.sh
    ```
 
 2. **Install on Device:**
    - Use AirDrop to send IPA
-   - Install via AltStore
+   - Install via SideStore (no AltServer needed once anisette/VPN is configured)
    - Test both features
 
 3. **Document Results:**

@@ -12,17 +12,18 @@ Fastest ways to get a build onto two phones without waiting for full App Store r
 2) Ensure Signing Team is your shared Halext team; let automatic signing create a development profile.
 3) `Cmd+B` then `Cmd+R` to install. Repeat with Chris’s phone (switch destination to his device). This uses dev provisioning; expires after 7 days unless reopened.
 
-## Path B: Ad-hoc / AltStore IPA (fast share, no App Store)
-1) From `ios/`, run the unsigned AltStore build (keeps DerivedData local to repo to avoid permission issues):
+## Path B: Ad-hoc / SideStore IPA (fast share, no tether)
+1) From `ios/`, run the unsigned SideStore build (keeps DerivedData local to repo to avoid permission issues):
    ```bash
-   ./build-for-altstore.sh
+   ./build-for-sidestore.sh
+   # (legacy alias still works: ./build-for-altstore.sh)
    ```
    or produce a release IPA without signing:
    ```bash
    ./build-ipa.sh
    ```
    The IPA lands in `ios/build/Cafe.ipa`.
-2) AirDrop `Cafe.ipa` to each phone. In Files, tap → **Share** → **Open in AltStore** (AltStore signs with the device owner’s Apple ID).
+2) AirDrop `Cafe.ipa` to each phone. In Files, tap → **Share** → **Open in SideStore** (SideStore signs on-device with your Apple ID once its anisette/VPN profile is set up; no AltServer/USB needed after the first install).
 3) If you have an Ad-hoc signing profile installed locally, you can export a signed IPA instead: archive in Xcode (Product > Archive) and Distribute > Ad Hoc, then AirDrop that IPA directly.
 
 ## Path C: TestFlight (if you need OTA + crash symbols)
@@ -38,4 +39,4 @@ Fastest ways to get a build onto two phones without waiting for full App Store r
 ## Notes
 - Keep a shared note with the current dev profile + the two UDIDs so you can refresh signing in one shot.
 - If Xcode complains about missing simulators, ignore—archives should target **Any iOS Device**.
-- Device deploy is fastest right after a code change; avoid waiting for CI if the change is UI-only and you’re sharing via AltStore/ad-hoc.
+- Device deploy is fastest right after a code change; avoid waiting for CI if the change is UI-only and you’re sharing via SideStore/ad-hoc.

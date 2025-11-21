@@ -20,6 +20,7 @@ from app.content_routes import router as content_router
 from app.ai_usage_logger import log_ai_usage, estimate_token_count
 from app.admin_utils import get_current_admin_user
 from app.websockets import manager
+from app.env_validation import validate_runtime_env
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -47,6 +48,9 @@ app.include_router(content_router, prefix="/api")
 ACCESS_CODE = os.getenv("ACCESS_CODE", "").strip()
 # For development, disable access code requirement
 DEV_MODE = os.getenv("DEV_MODE", "false").lower() == "true"
+ENV_CHECK = validate_runtime_env(DEV_MODE)
+if ENV_CHECK["warnings"] or ENV_CHECK["issues"]:
+    print("[env] Warnings:", ENV_CHECK["warnings"], "| Issues:", ENV_CHECK["issues"])
 
 def verify_access_code(x_halext_code: Optional[str] = Header(default=None)):
     # Skip access code check in development mode
@@ -106,6 +110,7 @@ def health_check(db: Session = Depends(get_db)):
         "status": "healthy" if db_status == "healthy" else "degraded",
         "version": VERSION,
         "timestamp": datetime.utcnow().isoformat(),
+        "env": ENV_CHECK,
         "components": {
             "database": db_status,
             "ai_provider": ai_gateway.provider,

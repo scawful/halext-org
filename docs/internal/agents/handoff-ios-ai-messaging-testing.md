@@ -1,9 +1,9 @@
 # Handoff: iOS Messaging / AI Sync & Testing
 
-**Context:** iOS messaging + AI surfacing landed (ConversationStore, badges, AgentHub provider info). Release + AltStore build now succeeds (`ios/build/Cafe.ipa`). Backend pytest currently fails due to missing auth fixtures and AI gateway timeouts.
+**Context:** iOS messaging + AI surfacing landed (ConversationStore, badges, AgentHub provider info). Release + SideStore build now succeeds (`ios/build/Cafe.ipa`). Backend pytest currently fails due to missing auth fixtures and AI gateway timeouts.
 
 ## Current State
-- iOS build: `./build-for-altstore.sh` succeeds; unsigned IPA at `ios/build/Cafe.ipa` (Release, no codesign).
+- iOS build: `./build-for-sidestore.sh` succeeds (legacy `build-for-altstore.sh` aliases to it); unsigned IPA at `ios/build/Cafe.ipa` (Release, no codesign).
 - Messaging UI: Conversations now show AI/model badges and use shared store/view models.
 - Tests: `scripts/agents/run-tests.sh` (pytest) fails — missing fixtures `admin_user_token`/`user_token`; AI gateway timeouts; model discovery tests expect tokens and live/mocked routes.
 
@@ -27,7 +27,7 @@
 ## How to Reproduce
 ```bash
 # iOS build
-cd ios && ./build-for-altstore.sh
+cd ios && ./build-for-sidestore.sh
 # Backend tests (currently failing)
 ./scripts/agents/run-tests.sh
 ```

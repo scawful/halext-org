@@ -1,11 +1,15 @@
 """
 Pytest configuration and shared fixtures for testing
 """
+import os
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
+
+# Default to offline AI so tests never try to reach external providers
+os.environ.setdefault("AI_OFFLINE", "1")
 
 from app.database import Base, get_db
 from app.models import User, AIClientNode
@@ -98,6 +102,26 @@ def admin_auth_headers(admin_user):
         expires_delta=timedelta(minutes=30)
     )
     return {"Authorization": f"Bearer {access_token}"}
+
+
+@pytest.fixture
+def user_token(test_user):
+    """Return bearer token string for a standard user"""
+    from datetime import timedelta
+    return auth.create_access_token(
+        data={"sub": test_user.username},
+        expires_delta=timedelta(minutes=30)
+    )
+
+
+@pytest.fixture
+def admin_user_token(admin_user):
+    """Return bearer token string for an admin user"""
+    from datetime import timedelta
+    return auth.create_access_token(
+        data={"sub": admin_user.username},
+        expires_delta=timedelta(minutes=30)
+    )
 
 
 @pytest.fixture

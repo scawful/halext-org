@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Build IPA script for AltStore distribution
+# Build IPA script for sideloading (SideStore/Ad-hoc/TestFlight)
 # Usage: ./build-ipa.sh
 
 set -e
 
-echo "🏗️  Building Cafe IPA for AltStore..."
+echo "🏗️  Building Cafe IPA for sideloading..."
 
 # Clean previous builds
 echo "🧹 Cleaning previous builds..."

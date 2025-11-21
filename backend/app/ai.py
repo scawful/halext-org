@@ -70,6 +70,7 @@ class AiGateway:
 
     def __init__(self) -> None:
         default_identifier = os.getenv("AI_DEFAULT_MODEL", "gemini:gemini-2.5-flash")
+        self.offline = os.getenv("AI_OFFLINE", "false").lower() == "true"
         self.provider = os.getenv("AI_PROVIDER", "gemini").lower()
         self.model = os.getenv("AI_MODEL", "gemini-2.5-flash")
         self.openwebui_url = os.getenv("OPENWEBUI_URL")
@@ -189,6 +190,25 @@ class AiGateway:
         normalized = "ollama" if provider_key == "ollama-local" else provider_key
         return f"{normalized}:{model_name}"
 
+    def _mock_context(self) -> _ProviderContext:
+        """Shortcut to a mock provider context."""
+        return _ProviderContext(
+            key="mock",
+            model="llama3.1",
+            identifier="mock:llama3.1",
+            provider=self.providers.get("mock"),
+            node=None,
+            base_url=None,
+        )
+
+    def _apply_offline_guard(self, ctx: _ProviderContext) -> _ProviderContext:
+        """In offline mode, avoid remote providers to prevent network hangs."""
+        if self.offline and ctx.key in {"openai", "gemini", "openwebui"}:
+            return self._mock_context()
+        if ctx.provider is None and ctx.key not in {"mock", "client", "ollama", "ollama-local"}:
+            return self._mock_context()
+        return ctx
+
     async def _resolve_provider_context(
         self,
         model_identifier: Optional[str],
@@ -299,6 +319,7 @@ class AiGateway:
     ) -> Any:
         self._ensure_cloud_providers(db, user_id=user_id)
         ctx = await self._resolve_provider_context(model_identifier, db, user_id)
+        ctx = self._apply_offline_guard(ctx)
         provider = ctx.provider
         payload = list(history or [])
 
@@ -320,14 +341,7 @@ class AiGateway:
                     print(f"❌ Fallback to OpenAI also failed: {fallback_exc}")
                     # Final fallback to mock
                     response = self._mock_response(prompt, payload)
-                    ctx = _ProviderContext(
-                        key="mock",
-                        model="mock",
-                        identifier="mock:llama3.1",
-                        provider=self.providers["mock"],
-                        node=None,
-                        base_url=None,
-                    )
+                    ctx = self._mock_context()
             elif ctx.key not in ("openai", "gemini") and self.providers.get("gemini"):
                 print(f"⚠️ Falling back to Gemini provider")
                 try:
@@ -337,26 +351,12 @@ class AiGateway:
                     print(f"❌ Fallback to Gemini also failed: {fallback_exc}")
                     # Final fallback to mock
                     response = self._mock_response(prompt, payload)
-                    ctx = _ProviderContext(
-                        key="mock",
-                        model="mock",
-                        identifier="mock:llama3.1",
-                        provider=self.providers["mock"],
-                        node=None,
-                        base_url=None,
-                    )
+                    ctx = self._mock_context()
             else:
                 # No cloud providers available, use mock
                 print(f"⚠️ Using mock provider as fallback")
                 response = self._mock_response(prompt, payload)
-                ctx = _ProviderContext(
-                    key="mock",
-                    model="mock",
-                    identifier="mock:llama3.1",
-                    provider=self.providers["mock"],
-                    node=None,
-                    base_url=None,
-                )
+                ctx = self._mock_context()
 
         if include_context:
             return response, self._route_from_context(ctx)
@@ -372,6 +372,7 @@ class AiGateway:
     ) -> Tuple[AsyncGenerator[str, None], RouteInfo]:
         self._ensure_cloud_providers(db, user_id=user_id)
         ctx = await self._resolve_provider_context(model_identifier, db, user_id)
+        ctx = self._apply_offline_guard(ctx)
         provider = ctx.provider
         payload = list(history or [])
 
@@ -444,6 +445,9 @@ class AiGateway:
         return models
 
     async def _list_provider_models(self, provider_key: str) -> List[Dict[str, Any]]:
+        if self.offline and provider_key in {"openai", "gemini", "openwebui"}:
+            return []
+
         provider = self.providers.get(provider_key)
         if not provider:
             return []

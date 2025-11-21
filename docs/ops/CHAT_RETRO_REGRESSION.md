@@ -15,7 +15,7 @@
 
 ## Items completed (partial)
 - Added backend endpoints: `/users/search` for user lookup, `/conversations/{id}` for conversation fetch, admin `/admin/ai/default-model` to set the default model, and persisted conversation `default_model_id`.
-- iOS: AgentHub view added; Messages wired to conversation create with model fields; Codable fixes for conversations/messages; Release and AltStore builds pass.
+- iOS: AgentHub view added; Messages wired to conversation create with model fields; Codable fixes for conversations/messages; Release and SideStore builds pass (AltStore path now redirects).
 
 ## Items not completed / still failing
 - Reliable live messaging between users (including `magicalgirl`) still not verified or functional.

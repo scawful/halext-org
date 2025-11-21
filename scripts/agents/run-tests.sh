@@ -9,11 +9,12 @@ pushd "${ROOT_DIR}" >/dev/null
 if [ -d "backend/tests" ]; then
   echo "[run-tests] running pytest"
   pushd backend >/dev/null
+  export AI_OFFLINE="${AI_OFFLINE:-1}"
   if [ -f "env/bin/activate" ]; then
     source env/bin/activate && python -m pytest -q
     deactivate
   else
-    echo "[run-tests] virtualenv not found; skipping"
+    echo "[run-tests] virtualenv not found; skipping backend pytest (set up backend/env to enable)"
   fi
   popd >/dev/null
 else

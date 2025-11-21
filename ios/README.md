@@ -17,7 +17,7 @@ open Cafe.xcodeproj
 
 **Or**: Double-click `Cafe.xcodeproj` in Finder
 
-**Need it on phones fast?** See `QUICK_DEVICE_DEPLOY.md` for cable-run, AltStore/Ad-hoc, and TestFlight shortcuts (optimized for two devices).
+**Need it on phones fast?** See `QUICK_DEVICE_DEPLOY.md` for cable-run, SideStore/Ad-hoc, and TestFlight shortcuts (optimized for two devices).
 
 ### Current Project Structure
 

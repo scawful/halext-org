@@ -3,7 +3,7 @@
 ## Before You Start Coding
 
 ### 1. Test on Actual Device
-- [ ] Install IPA via AltStore
+- [ ] Install IPA via SideStore (no AltServer needed once configured)
 - [ ] Open app, go to More tab
 - [ ] Tap each feature card, document what happens:
   - Do buttons respond to touch? (flash/highlight?)

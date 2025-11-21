@@ -19,7 +19,7 @@
 
 **Impact**:
 - App will show a blank/generic icon on device
-- AltStore may show a placeholder icon
+- SideStore may show a placeholder icon
 - Not blocking for testing, but required for distribution
 
 **Quick fix**:
@@ -225,7 +225,7 @@ Add to `Cafe.entitlements`:
 ### Build Output:
 - IPA Location: `ios/build/Cafe.ipa`
 - Size: 2.6 MB
-- Status: ✅ Ready for AltStore installation
+- Status: ✅ Ready for SideStore installation
 
 ---
 

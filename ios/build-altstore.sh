@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Build IPA for AltStore with FREE Apple ID
-# This creates a development-signed IPA that AltStore will re-sign
+# Build IPA for SideStore with FREE Apple ID
+# This creates a development-signed IPA that SideStore (or AltStore) will re-sign on-device
 
 set -e
 
-echo "🏗️  Building Cafe IPA for AltStore (Free Apple ID method)..."
+echo "🏗️  Building Cafe IPA for SideStore (Free Apple ID method)..."
 
 # Configuration
 SCHEME="Cafe"
@@ -61,8 +61,8 @@ if [ -f "./build/Cafe.ipa" ]; then
     echo ""
     echo "📱 Next steps:"
     echo "1. AirDrop Cafe.ipa to your iPhone"
-    echo "2. Tap the file → Open in AltStore"
-    echo "3. AltStore will install it (enters YOUR Apple ID)"
+    echo "2. Tap the file → Open in SideStore (or share > Copy to SideStore)"
+    echo "3. SideStore will install it (enters YOUR Apple ID; no tether once configured)"
     echo ""
     open -R ./build/Cafe.ipa
 else

@@ -1,11 +1,11 @@
 # Cafe iOS App - Distribution Guide
 
-## AltStore Distribution
+## SideStore Distribution
 
 ### Prerequisites
 1. **macOS with Xcode** (version 15.0 or later)
-2. **AltStore** installed on iPhone
-3. **Apple ID** (free account works!)
+2. **SideStore** installed on iPhone and its anisette/VPN profile configured (per SideStore setup guide)
+3. **Apple ID** (free or paid works; SideStore handles renewals without AltServer once configured)
 
 ### Building for Distribution
 
@@ -79,15 +79,15 @@ xcodebuild -exportArchive \
   -exportOptionsPlist ExportOptions.plist
 ```
 
-#### 4. Install via AltStore
+#### 4. Install via SideStore
 
 **On your iPhone:**
-1. Open **AltStore**
+1. Open **SideStore** (enable its VPN/anisette toggle if prompted)
 2. Tap **My Apps**
 3. Tap **+** button
-4. Select the `Cafe.ipa` file
-5. Wait for installation
-6. App appears on home screen!
+4. Select the `Cafe.ipa` file (from AirDrop/Files)
+5. Sign with your Apple ID when prompted; SideStore signs on-device
+6. App appears on home screen—no AltServer/tether required!
 
 ### Sharing with Others
 
@@ -95,16 +95,16 @@ xcodebuild -exportArchive \
 1. Build the IPA (steps above)
 2. Upload `Cafe.ipa` to cloud storage (Dropbox, Google Drive, etc.)
 3. Share link with others
-4. They install via AltStore
+4. They install via SideStore
 
-#### Method 2: AltStore Source (Advanced)
+#### Method 2: SideStore Source (Advanced)
 1. Host the IPA on a web server
 2. Create `apps.json` manifest:
 
 ```json
 {
   "name": "Halext Apps",
-  "identifier": "org.halext.altstore",
+  "identifier": "org.halext.sidestore",
   "sourceURL": "https://your-domain.com/apps.json",
   "apps": [
     {
@@ -125,8 +125,8 @@ xcodebuild -exportArchive \
 }
 ```
 
-3. Add source to AltStore:
-   - Open AltStore
+3. Add source to SideStore (uses the same JSON format):
+   - Open SideStore
    - Tap **Sources** tab
    - Tap **+** button
    - Enter: `https://your-domain.com/apps.json`
@@ -136,11 +136,11 @@ xcodebuild -exportArchive \
 **Quick Setup:**
 1. Build IPA on your Mac
 2. AirDrop the `.ipa` file to her iPhone
-3. She opens AltStore
+3. She opens SideStore
 4. Taps **+** to install
-5. Logs in with her account credentials
+5. Logs in with her Apple ID (SideStore signs on-device)
 
-**Note:** AltStore apps need to be refreshed every 7 days (free Apple ID) or 365 days (paid developer account).
+**Note:** SideStore apps still follow Apple’s 7-day free-profile window but SideStore will auto-refresh as long as its anisette/VPN session is available (paid developer IDs last 365 days).
 
 ---
 
@@ -206,7 +206,7 @@ python create_dev_user.py --username girlfriend --email gf@example.com
 
 ### "Unable to Verify App"
 - Make sure you're connected to internet
-- AltStore needs to verify signature
+- SideStore needs to verify signature with Apple; ensure its VPN/anisette toggle is on
 
 ### App Crashes on Launch
 - Check Xcode console for errors
