@@ -517,6 +517,7 @@ def list_provider_credentials(db: Session, owner_id: Optional[int] = None):
         if config and config.api_key_id:
             api_key = db.query(models.APIKey).filter(models.APIKey.id == config.api_key_id).first()
 
+        has_key = bool(api_key and api_key.is_active)
         masked = None
         key_name = None
         if api_key and api_key.is_active:
@@ -529,12 +530,13 @@ def list_provider_credentials(db: Session, owner_id: Optional[int] = None):
                 print(f"Warning: Failed to decrypt/mask API key for {provider}: {e}")
                 masked = None
                 key_name = api_key.key_name
+            has_key = True
 
         results.append(
             {
                 "provider": provider,
                 "key_name": key_name,
-                "has_key": bool(masked),
+                "has_key": has_key,
                 "masked_key": masked,
                 "model": (config.config or {}).get("model") if config else None,
             }

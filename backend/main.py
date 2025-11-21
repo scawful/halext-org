@@ -831,8 +831,27 @@ async def list_ai_models(
     current_user: models.User = Depends(auth.get_current_user),
     db: Session = Depends(get_db),
 ):
-    """List available AI models - always returns valid JSON even on errors"""
-    try:  # Top-level try-except to catch all errors
+    """List available AI models - always returns a valid response."""
+    fallback_identifier = "mock:llama3.1"
+
+    def _fallback_response(default_id: str = fallback_identifier) -> schemas.AiModelsResponse:
+        provider_key, model_name, _ = ai_gateway._parse_identifier(default_id)  # type: ignore[attr-defined]
+        return schemas.AiModelsResponse(
+            models=[
+                schemas.AiModelInfo(
+                    id=default_id,
+                    name=model_name,
+                    provider=provider_key,
+                    source=provider_key,
+                )
+            ],
+            provider=provider_key,
+            current_model=model_name,
+            default_model_id=default_id,
+            credentials=[],
+        )
+
+    try:
         try:
             models_list = await ai_gateway.get_models(db=db, user_id=current_user.id)
         except Exception as exc:
@@ -846,192 +865,187 @@ async def list_ai_models(
                     source=ai_gateway.provider or "mock",
                 )
             ]
-    
-    try:
-        available_ids = [m.get("id", "") for m in models_list if isinstance(m, dict) and m.get("id")]
-    except (KeyError, TypeError, AttributeError) as e:
-        print(f"❌ Error extracting model IDs: {e}")
-        import traceback
-        traceback.print_exc()
-        available_ids = []
 
-    # Keep defaults aligned with the models the backend can actually serve
-    # Prioritize cloud models (OpenAI, Gemini) over local models (Ollama, OpenWebUI)
-    default_model_id = ai_gateway.default_model_identifier or None
-    
-    # If default is not available or not set, find the best cloud model
-    if (not default_model_id or default_model_id not in available_ids) and available_ids:
-        # Prefer cloud providers in order: OpenAI > Gemini > OpenWebUI > Ollama > others
-        cloud_priorities = ["openai", "gemini", "openwebui", "ollama", "client"]
-        
-        # Find first available cloud model
-        found_cloud_model = None
-        for provider in cloud_priorities:
-            for model_id in available_ids:
-                if model_id and isinstance(model_id, str) and model_id.startswith(f"{provider}:"):
-                    found_cloud_model = model_id
+        if not models_list:
+            models_list = [
+                ai_gateway._format_model_entry(  # type: ignore[attr-defined]
+                    "mock",
+                    "llama3.1",
+                    source="mock",
+                )
+            ]
+
+        try:
+            credential_status = crud.list_provider_credentials(db, owner_id=current_user.id)
+        except Exception as exc:
+            print(f"Error getting credential status: {exc}")
+            import traceback
+            traceback.print_exc()
+            credential_status = []
+
+        # Treat env-provided provider clients as having keys even if DB secrets are absent
+        for provider_key in ("openai", "gemini"):
+            if ai_gateway.providers.get(provider_key):
+                existing = None
+                for entry in credential_status:
+                    if isinstance(entry, dict) and entry.get("provider") == provider_key:
+                        existing = entry
+                        break
+                if existing is None:
+                    credential_status.append(
+                        {
+                            "provider": provider_key,
+                            "has_key": True,
+                            "masked_key": None,
+                            "key_name": "env",
+                            "model": None,
+                        }
+                    )
+                else:
+                    existing["has_key"] = existing.get("has_key") or True
+                    existing.setdefault("key_name", "env")
+
+        credential_has_key = {
+            c.get("provider"): bool(c.get("has_key")) for c in credential_status if isinstance(c, dict)
+        }
+
+        available_ids: List[str] = []
+        provider_first: dict = {}
+        for entry in models_list:
+            if not isinstance(entry, dict):
+                print(f"⚠️ Warning: Model entry is not a dict: {type(entry)}")
+                continue
+            model_id = entry.get("id")
+            provider_key = entry.get("provider") or "mock"
+            name = None
+            if isinstance(model_id, str) and ":" in model_id:
+                name = model_id.split(":", 1)[1]
+            name = entry.get("name") or name or model_id
+            if not model_id:
+                model_id = f"{provider_key}:{name or ai_gateway.model}"
+            if model_id:
+                available_ids.append(model_id)
+                provider_first.setdefault(provider_key, model_id)
+
+        default_model_id = ai_gateway.default_model_identifier or None
+
+        def _provider_from_identifier(identifier: Optional[str]) -> str:
+            try:
+                provider_key, _, _ = (
+                    ai_gateway._parse_identifier(identifier)  # type: ignore[attr-defined]
+                    if identifier
+                    else ("mock", "llama3.1", None)
+                )
+            except Exception:
+                provider_key = "mock"
+            return "ollama" if provider_key == "ollama-local" else provider_key
+
+        def _has_credentials(provider_key: str) -> bool:
+            provider_key = "ollama" if provider_key == "ollama-local" else provider_key
+            if provider_key in ("openai", "gemini"):
+                return credential_has_key.get(provider_key, False) or ai_gateway.providers.get(provider_key) is not None
+            return True
+
+        if not default_model_id or default_model_id not in available_ids or not _has_credentials(_provider_from_identifier(default_model_id)):
+            priorities = ["openai", "gemini", "openwebui", "ollama", "client"]
+            preferred = None
+            for provider_key in priorities:
+                if not _has_credentials(provider_key):
+                    continue
+                preferred = next(
+                    (
+                        mid
+                        for mid in available_ids
+                        if isinstance(mid, str) and mid.startswith(f"{provider_key}:")
+                    ),
+                    None,
+                )
+                if preferred:
                     break
-            if found_cloud_model:
-                break
-        
-        # Use cloud model if found, otherwise fallback to first available
-        default_model_id = found_cloud_model or (available_ids[0] if available_ids else None)
-    
-    # Ensure we have a default model ID
-    if not default_model_id:
-        default_model_id = "mock:llama3.1"
+            if not preferred:
+                # fallback to any provider that has credentials
+                for pk, ident in provider_first.items():
+                    if ident and _has_credentials(pk):
+                        preferred = ident
+                        break
+            default_model_id = preferred or (available_ids[0] if available_ids else fallback_identifier)
 
-    try:
-        provider, model_name, _ = (
-            ai_gateway._parse_identifier(default_model_id)  # type: ignore[attr-defined]
-            if default_model_id
-            else ("mock", "llama3.1", None)
-        )
-    except Exception as e:
-        print(f"❌ Error parsing model identifier '{default_model_id}': {e}")
-        import traceback
-        traceback.print_exc()
-        provider = "mock"
-        model_name = "llama3.1"
-        default_model_id = "mock:llama3.1"
+        try:
+            provider, model_name, _ = ai_gateway._parse_identifier(default_model_id)  # type: ignore[attr-defined]
+        except Exception as exc:
+            print(f"❌ Error parsing model identifier '{default_model_id}': {exc}")
+            import traceback
+            traceback.print_exc()
+            provider, model_name, default_model_id = "mock", "llama3.1", fallback_identifier
 
-    # Persist resolved defaults so downstream AI calls pick a reachable route
-    if default_model_id:
         ai_gateway.default_model_identifier = default_model_id
         ai_gateway.provider = provider
         ai_gateway.model = model_name
 
-    try:
-        credential_status = crud.list_provider_credentials(db, owner_id=current_user.id)
-    except Exception as e:
-        print(f"Error getting credential status: {e}")
-        import traceback
-        traceback.print_exc()
-        credential_status = []
-
-    # Convert models to schemas with error handling
-    model_schemas = []
-    for m in models_list:
-        try:
-            if not isinstance(m, dict):
-                print(f"⚠️ Warning: Model entry is not a dict: {type(m)}")
+        model_schemas: List[schemas.AiModelInfo] = []
+        for entry in models_list:
+            if not isinstance(entry, dict):
                 continue
-            # Ensure all required fields are present
+            provider_key = entry.get("provider") or "mock"
+            name = entry.get("name") or entry.get("id") or model_name
+            model_id = entry.get("id") or f"{provider_key}:{name}"
             model_dict = {
-                "id": m.get("id") or "",
-                "name": m.get("name") or "",
-                "provider": m.get("provider") or "mock",
-                "size": m.get("size"),
-                "source": m.get("source") or m.get("provider") or "mock",
-                "node_id": m.get("node_id"),
-                "node_name": m.get("node_name"),
-                "endpoint": m.get("endpoint"),
-                "latency_ms": m.get("latency_ms"),
-                "metadata": m.get("metadata") or {},
-                "modified_at": m.get("modified_at"),
-                "description": m.get("description"),
-                "context_window": m.get("context_window"),
-                "max_output_tokens": m.get("max_output_tokens"),
-                "input_cost_per_1m": m.get("input_cost_per_1m"),
-                "output_cost_per_1m": m.get("output_cost_per_1m"),
-                "supports_vision": m.get("supports_vision"),
-                "supports_function_calling": m.get("supports_function_calling"),
+                "id": model_id,
+                "name": name or model_name,
+                "provider": provider_key,
+                "size": entry.get("size"),
+                "source": entry.get("source") or provider_key,
+                "node_id": entry.get("node_id"),
+                "node_name": entry.get("node_name"),
+                "endpoint": entry.get("endpoint"),
+                "latency_ms": entry.get("latency_ms"),
+                "metadata": entry.get("metadata") or {},
+                "modified_at": entry.get("modified_at"),
+                "description": entry.get("description"),
+                "context_window": entry.get("context_window"),
+                "max_output_tokens": entry.get("max_output_tokens"),
+                "input_cost_per_1m": entry.get("input_cost_per_1m"),
+                "output_cost_per_1m": entry.get("output_cost_per_1m"),
+                "supports_vision": entry.get("supports_vision"),
+                "supports_function_calling": entry.get("supports_function_calling"),
             }
-            # Ensure id is not empty
-            if not model_dict["id"]:
-                model_dict["id"] = f"{model_dict['provider']}:{model_dict['name']}"
-            model_schemas.append(schemas.AiModelInfo(**model_dict))
-        except Exception as e:
-            print(f"❌ Error creating AiModelInfo for model {m.get('id', 'unknown')}: {e}")
+            try:
+                model_schemas.append(schemas.AiModelInfo(**model_dict))
+            except Exception as exc:
+                print(f"❌ Error creating AiModelInfo for model {model_id}: {exc}")
+                import traceback
+                traceback.print_exc()
+
+        if not model_schemas:
+            model_schemas = [
+                schemas.AiModelInfo(
+                    id=default_model_id,
+                    name=model_name,
+                    provider=provider,
+                    source=provider,
+                )
+            ]
+
+        try:
+            credential_schemas = [schemas.ProviderCredentialStatus(**c) for c in credential_status]
+        except Exception as exc:
+            print(f"Error creating credential schemas: {exc}")
             import traceback
             traceback.print_exc()
-            continue
+            credential_schemas = []
 
-    # Ensure we have at least one model
-    if not model_schemas:
-        model_schemas = [
-            schemas.AiModelInfo(
-                id="mock:llama3.1",
-                name="llama3.1",
-                provider="mock",
-                source="mock",
-            )
-        ]
-
-    try:
-        credential_schemas = [schemas.ProviderCredentialStatus(**c) for c in credential_status]
-    except Exception as e:
-        print(f"Error creating credential schemas: {e}")
-        import traceback
-        traceback.print_exc()
-        credential_schemas = []
-
-    try:
-        response = schemas.AiModelsResponse(
+        return schemas.AiModelsResponse(
             models=model_schemas,
             provider=provider,
             current_model=model_name,
             default_model_id=default_model_id,
             credentials=credential_schemas,
         )
-        return response
-    except Exception as e:
-        print(f"❌ Error creating AiModelsResponse: {e}")
+    except Exception as exc:
+        print(f"❌ CRITICAL: Unexpected error in list_ai_models: {exc}")
         import traceback
         traceback.print_exc()
-        # Return a minimal valid response
-        return schemas.AiModelsResponse(
-            models=[
-                schemas.AiModelInfo(
-                    id="mock:llama3.1",
-                    name="llama3.1",
-                    provider="mock",
-                    source="mock",
-                )
-            ],
-            provider="mock",
-            current_model="llama3.1",
-            default_model_id="mock:llama3.1",
-            credentials=[],
-        )
-    except Exception as e:
-        # Top-level error handler - always return valid JSON
-        print(f"❌ CRITICAL: Unexpected error in list_ai_models: {e}")
-        import traceback
-        traceback.print_exc()
-        return schemas.AiModelsResponse(
-            models=[
-                schemas.AiModelInfo(
-                    id="mock:llama3.1",
-                    name="llama3.1",
-                    provider="mock",
-                    source="mock",
-                )
-            ],
-            provider="mock",
-            current_model="llama3.1",
-            default_model_id="mock:llama3.1",
-            credentials=[],
-        )
-    except Exception as e:
-        print(f"Error creating AiModelsResponse: {e}")
-        import traceback
-        traceback.print_exc()
-        # Return a minimal valid response
-        return schemas.AiModelsResponse(
-            models=[
-                schemas.AiModelInfo(
-                    id="mock:llama3.1",
-                    name="llama3.1",
-                    provider="mock",
-                    source="mock",
-                )
-            ],
-            provider="mock",
-            current_model="llama3.1",
-            default_model_id="mock:llama3.1",
-            credentials=[],
-        )
+        return _fallback_response()
 
 @app.post("/admin/ai/default-model", response_model=schemas.AiModelsResponse)
 async def set_default_ai_model(
