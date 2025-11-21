@@ -98,7 +98,7 @@ struct AdvancedFeaturesView: View {
         Section {
             VStack(alignment: .leading, spacing: 8) {
                 FeatureRow(
-                    icon: "apple.shortcuts",
+                    icon: "command",
                     iconColor: .orange,
                     title: "Siri Shortcuts",
                     description: "Control tasks with voice commands",

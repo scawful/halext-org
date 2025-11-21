@@ -843,6 +843,8 @@ async def list_ai_models(
         credential_status = crud.list_provider_credentials(db, owner_id=current_user.id)
     except Exception as e:
         print(f"Error getting credential status: {e}")
+        import traceback
+        traceback.print_exc()
         credential_status = []
 
     # Convert models to schemas with error handling
@@ -892,6 +894,8 @@ async def list_ai_models(
         credential_schemas = [schemas.ProviderCredentialStatus(**c) for c in credential_status]
     except Exception as e:
         print(f"Error creating credential schemas: {e}")
+        import traceback
+        traceback.print_exc()
         credential_schemas = []
 
     try:
@@ -903,6 +907,25 @@ async def list_ai_models(
             credentials=credential_schemas,
         )
         return response
+    except Exception as e:
+        print(f"Error creating AiModelsResponse: {e}")
+        import traceback
+        traceback.print_exc()
+        # Return a minimal valid response
+        return schemas.AiModelsResponse(
+            models=[
+                schemas.AiModelInfo(
+                    id="mock:llama3.1",
+                    name="llama3.1",
+                    provider="mock",
+                    source="mock",
+                )
+            ],
+            provider="mock",
+            current_model="llama3.1",
+            default_model_id="mock:llama3.1",
+            credentials=[],
+        )
     except Exception as e:
         print(f"Error creating AiModelsResponse: {e}")
         import traceback

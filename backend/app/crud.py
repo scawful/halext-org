@@ -521,9 +521,12 @@ def list_provider_credentials(db: Session, owner_id: Optional[int] = None):
         key_name = None
         if api_key and api_key.is_active:
             try:
-                masked = mask_api_key(decrypt_api_key(api_key.encrypted_key))
+                if api_key.encrypted_key:
+                    masked = mask_api_key(decrypt_api_key(api_key.encrypted_key))
                 key_name = api_key.key_name
-            except Exception:
+            except Exception as e:
+                # If decryption fails, just mark as having a key but don't show masked value
+                print(f"Warning: Failed to decrypt/mask API key for {provider}: {e}")
                 masked = None
                 key_name = api_key.key_name
 

@@ -121,7 +121,7 @@ struct ShortcutsConfigView: View {
             Section {
                 Button(action: openShortcutsApp) {
                     HStack {
-                        Image(systemName: "apple.shortcuts")
+                        Image(systemName: "command")
                             .foregroundColor(.orange)
                         Text("Open Shortcuts App")
                         Spacer()
