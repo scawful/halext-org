@@ -24,6 +24,7 @@ struct UserProfileView: View {
 
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var showRetry = false
 
     var body: some View {
         NavigationStack {
@@ -161,6 +162,16 @@ struct UserProfileView: View {
             .alert("Error", isPresented: .constant(errorMessage != nil), presenting: errorMessage) { _ in
                 Button("OK") {
                     errorMessage = nil
+                    showRetry = false
+                }
+                if showRetry {
+                    Button("Retry") {
+                        errorMessage = nil
+                        showRetry = false
+                        _Concurrency.Task {
+                            await loadUserProfile()
+                        }
+                    }
                 }
             } message: { message in
                 Text(message)
@@ -190,8 +201,32 @@ struct UserProfileView: View {
                 statusMessage = profile.statusMessage ?? ""
                 currentActivity = profile.currentActivity ?? ""
             }
+            
+            await MainActor.run {
+                errorMessage = nil
+                showRetry = false
+            }
         } catch {
-            errorMessage = "Failed to load user profile: \(error.localizedDescription)"
+            await MainActor.run {
+                // Provide user-friendly error messages and determine if retry should be shown
+                let friendlyMessage: String
+                var shouldShowRetry = false
+                
+                if let apiError = error as? APIError {
+                    friendlyMessage = apiError.errorDescription ?? "Failed to load user profile. Please try again."
+                    // Show retry for transient errors
+                    shouldShowRetry = apiError != .unauthorized && apiError != .notAuthenticated
+                } else if let urlError = error as? URLError {
+                    friendlyMessage = "Network error: \(urlError.localizedDescription). Please check your connection and try again."
+                    shouldShowRetry = true
+                } else {
+                    friendlyMessage = "Failed to load user profile: \(error.localizedDescription)"
+                    shouldShowRetry = true
+                }
+                
+                errorMessage = friendlyMessage
+                showRetry = shouldShowRetry
+            }
         }
     }
 

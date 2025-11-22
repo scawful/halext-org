@@ -19,6 +19,7 @@ struct SmartGeneratorView: View {
     @State private var selectedEventIds = Set<UUID>()
     @State private var selectedSmartListIds = Set<UUID>()
     @State private var showError = false
+    @State private var showRetry = false
     @State private var isCreating = false
 
     @FocusState private var isPromptFocused: Bool
@@ -68,7 +69,16 @@ struct SmartGeneratorView: View {
                 }
             }
             .alert("Generation Error", isPresented: $showError) {
-                Button("OK", role: .cancel) {}
+                Button("OK", role: .cancel) {
+                    showRetry = false
+                }
+                if showRetry {
+                    Button("Retry") {
+                        showError = false
+                        showRetry = false
+                        generateItems()
+                    }
+                }
             } message: {
                 if let error = generator.lastError {
                     Text(error.errorDescription ?? "Unknown error")
@@ -447,8 +457,29 @@ struct SmartGeneratorView: View {
                 withAnimation {
                     generationResult = result
                 }
+                
+                await MainActor.run {
+                    showError = false
+                    showRetry = false
+                }
             } catch {
-                showError = true
+                await MainActor.run {
+                    // Determine if retry should be shown based on error type
+                    var shouldShowRetry = false
+                    
+                    if let apiError = error as? APIError {
+                        // Show retry for transient errors
+                        shouldShowRetry = apiError != .unauthorized && apiError != .notAuthenticated
+                    } else if error is URLError {
+                        shouldShowRetry = true
+                    } else {
+                        // For unknown errors, allow retry
+                        shouldShowRetry = true
+                    }
+                    
+                    showRetry = shouldShowRetry
+                    showError = true
+                }
             }
         }
     }

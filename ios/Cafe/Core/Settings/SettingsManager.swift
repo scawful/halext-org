@@ -96,6 +96,11 @@ class SettingsManager {
     @ObservationIgnored
     @AppStorage("ai_cloud_providers_disabled") var cloudProvidersDisabled: Bool = false
 
+    // MARK: - Partner/Contact Settings
+
+    @ObservationIgnored
+    @AppStorage("preferred_contact_username") var preferredContactUsername: String = "magicalgirl"
+
     // MARK: - Account & Profile
 
     var connectedDevicesCount: Int {

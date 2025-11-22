@@ -54,6 +54,17 @@ class AppState {
         NetworkMonitor.shared.startMonitoring()
         print("🌍 Network monitoring started")
 
+        // Listen for token expiration notifications
+        NotificationCenter.default.addObserver(
+            forName: .tokenExpired,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            _Concurrency.Task { @MainActor in
+                await self?.handleTokenExpiration()
+            }
+        }
+
         // Check if we have a stored token on app launch
         if let token = KeychainManager.shared.getToken() {
             print("🔑 Found stored token on app launch")
@@ -75,6 +86,10 @@ class AppState {
         } else {
             print("🔓 No stored token found")
         }
+    }
+    
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
 
     // MARK: - Authentication
@@ -148,6 +163,13 @@ class AppState {
         currentUser = nil
         isAuthenticated = false
         errorMessage = nil
+    }
+    
+    @MainActor
+    private func handleTokenExpiration() async {
+        print("🚨 Token expired notification received")
+        errorMessage = "Your session has expired. Please sign in again."
+        await logout()
     }
 
     @MainActor

@@ -235,6 +235,12 @@ extension Conversation: Equatable {
     }
 }
 
+extension Conversation: Hashable {
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+}
+
 // Keychain extension for user ID
 extension KeychainManager {
     func getUserId() -> Int? {

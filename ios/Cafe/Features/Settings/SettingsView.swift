@@ -97,35 +97,13 @@ struct SettingsView: View {
     private var aiFeaturesSection: some View {
         Section {
             NavigationLink {
-                AISettingsView()
-            } label: {
-                SettingsItemLabel(
-                    icon: "brain",
-                    iconColor: .purple,
-                    title: "AI Models & Providers",
-                    subtitle: "Configure AI agents and models"
-                )
-            }
-            
-            NavigationLink {
                 AgentHubView(onStartChat: { _ in })
             } label: {
                 SettingsItemLabel(
                     icon: "atom",
                     iconColor: .blue,
                     title: "Agent Hub",
-                    subtitle: "Browse and manage AI agents"
-                )
-            }
-            
-            NavigationLink {
-                ChatSettingsView()
-            } label: {
-                SettingsItemLabel(
-                    icon: "bubble.left.and.bubble.right.fill",
-                    iconColor: .cyan,
-                    title: "Chat & Conversations",
-                    subtitle: "AI chat preferences"
+                    subtitle: "AI models, settings, and chat configuration"
                 )
             }
             
@@ -142,7 +120,7 @@ struct SettingsView: View {
         } header: {
             Label("AI Features", systemImage: "sparkles")
         } footer: {
-            Text("Configure AI assistants, models, and generative features. AI features are accessible from the Dashboard and Messages views.")
+            Text("Configure AI assistants, models, and generative features. All AI settings are now consolidated in Agent Hub.")
         }
     }
 
@@ -223,6 +201,17 @@ struct SettingsView: View {
                     iconColor: .green,
                     title: "Social Connections",
                     subtitle: "Link accounts"
+                )
+            }
+            
+            NavigationLink {
+                PartnerUsernameSettingsView()
+            } label: {
+                SettingsItemLabel(
+                    icon: "person.crop.circle.fill",
+                    iconColor: .purple,
+                    title: "Partner Username",
+                    subtitle: settingsManager.preferredContactUsername
                 )
             }
         } header: {

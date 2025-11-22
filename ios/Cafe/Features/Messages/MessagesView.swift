@@ -17,6 +17,7 @@ struct MessagesView: View {
     @State private var chrisConversation: Conversation?
     @State private var isLoadingChris = false
     @State private var chrisPresence: SocialPresenceStatus?
+    @State private var showRetry = false
 
     var body: some View {
         NavigationStack {
@@ -161,10 +162,37 @@ struct MessagesView: View {
                 await viewModel.load()
                 await loadChrisPresence()
             }
-            .alert("Error", isPresented: Binding(get: { viewModel.error != nil }, set: { _ in viewModel.error = nil })) {
-                Button("OK", role: .cancel) { viewModel.error = nil }
+            .alert("Error", isPresented: Binding(get: { viewModel.error != nil }, set: { _ in 
+                viewModel.error = nil
+                showRetry = false
+            })) {
+                Button("OK", role: .cancel) { 
+                    viewModel.error = nil
+                    showRetry = false
+                }
+                if showRetry {
+                    Button("Retry") {
+                        viewModel.error = nil
+                        showRetry = false
+                        _Concurrency.Task {
+                            await viewModel.load()
+                        }
+                    }
+                }
             } message: {
                 Text(viewModel.error ?? "")
+            }
+            .onChange(of: viewModel.error) { _, newError in
+                if let error = newError {
+                    // Determine if retry should be shown based on error type
+                    // Since we only have error string, we'll check common patterns
+                    showRetry = !error.lowercased().contains("session") && 
+                               !error.lowercased().contains("expired") &&
+                               !error.lowercased().contains("unauthorized") &&
+                               !error.lowercased().contains("authenticated")
+                } else {
+                    showRetry = false
+                }
             }
         }
     }

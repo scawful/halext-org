@@ -10,8 +10,15 @@ import SwiftUI
 struct PartnerStatusCard: View {
     @State private var chrisPresence: PartnerPresence?
     @State private var isLoading = false
-    @State private var preferredContactUsername: String = "magicalgirl"
-    @State private var showingMessage = false
+    @State private var settingsManager = SettingsManager.shared
+    @State private var chrisConversation: Conversation?
+    @State private var isLoadingMessage = false
+    @State private var errorMessage: String?
+    @State private var showRetry = false
+    
+    private var preferredContactUsername: String {
+        settingsManager.preferredContactUsername
+    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -58,12 +65,20 @@ struct PartnerStatusCard: View {
                 Spacer()
                 
                 Button {
-                    showingMessage = true
+                    _Concurrency.Task {
+                        await openOrCreateChrisConversation()
+                    }
                 } label: {
-                    Image(systemName: "message.fill")
-                        .font(.title3)
-                        .foregroundColor(.blue)
+                    if isLoadingMessage {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                    } else {
+                        Image(systemName: "message.fill")
+                            .font(.title3)
+                            .foregroundColor(.blue)
+                    }
                 }
+                .disabled(isLoadingMessage)
             }
             
             // Status message
@@ -87,10 +102,18 @@ struct PartnerStatusCard: View {
             // Quick actions
             HStack(spacing: 12) {
                 Button {
-                    showingMessage = true
+                    _Concurrency.Task {
+                        await openOrCreateChrisConversation()
+                    }
                 } label: {
                     HStack {
-                        Image(systemName: "message.fill")
+                        if isLoadingMessage {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                                .tint(.white)
+                        } else {
+                            Image(systemName: "message.fill")
+                        }
                         Text("Message")
                     }
                     .font(.subheadline)
@@ -102,6 +125,7 @@ struct PartnerStatusCard: View {
                     )
                     .foregroundColor(.white)
                 }
+                .disabled(isLoadingMessage)
                 
                 NavigationLink {
                     SharedCalendarView()
@@ -150,8 +174,39 @@ struct PartnerStatusCard: View {
         .task {
             await loadPresence()
         }
-        .sheet(isPresented: $showingMessage) {
-            // Navigate to messages with Chris
+        .background(
+            // NavigationLink that activates when conversation is set
+            // Using NavigationLink with value for modern NavigationStack compatibility
+            Group {
+                if let conversation = chrisConversation {
+                    NavigationLink(
+                        value: conversation
+                    ) {
+                        EmptyView()
+                    }
+                }
+            }
+        )
+        .navigationDestination(for: Conversation.self) { conversation in
+            UnifiedConversationView(conversation: conversation) { updated in
+                // Update conversation if needed
+                chrisConversation = updated
+            }
+        }
+        .alert("Error", isPresented: Binding(get: { errorMessage != nil }, set: { _ in errorMessage = nil })) {
+            Button("OK", role: .cancel) { errorMessage = nil }
+            if showRetry {
+                Button("Retry") {
+                    errorMessage = nil
+                    _Concurrency.Task {
+                        await openOrCreateChrisConversation()
+                    }
+                }
+            }
+        } message: {
+            if let error = errorMessage {
+                Text(error)
+            }
         }
     }
     
@@ -166,6 +221,72 @@ struct PartnerStatusCard: View {
         } catch {
             await MainActor.run {
                 isLoading = false
+            }
+        }
+    }
+    
+    // MARK: - Chris Conversation Helpers
+    
+    private func openOrCreateChrisConversation() async {
+        await MainActor.run {
+            isLoadingMessage = true
+            errorMessage = nil
+        }
+        
+        defer {
+            _Concurrency.Task { @MainActor in
+                isLoadingMessage = false
+            }
+        }
+        
+        // First, try to get existing conversations and find one with Chris
+        do {
+            let conversations = try await APIClient.shared.getConversations()
+            if let existing = conversations.first(where: { conv in
+                conv.participantUsernames.contains(where: { $0.lowercased() == preferredContactUsername.lowercased() })
+            }) {
+                await MainActor.run {
+                    chrisConversation = existing
+                }
+                return
+            }
+            
+            // If not found, search for Chris user and create conversation
+            let users = try await APIClient.shared.searchUsers(query: preferredContactUsername)
+            if let chrisUser = users.first(where: { $0.username.lowercased() == preferredContactUsername.lowercased() }) {
+                let convo = try await APIClient.shared.createConversation(
+                    title: "Chat with \(chrisUser.fullName ?? chrisUser.username)",
+                    participantUsernames: [chrisUser.username],
+                    withAI: false
+                )
+                await MainActor.run {
+                    chrisConversation = convo
+                }
+            } else {
+                await MainActor.run {
+                    errorMessage = "Could not find user. Please make sure the username is correct."
+                }
+            }
+        } catch {
+            await MainActor.run {
+                // Provide user-friendly error messages
+                let friendlyMessage: String
+                var shouldShowRetry = false
+                
+                if let apiError = error as? APIError {
+                    friendlyMessage = apiError.errorDescription ?? "Unable to start conversation. Please try again."
+                    // Show retry for transient errors
+                    shouldShowRetry = apiError != .unauthorized && apiError != .notAuthenticated
+                } else if let urlError = error as? URLError {
+                    friendlyMessage = "Network error: \(urlError.localizedDescription). Please check your connection and try again."
+                    shouldShowRetry = true
+                } else {
+                    friendlyMessage = "Unable to start conversation. Please check your connection and try again."
+                    shouldShowRetry = true
+                }
+                
+                errorMessage = friendlyMessage
+                showRetry = shouldShowRetry
             }
         }
     }

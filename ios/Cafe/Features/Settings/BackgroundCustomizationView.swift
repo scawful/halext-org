@@ -11,7 +11,6 @@ import PhotosUI
 #endif
 
 struct BackgroundCustomizationView: View {
-    @State private var themeManager = ThemeManager.shared
     @State private var customBackground: CustomBackground
     #if canImport(PhotosUI)
     @State private var selectedImageItem: PhotosPickerItem?
@@ -460,7 +459,8 @@ struct BackgroundCustomizationView: View {
     }
     
     private func saveBackground() {
-        themeManager.customBackground = customBackground
+        // Directly update the shared ThemeManager instance to ensure persistence
+        ThemeManager.shared.customBackground = customBackground
     }
 }
 
@@ -587,7 +587,6 @@ struct CustomBackgroundView: View {
 // MARK: - Per-View Background Settings
 
 struct PerViewBackgroundSettingsView: View {
-    @State private var themeManager = ThemeManager.shared
     @State private var viewIds: [String] = ["dashboard", "tasks", "calendar", "messages", "settings"]
     
     var body: some View {
@@ -597,7 +596,7 @@ struct PerViewBackgroundSettingsView: View {
                     HStack {
                         Text(viewId.capitalized)
                         Spacer()
-                        if themeManager.getBackgroundForView(viewId: viewId) != nil {
+                        if ThemeManager.shared.getBackgroundForView(viewId: viewId) != nil {
                             Image(systemName: "checkmark.circle.fill")
                                 .foregroundColor(.green)
                         }
@@ -614,7 +613,6 @@ struct PerViewBackgroundSettingsView: View {
 
 struct BackgroundCustomizationViewForView: View {
     let viewId: String
-    @State private var themeManager = ThemeManager.shared
     @State private var customBackground: CustomBackground
     
     init(viewId: String) {
@@ -626,12 +624,12 @@ struct BackgroundCustomizationViewForView: View {
     var body: some View {
         BackgroundCustomizationView()
             .onAppear {
-                if let existing = themeManager.getBackgroundForView(viewId: viewId) {
+                if let existing = ThemeManager.shared.getBackgroundForView(viewId: viewId) {
                     customBackground = existing
                 }
             }
             .onChange(of: customBackground) { _, newBackground in
-                themeManager.setBackgroundForView(viewId: viewId, background: newBackground)
+                ThemeManager.shared.setBackgroundForView(viewId: viewId, background: newBackground)
             }
     }
 }

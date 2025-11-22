@@ -16,6 +16,7 @@ struct UnifiedConversationView: View {
     @State private var inputText: String = ""
     @State private var isLoading: Bool = false
     @State private var errorMessage: String?
+    @State private var showRetry = false
     @State private var streamingText: String = ""
     @State private var isStreaming: Bool = false
     @State private var showModelPicker: Bool = false
@@ -84,6 +85,14 @@ struct UnifiedConversationView: View {
         }
         .alert("Error", isPresented: Binding(get: { errorMessage != nil }, set: { _ in errorMessage = nil })) {
             Button("OK", role: .cancel) { errorMessage = nil }
+            if showRetry {
+                Button("Retry") {
+                    errorMessage = nil
+                    _Concurrency.Task {
+                        await loadMessages()
+                    }
+                }
+            }
         } message: {
             if let error = errorMessage {
                 Text(error)
@@ -283,8 +292,31 @@ struct UnifiedConversationView: View {
         
         do {
             messages = try await APIClient.shared.getMessages(conversationId: conversation.id)
+            await MainActor.run {
+                errorMessage = nil
+                showRetry = false
+            }
         } catch {
-            errorMessage = "Failed to load messages: \(error.localizedDescription)"
+            await MainActor.run {
+                // Provide user-friendly error messages and determine if retry should be shown
+                let friendlyMessage: String
+                var shouldShowRetry = false
+                
+                if let apiError = error as? APIError {
+                    friendlyMessage = apiError.errorDescription ?? "Failed to load messages. Please try again."
+                    // Show retry for transient errors
+                    shouldShowRetry = apiError != .unauthorized && apiError != .notAuthenticated
+                } else if let urlError = error as? URLError {
+                    friendlyMessage = "Network error: \(urlError.localizedDescription). Please check your connection and try again."
+                    shouldShowRetry = true
+                } else {
+                    friendlyMessage = "Failed to load messages: \(error.localizedDescription)"
+                    shouldShowRetry = true
+                }
+                
+                errorMessage = friendlyMessage
+                showRetry = shouldShowRetry
+            }
         }
     }
     

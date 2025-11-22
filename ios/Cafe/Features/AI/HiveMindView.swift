@@ -17,6 +17,7 @@ struct HiveMindView: View {
     @State private var isFetchingSummary = false
     @State private var isFetchingNextSteps = false
     @State private var error: String?
+    @State private var showRetry = false
     @State private var conversation: Conversation?
     
     private let api = APIClient.shared
@@ -139,7 +140,19 @@ struct HiveMindView: View {
             await loadConversation()
         }
         .alert("Error", isPresented: Binding(get: { error != nil }, set: { _ in error = nil })) {
-            Button("OK", role: .cancel) { error = nil }
+            Button("OK", role: .cancel) { 
+                error = nil
+                showRetry = false
+            }
+            if showRetry {
+                Button("Retry") {
+                    error = nil
+                    showRetry = false
+                    _Concurrency.Task {
+                        await loadConversation()
+                    }
+                }
+            }
         } message: {
             Text(error ?? "")
         }
@@ -149,8 +162,31 @@ struct HiveMindView: View {
         do {
             conversation = try await api.getConversation(id: conversationId)
             goal = conversation?.hiveMindGoal ?? ""
-        } catch {
-            self.error = error.localizedDescription
+            await MainActor.run {
+                self.error = nil
+                self.showRetry = false
+            }
+        } catch let caughtError {
+            await MainActor.run {
+                // Provide user-friendly error messages and determine if retry should be shown
+                let friendlyMessage: String
+                var shouldShowRetry = false
+                
+                if let apiError = caughtError as? APIError {
+                    friendlyMessage = apiError.errorDescription ?? "Failed to load conversation. Please try again."
+                    // Show retry for transient errors
+                    shouldShowRetry = apiError != .unauthorized && apiError != .notAuthenticated
+                } else if let urlError = caughtError as? URLError {
+                    friendlyMessage = "Network error: \(urlError.localizedDescription). Please check your connection and try again."
+                    shouldShowRetry = true
+                } else {
+                    friendlyMessage = "Failed to load conversation: \(caughtError.localizedDescription)"
+                    shouldShowRetry = true
+                }
+                
+                self.error = friendlyMessage
+                self.showRetry = shouldShowRetry
+            }
         }
     }
     

@@ -26,7 +26,18 @@ final class ConversationsViewModel: ObservableObject {
             conversations = sort(conversations: fetched)
             error = nil
         } catch {
-            self.error = error.localizedDescription
+            // Provide user-friendly error messages
+            let friendlyMessage: String
+            
+            if let apiError = error as? APIError {
+                friendlyMessage = apiError.errorDescription ?? "Failed to load conversations. Please try again."
+            } else if let urlError = error as? URLError {
+                friendlyMessage = "Network error: \(urlError.localizedDescription). Please check your connection and try again."
+            } else {
+                friendlyMessage = "Failed to load conversations: \(error.localizedDescription)"
+            }
+            
+            self.error = friendlyMessage
         }
     }
 
