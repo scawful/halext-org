@@ -37,7 +37,10 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     return encoded_jwt
 
 def authenticate_user(db: Session, username: str, password: str):
+    # Accept either username or email for login to match UI expectations
     user = crud.get_user_by_username(db, username=username)
+    if not user:
+        user = crud.get_user_by_email(db, email=username)
     if not user:
         return False
     if not verify_password(password, user.hashed_password):

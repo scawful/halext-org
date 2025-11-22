@@ -49,20 +49,22 @@ app.add_middleware(
 # Include routers
 # Note: admin_router already has /admin prefix defined in the router itself
 # We add /api prefix here so it becomes /api/admin/*
-app.include_router(admin_router, prefix="/api")
-app.include_router(ai_router_legacy, prefix="/api/v1", tags=["AI"])
-app.include_router(content_router, prefix="/api")
+for prefix in ("/api", ""):
+    app.include_router(admin_router, prefix=prefix)
+    app.include_router(content_router, prefix=prefix)
+    app.include_router(users.router, prefix=prefix)
+    app.include_router(tasks.router, prefix=prefix)
+    app.include_router(events.router, prefix=prefix)
+    app.include_router(pages.router, prefix=prefix)
+    app.include_router(conversations.router, prefix=prefix)
+    app.include_router(finance.router, prefix=prefix)
+    app.include_router(social.router, prefix=prefix)
+    app.include_router(ai.router, prefix=prefix)
+    app.include_router(integrations.router, prefix=prefix)
 
-# Include new routers (with /api prefix for consistency with old routers and production nginx config)
-app.include_router(users.router, prefix="/api")
-app.include_router(tasks.router, prefix="/api")
-app.include_router(events.router, prefix="/api")
-app.include_router(pages.router, prefix="/api")
-app.include_router(conversations.router, prefix="/api")
-app.include_router(finance.router, prefix="/api")
-app.include_router(social.router, prefix="/api")
-app.include_router(ai.router, prefix="/api")
-app.include_router(integrations.router, prefix="/api")
+# Legacy AI image routes keep their /v1 prefix plus a root fallback for old nginx setups
+app.include_router(ai_router_legacy, prefix="/api/v1", tags=["AI"])
+app.include_router(ai_router_legacy, prefix="/v1", tags=["AI"])
 
 if ENV_CHECK["warnings"] or ENV_CHECK["issues"]:
     print("[env] Warnings:", ENV_CHECK["warnings"], "| Issues:", ENV_CHECK["issues"])
@@ -145,3 +147,12 @@ def version_info():
             "distributed_ai_nodes"
         ]
     }
+
+# Backward-compatible health/version endpoints without /api prefix
+@app.get("/health")
+def health_check_legacy(db: Session = Depends(get_db)):
+    return health_check(db)
+
+@app.get("/version")
+def version_info_legacy():
+    return version_info()

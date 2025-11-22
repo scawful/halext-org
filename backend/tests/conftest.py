@@ -17,6 +17,20 @@ from app.models import User, AIClientNode
 from app import crud, schemas, auth
 from main import app
 
+API_PREFIX = os.getenv("API_PREFIX", "/api")
+
+# Prefix API requests to match production routing while keeping legacy root paths (e.g., websockets) untouched.
+class PrefixingTestClient(TestClient):
+    def request(self, method, url, *args, **kwargs):  # type: ignore[override]
+        adjusted_url = url
+        if isinstance(url, str) and url.startswith("/"):
+            skip_prefixes = ("/ws", "/openapi.json", "/docs", "/redoc")
+            if not url.startswith(f"{API_PREFIX}/") and url != API_PREFIX and not any(
+                url.startswith(prefix) for prefix in skip_prefixes
+            ):
+                adjusted_url = f"{API_PREFIX}{url}"
+        return super().request(method, adjusted_url, *args, **kwargs)
+
 
 # Use in-memory SQLite database for testing
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
@@ -52,7 +66,7 @@ def client(db_session):
 
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[app_dependencies.get_db] = override_get_db
-    with TestClient(app) as test_client:
+    with PrefixingTestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()
 

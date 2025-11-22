@@ -338,16 +338,21 @@ async def ai_chat(
 ):
     """Generate AI chat response"""
     start_time = time.time()
-    
-    response, route = await ai_gateway.generate_reply(
-        request.prompt,
-        request.history,
-        model_identifier=request.model,
-        user_id=current_user.id,
-        db=db,
-        include_context=True,
-    )
-    
+    try:
+        response, route = await ai_gateway.generate_reply(
+            request.prompt,
+            request.history,
+            model_identifier=request.model,
+            user_id=current_user.id,
+            db=db,
+            include_context=True,
+        )
+    except TimeoutError:
+        raise HTTPException(status_code=503, detail="AI provider timed out")
+    except Exception as exc:
+        print(f"AI chat error: {exc}")
+        raise HTTPException(status_code=500, detail="AI chat failed")
+
     latency_ms = int((time.time() - start_time) * 1000)
     try:
         log_ai_usage(
@@ -368,13 +373,14 @@ async def ai_chat(
         provider=route.key,
     )
 
-@router.post("/ai/chat/stream")
-async def ai_chat_stream(
+async def _chat_stream_response(
     request: schemas.AiChatRequest,
-    current_user: models.User = Depends(auth.get_current_user),
-    db: Session = Depends(get_db)
+    current_user: models.User,
+    db: Session,
 ):
-    """Stream AI chat response (Server-Sent Events)"""
+    """
+    Shared streaming response helper so legacy endpoints can reuse the same logic.
+    """
     stream, route = await ai_gateway.generate_stream(
         request.prompt,
         request.history,
@@ -382,7 +388,6 @@ async def ai_chat_stream(
         user_id=current_user.id,
         db=db,
     )
-
     async def generate():
         async for chunk in stream:
             yield f"data: {chunk}\n\n"
@@ -390,6 +395,24 @@ async def ai_chat_stream(
 
     headers = {"X-Halext-AI-Model": route.identifier}
     return StreamingResponse(generate(), media_type="text/event-stream", headers=headers)
+
+@router.post("/ai/chat/stream")
+async def ai_chat_stream(
+    request: schemas.AiChatRequest,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Stream AI chat response (Server-Sent Events)"""
+    return await _chat_stream_response(request, current_user, db)
+
+@router.post("/ai/stream")
+async def ai_chat_stream_legacy(
+    request: schemas.AiChatRequest,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Legacy streaming endpoint for backward compatibility"""
+    return await _chat_stream_response(request, current_user, db)
 
 @router.post("/ai/embeddings", response_model=schemas.AiEmbeddingsResponse)
 async def generate_embeddings(
@@ -400,7 +423,7 @@ async def generate_embeddings(
     """Generate embeddings for text"""
     embeddings = await ai_gateway.generate_embeddings(
         request.text,
-        request.model,
+        model_identifier=request.model,
         user_id=current_user.id,
         db=db,
     )

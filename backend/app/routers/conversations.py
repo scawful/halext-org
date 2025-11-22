@@ -81,8 +81,8 @@ def create_conversation(
         participant_ids.append(target.id)
     db_conversation = crud.create_conversation(
         db=db,
-        owner_id=current_user.id,
         payload=conversation,
+        owner_id=current_user.id,
         participant_ids=participant_ids,
     )
     return _serialize_conversation(db_conversation)

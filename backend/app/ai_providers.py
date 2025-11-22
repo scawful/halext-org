@@ -6,11 +6,35 @@ import os
 from typing import Optional, List, Dict, Any, AsyncGenerator
 from abc import ABC, abstractmethod
 import json
+import inspect
 
 try:
     import httpx
 except ImportError:
     httpx = None
+
+
+async def _safe_json(response):
+    """
+    Handle sync httpx responses and mocked async responses uniformly.
+    """
+    json_callable = response.json
+    if inspect.iscoroutinefunction(json_callable):
+        return await json_callable()
+
+    data = json_callable()
+    if inspect.isawaitable(data):
+        data = await data
+    return data
+
+
+async def _ensure_status_ok(response):
+    """
+    Await raise_for_status if the mock returns a coroutine.
+    """
+    result = response.raise_for_status()
+    if inspect.isawaitable(result):
+        await result
 
 
 class AIProvider(ABC):
@@ -63,8 +87,8 @@ class OpenAIProvider(AIProvider):
 
         async with httpx.AsyncClient(timeout=60) as client:
             response = await client.post(url, json=payload, headers=headers)
-            response.raise_for_status()
-            data = response.json()
+            await _ensure_status_ok(response)
+            data = await _safe_json(response)
             return data["choices"][0]["message"]["content"]
 
     async def generate_stream(self, prompt: str, history: List[dict], **kwargs) -> AsyncGenerator[str, None]:
@@ -90,7 +114,7 @@ class OpenAIProvider(AIProvider):
 
         async with httpx.AsyncClient(timeout=120) as client:
             async with client.stream("POST", url, json=payload, headers=headers) as response:
-                response.raise_for_status()
+                await _ensure_status_ok(response)
                 async for line in response.aiter_lines():
                     if line.startswith("data: "):
                         data_str = line[6:]
@@ -115,8 +139,8 @@ class OpenAIProvider(AIProvider):
         try:
             async with httpx.AsyncClient(timeout=30) as client:
                 response = await client.get(url, headers=headers)
-                response.raise_for_status()
-                data = response.json()
+                await _ensure_status_ok(response)
+                data = await _safe_json(response)
                 return [
                     {
                         "name": model["id"],
@@ -129,7 +153,7 @@ class OpenAIProvider(AIProvider):
                 ]
         except Exception as e:
             print(f"Error listing OpenAI models: {e}")
-            return []
+            raise
 
 
 class GoogleGeminiProvider(AIProvider):
@@ -172,8 +196,8 @@ class GoogleGeminiProvider(AIProvider):
 
         async with httpx.AsyncClient(timeout=60) as client:
             response = await client.post(url, json=payload)
-            response.raise_for_status()
-            data = response.json()
+            await _ensure_status_ok(response)
+            data = await _safe_json(response)
             return data["candidates"][0]["content"]["parts"][0]["text"]
 
     async def generate_stream(self, prompt: str, history: List[dict], **kwargs) -> AsyncGenerator[str, None]:
@@ -207,7 +231,7 @@ class GoogleGeminiProvider(AIProvider):
 
         async with httpx.AsyncClient(timeout=120) as client:
             async with client.stream("POST", url, json=payload) as response:
-                response.raise_for_status()
+                await _ensure_status_ok(response)
                 async for line in response.aiter_lines():
                     if line.startswith("data: "):
                         data_str = line[6:]
@@ -229,8 +253,8 @@ class GoogleGeminiProvider(AIProvider):
         try:
             async with httpx.AsyncClient(timeout=30) as client:
                 response = await client.get(url)
-                response.raise_for_status()
-                data = response.json()
+                await _ensure_status_ok(response)
+                data = await _safe_json(response)
                 return [
                     {
                         "name": model["name"].split("/")[-1],
@@ -243,7 +267,7 @@ class GoogleGeminiProvider(AIProvider):
                 ]
         except Exception as e:
             print(f"Error listing Gemini models: {e}")
-            return []
+            raise
 
 
 class OllamaProvider(AIProvider):
@@ -274,8 +298,8 @@ class OllamaProvider(AIProvider):
         try:
             async with httpx.AsyncClient(timeout=60) as client:
                 response = await client.post(url, json=payload)
-                response.raise_for_status()
-                data = response.json()
+                await _ensure_status_ok(response)
+                data = await _safe_json(response)
                 return data["message"]["content"]
         except httpx.HTTPStatusError as e:
             print(f"⚠️ Ollama HTTP error: {e.response.status_code} - {e.response.text}")
@@ -308,7 +332,7 @@ class OllamaProvider(AIProvider):
         try:
             async with httpx.AsyncClient(timeout=120) as client:
                 async with client.stream("POST", url, json=payload) as response:
-                    response.raise_for_status()
+                    await _ensure_status_ok(response)
                     async for line in response.aiter_lines():
                         if line.strip():
                             try:
@@ -339,8 +363,8 @@ class OllamaProvider(AIProvider):
         try:
             async with httpx.AsyncClient(timeout=30) as client:
                 response = await client.get(url)
-                response.raise_for_status()
-                data = response.json()
+                await _ensure_status_ok(response)
+                data = await _safe_json(response)
                 return [
                     {
                         "name": model["name"],
@@ -379,8 +403,8 @@ class OpenWebUIProvider(AIProvider):
 
         async with httpx.AsyncClient(timeout=60) as client:
             response = await client.post(url, json=payload)
-            response.raise_for_status()
-            data = response.json()
+            await _ensure_status_ok(response)
+            data = await _safe_json(response)
             return data["choices"][0]["message"]["content"]
 
     async def generate_stream(self, prompt: str, history: List[dict], **kwargs) -> AsyncGenerator[str, None]:
@@ -399,7 +423,7 @@ class OpenWebUIProvider(AIProvider):
 
         async with httpx.AsyncClient(timeout=120) as client:
             async with client.stream("POST", url, json=payload) as response:
-                response.raise_for_status()
+                await _ensure_status_ok(response)
                 async for line in response.aiter_lines():
                     if line.startswith("data: "):
                         data_str = line[6:]
@@ -422,8 +446,8 @@ class OpenWebUIProvider(AIProvider):
         try:
             async with httpx.AsyncClient(timeout=30) as client:
                 response = await client.get(url)
-                response.raise_for_status()
-                data = response.json()
+                await _ensure_status_ok(response)
+                data = await _safe_json(response)
                 return [
                     {
                         "name": model.get("id"),

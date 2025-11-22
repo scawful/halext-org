@@ -260,8 +260,8 @@ def delete_layout_preset(db: Session, preset_id: int):
 
 def create_conversation(
     db: Session,
-    owner_id: int,
     payload: schemas.ConversationCreate,
+    owner_id: int,
     participant_ids: Optional[List[int]] = None,
 ):
     conversation = models.Conversation(

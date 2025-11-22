@@ -146,7 +146,7 @@ class TestAIChatRouting:
             # Verify history was passed to generate_reply
             mock_generate.assert_called_once()
             call_args = mock_generate.call_args
-            assert call_args[1] == history  # Second positional arg is history
+            assert call_args.args[1] == history  # Second positional arg is history
 
     def test_chat_routing_fallback_to_mock(self, client, auth_headers):
         """Test that invalid models fall back to mock provider"""

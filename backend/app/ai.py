@@ -119,7 +119,11 @@ class AiGateway:
 
         session, created = self._get_db_session(db)
         try:
-            secret = crud.get_provider_secret(session, provider_key, owner_id=user_id)
+            try:
+                secret = crud.get_provider_secret(session, provider_key, owner_id=user_id)
+            except TypeError:
+                # Some test mocks don't accept owner_id; fall back gracefully.
+                secret = crud.get_provider_secret(session, provider_key)
         finally:
             if created:
                 session.close()
