@@ -86,6 +86,14 @@ class WebSocketManager {
         var request = URLRequest(url: url)
         if let token = authToken {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            #if DEBUG
+            let tokenPreview = String(token.prefix(20)) + "..."
+            print("[WebSocket] Connecting with Authorization header (token: \(tokenPreview))")
+            #endif
+        } else {
+            #if DEBUG
+            print("[WebSocket] ⚠️ WARNING: Connecting without Authorization token")
+            #endif
         }
         
         webSocketTask = session.webSocketTask(with: request)
@@ -96,6 +104,7 @@ class WebSocketManager {
         
         #if DEBUG
         print("[WebSocket] Connecting to \(url.absoluteString)")
+        print("[WebSocket] Expected path: /ws/... (should NOT include /api/)")
         #endif
     }
     
@@ -146,7 +155,13 @@ class WebSocketManager {
                     self.receiveMessage() // Continue listening
                 case .failure(let error):
                     #if DEBUG
+                    let nsError = error as NSError
                     print("[WebSocket] Receive error: \(error.localizedDescription)")
+                    print("[WebSocket] Error code: \(nsError.code), domain: \(nsError.domain)")
+                    if nsError.code == -1011 {
+                        print("[WebSocket] Interpretation: Bad response from server (likely nginx routing issue or auth failure)")
+                        print("[WebSocket] Check: 1) nginx /ws/ location block exists, 2) Authorization header is set, 3) backend is running")
+                    }
                     #endif
                     self.handleDisconnection(error: error)
                 }
@@ -244,7 +259,36 @@ class WebSocketManager {
     func handleClose(closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?) {
         #if DEBUG
         let reasonString = reason.flatMap { String(data: $0, encoding: .utf8) } ?? "No reason"
-        print("[WebSocket] Closed with code: \(closeCode), reason: \(reasonString)")
+        let closeCodeValue = closeCode.rawValue
+        print("[WebSocket] Closed with code: \(closeCodeValue) (\(closeCode)), reason: \(reasonString)")
+        
+        // Helpful error interpretation
+        switch closeCodeValue {
+        case 1001:
+            print("[WebSocket] Interpretation: Going away (normal closure)")
+        case 1002:
+            print("[WebSocket] Interpretation: Protocol error")
+        case 1003:
+            print("[WebSocket] Interpretation: Unsupported data")
+        case 1006:
+            print("[WebSocket] Interpretation: Abnormal closure (connection lost)")
+        case 1008:
+            print("[WebSocket] Interpretation: Policy violation")
+        case 1009:
+            print("[WebSocket] Interpretation: Message too large")
+        case 1011:
+            print("[WebSocket] Interpretation: Server error")
+        case 4001:
+            print("[WebSocket] Interpretation: Unauthorized - Invalid or missing token")
+        case 4003:
+            print("[WebSocket] Interpretation: Forbidden - User ID mismatch")
+        case 4004:
+            print("[WebSocket] Interpretation: User not found")
+        default:
+            if closeCodeValue >= 4000 && closeCodeValue < 5000 {
+                print("[WebSocket] Interpretation: Application-defined error")
+            }
+        }
         #endif
         
         handleDisconnection(error: nil)

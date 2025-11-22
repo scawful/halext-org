@@ -221,7 +221,8 @@ extension APIClient {
 
 /// Manager for WebSocket-based real-time presence updates
 ///
-/// **Backend WebSocket Endpoint:** `ws://[host]/api/presence/subscribe`
+/// **Backend WebSocket Endpoint:** `ws://[host]/ws/presence/{user_id}`
+/// **Production:** `wss://org.halext.org/ws/presence/{user_id}`
 ///
 /// **Connection Protocol:**
 /// 1. Client connects with authentication token in header or query param
@@ -304,7 +305,7 @@ class PresenceWebSocketManager: NSObject {
         let wsScheme = environment == .development ? "ws" : "wss"
         let host = environment == .development ? "127.0.0.1:8000" : "org.halext.org"
 
-        guard let url = URL(string: "\(wsScheme)://\(host)/api/presence/subscribe") else {
+        guard let url = URL(string: "\(wsScheme)://\(host)/ws/presence/subscribe") else {
             #if DEBUG
             print("[Presence WS] Invalid WebSocket URL")
             #endif
