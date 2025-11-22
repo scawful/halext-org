@@ -388,4 +388,93 @@ extension View {
         let scale = ThemeManager.shared.fontSizePreference.scale
         return self.font(.system(size: baseSize * scale, weight: weight))
     }
+    
+    /// Applies a themed button style with gradient support
+    func themedButton(style: ThemedButtonStyle = .primary, cornerRadius: CGFloat = 12) -> some View {
+        self.modifier(ThemedButtonModifier(style: style, cornerRadius: cornerRadius))
+    }
+    
+    /// Applies a themed card style with consistent styling
+    func themedCardStyle(cornerRadius: CGFloat = 16, padding: CGFloat = 16) -> some View {
+        self
+            .padding(padding)
+            .themedCardBackground(cornerRadius: cornerRadius, shadow: true)
+    }
+    
+    /// Applies a themed section header style
+    func themedSectionHeader() -> some View {
+        self
+            .font(.headline)
+            .foregroundColor(ThemeManager.shared.textColor)
+            .padding(.horizontal, 4)
+    }
+    
+    /// Applies a themed list row style
+    func themedListRow() -> some View {
+        self
+            .listRowBackground(ThemeManager.shared.cardBackgroundColor)
+    }
+    
+    /// Applies a themed icon style with consistent sizing
+    func themedIcon(size: CGFloat = 20, color: Color? = nil) -> some View {
+        self
+            .font(.system(size: size))
+            .foregroundColor(color ?? ThemeManager.shared.accentColor)
+    }
+}
+
+// MARK: - Themed Button Style
+
+enum ThemedButtonStyle {
+    case primary
+    case secondary
+    case outline
+    case gradient
+}
+
+// MARK: - Themed Button Modifier
+
+struct ThemedButtonModifier: ViewModifier {
+    let style: ThemedButtonStyle
+    let cornerRadius: CGFloat
+    @Environment(ThemeManager.self) var themeManager
+    
+    func body(content: Content) -> some View {
+        content
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(backgroundView)
+            .foregroundColor(foregroundColor)
+            .cornerRadius(cornerRadius)
+    }
+    
+    @ViewBuilder
+    private var backgroundView: some View {
+        switch style {
+        case .primary:
+            themeManager.accentColor
+        case .secondary:
+            themeManager.cardBackgroundColor
+        case .outline:
+            Color.clear
+        case .gradient:
+            LinearGradient(
+                colors: [
+                    themeManager.accentColor,
+                    themeManager.accentColor.opacity(0.8)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        }
+    }
+    
+    private var foregroundColor: Color {
+        switch style {
+        case .primary, .gradient:
+            return .white
+        case .secondary, .outline:
+            return themeManager.textColor
+        }
+    }
 }
