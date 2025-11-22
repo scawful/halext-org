@@ -1,8 +1,7 @@
+import { useEffect, useState } from 'react'
 import type { FormEvent, KeyboardEvent } from 'react'
-import { useCallback, useEffect, useState } from 'react'
 import { MdAutoAwesome } from 'react-icons/md'
 import { MenuBar } from './components/layout/MenuBar'
-import type { MenuSection } from './components/layout/MenuBar'
 import { CreatePanel } from './components/pages/CreatePanel'
 import { DashboardGrid } from './components/layout/DashboardGrid'
 import { ImageGenerationSection } from './components/sections/ImageGenerationSection'
@@ -17,32 +16,49 @@ import { RecipeSection } from './components/sections/RecipeSection'
 import { SmartTaskGenerator } from './components/ai/SmartTaskGenerator'
 import { FinanceSection } from './components/sections/FinanceSection'
 import { SocialSection } from './components/sections/SocialSection'
-import type {
-  Task,
-  EventItem,
-  PageDetail,
-  User,
-  OpenWebUiStatus,
-  Label,
-  LayoutWidget,
-  WidgetType
-} from './types/models'
-import { API_BASE_URL, createDefaultLayout, createWidget, randomId } from './utils/helpers'
+
+import { useUIStore } from './stores/useUIStore'
+import { useAuthStore } from './stores/useAuthStore'
+import { useDataStore } from './stores/useDataStore'
 import './App.css'
 
-type TaskUpdateInput = Partial<Omit<Task, 'labels'>> & { labels?: string[] }
+type TaskUpdateInput = { labels?: string[] } & Record<string, any>
 
 function App() {
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem('halext_token'))
-  const [accessCode, setAccessCode] = useState<string>(() => localStorage.getItem('halext_access_code') ?? '')
-  const [authMode, setAuthMode] = useState<'login' | 'register'>('login')
-  const [authError, setAuthError] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [user, setUser] = useState<User | null>(null)
-  const [tasks, setTasks] = useState<Task[]>([])
-  const [events, setEvents] = useState<EventItem[]>([])
-  const [pages, setPages] = useState<PageDetail[]>([])
-  const [selectedPageId, setSelectedPageId] = useState<number | null>(null)
+  // Store hooks
+  const { 
+    isLoading, 
+    appMessage, 
+    activeSection, 
+    isCreateOverlayOpen, 
+    isSmartGenOpen,
+    setCreateOverlayOpen,
+    setSmartGenOpen
+  } = useUIStore()
+  
+  const { 
+    token, 
+    accessCode, 
+    authError, 
+    authMode,
+    setAccessCode,
+    setAuthMode,
+    login,
+    register
+  } = useAuthStore()
+  
+  const { 
+    events,
+    availableLabels,
+    loadWorkspace,
+    createTask,
+    updateTask,
+    deleteTask,
+    createEvent,
+    createPage
+  } = useDataStore()
+
+  // Local state for forms (kept local as they are transient)
   const [taskForm, setTaskForm] = useState({ title: '', description: '', due_date: '' })
   const [newTaskLabels, setNewTaskLabels] = useState<string[]>([])
   const [taskLabelInput, setTaskLabelInput] = useState('')
@@ -57,148 +73,38 @@ function App() {
     recurrence_end_date: '',
   })
   const [pageForm, setPageForm] = useState({ title: '', description: '', visibility: 'private' })
-  const [appMessage, setAppMessage] = useState<string | null>(null)
-  const [openwebui, setOpenwebui] = useState<OpenWebUiStatus | null>(null)
-  const [availableLabels, setAvailableLabels] = useState<Label[]>([])
-  const [activeSection, setActiveSection] = useState<MenuSection>('dashboard')
-  const [isCreateOverlayOpen, setCreateOverlayOpen] = useState(false)
-  const [isSmartGenOpen, setIsSmartGenOpen] = useState(false)
 
-  const logout = useCallback(() => {
-    localStorage.removeItem('halext_token')
-    localStorage.removeItem('halext_access_code')
-    setToken(null)
-    setUser(null)
-    setTasks([])
-    setEvents([])
-    setPages([])
-  }, [])
-
-  useEffect(() => {
-    if (accessCode) {
-      localStorage.setItem('halext_access_code', accessCode)
-    } else {
-      localStorage.removeItem('halext_access_code')
-    }
-  }, [accessCode])
-
-  const authorizedFetch = useCallback(
-    async <T,>(path: string, options: RequestInit = {}): Promise<T> => {
-      if (!token) {
-        throw new Error('You need to sign in first')
-      }
-      const headers = new Headers(options.headers)
-      if (!(options.body instanceof FormData) && !headers.has('Content-Type') && options.method && options.method !== 'GET') {
-        headers.set('Content-Type', 'application/json')
-      }
-      headers.set('Authorization', `Bearer ${token}`)
-      const response = await fetch(`${API_BASE_URL}${path}`, {
-        ...options,
-        headers,
-      })
-      if (response.status === 401) {
-        logout()
-        throw new Error('Session expired. Please sign in again.')
-      }
-      if (!response.ok) {
-        const text = await response.text()
-        throw new Error(text || 'Request failed')
-      }
-      if (response.status === 204) {
-        return null as T
-      }
-      const text = await response.text()
-      return text ? (JSON.parse(text) as T) : (null as T)
-    },
-    [logout, token],
-  )
-
-  const loadWorkspace = useCallback(async () => {
-    if (!token) return
-    setIsLoading(true)
-    try {
-      const [
-        profile,
-        tasksResponse,
-        eventsResponse,
-        pagesResponse,
-        openwebuiResponse,
-        labelsResponse,
-      ] = await Promise.all([
-        authorizedFetch<User>('/users/me/'),
-        authorizedFetch<Task[]>('/tasks/'),
-        authorizedFetch<EventItem[]>('/events/'),
-        authorizedFetch<PageDetail[]>('/pages/'),
-        authorizedFetch<OpenWebUiStatus>('/integrations/openwebui'),
-        authorizedFetch<Label[]>('/labels/'),
-      ])
-      setUser(profile)
-      setTasks(tasksResponse)
-      setEvents(eventsResponse)
-      setPages(pagesResponse)
-      setOpenwebui(openwebuiResponse)
-      setAvailableLabels(labelsResponse)
-      if (pagesResponse.length > 0) {
-        setSelectedPageId((current) => current ?? pagesResponse[0].id)
-      }
-      setAppMessage('Synced with Cafe servers.')
-    } catch (error) {
-      setAppMessage((error as Error).message)
-    } finally {
-      setIsLoading(false)
-    }
-  }, [authorizedFetch, token])
-
+  // Effects
   useEffect(() => {
     if (token) {
       loadWorkspace()
     }
   }, [token, loadWorkspace])
 
+  // Handlers
   const handleLogin = async (event: FormEvent) => {
     event.preventDefault()
-    setAuthError(null)
     const form = event.target as HTMLFormElement
     const formData = new FormData(form)
     const username = formData.get('username') as string
     const password = formData.get('password') as string
-    if (!username || !password) {
-      setAuthError('Username and password are required')
-      return
-    }
-    setIsLoading(true)
+    
+    if (!username || !password) return
+
+    const payload = new URLSearchParams()
+    payload.set('username', username)
+    payload.set('password', password)
+    payload.set('grant_type', 'password')
+    
     try {
-      const payload = new URLSearchParams()
-      payload.set('username', username)
-      payload.set('password', password)
-      payload.set('grant_type', 'password')
-      const response = await fetch(`${API_BASE_URL}/token`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: payload,
-      })
-      if (!response.ok) {
-        throw new Error('Invalid credentials')
-      }
-      const data = await response.json()
-      localStorage.setItem('halext_token', data.access_token)
-      setToken(data.access_token)
-    } catch (error) {
-      setAuthError((error as Error).message)
-    } finally {
-      setIsLoading(false)
+      await login(payload)
+    } catch {
+      // Error handled in store
     }
   }
 
   const handleRegister = async (event: FormEvent) => {
     event.preventDefault()
-    setAuthError(null)
-    if (!accessCode.trim()) {
-      setAuthError('Access code is required.')
-      return
-    }
     const formData = new FormData(event.target as HTMLFormElement)
     const payload = {
       username: formData.get('username'),
@@ -206,57 +112,28 @@ function App() {
       email: formData.get('email'),
       full_name: formData.get('full_name'),
     }
-    if (!payload.username || !payload.password || !payload.email) {
-      setAuthError('Please fill in username, email, and password.')
-      return
-    }
-    setIsLoading(true)
+    
     try {
-      await fetch(`${API_BASE_URL}/users/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Halext-Code': accessCode.trim(),
-        },
-        body: JSON.stringify(payload),
-      }).then((response) => {
-        if (!response.ok) {
-          throw new Error('Unable to register right now.')
-        }
-      })
-      setAuthMode('login')
-      setAppMessage('Account ready! Sign in to continue.')
-    } catch (error) {
-      setAuthError((error as Error).message)
-    } finally {
-      setIsLoading(false)
+      await register(payload)
+    } catch {
+      // Error handled in store
     }
   }
 
   const handleCreateTask = async (event: FormEvent) => {
     event.preventDefault()
     if (!taskForm.title.trim()) return
-    const payload = {
+    
+    await createTask({
       title: taskForm.title,
       description: taskForm.description || undefined,
       due_date: taskForm.due_date ? new Date(taskForm.due_date).toISOString() : undefined,
       labels: newTaskLabels,
-    }
-    const task = await authorizedFetch<Task>('/tasks/', {
-      method: 'POST',
-      body: JSON.stringify(payload),
     })
-    setTasks((prev) => [task, ...prev])
+    
     setTaskForm({ title: '', description: '', due_date: '' })
     setNewTaskLabels([])
     setTaskLabelInput('')
-    const mergedLabels = [...availableLabels]
-    task.labels.forEach((label) => {
-      if (!mergedLabels.some((existing) => existing.id === label.id)) {
-        mergedLabels.push(label)
-      }
-    })
-    setAvailableLabels(mergedLabels)
   }
 
   const handleCreateTaskDirect = async (payload: {
@@ -265,21 +142,10 @@ function App() {
     due_date?: string
     labels: string[]
   }) => {
-    const task = await authorizedFetch<Task>('/tasks/', {
-      method: 'POST',
-      body: JSON.stringify({
-        ...payload,
-        due_date: payload.due_date ? new Date(payload.due_date).toISOString() : undefined,
-      }),
+    await createTask({
+      ...payload,
+      due_date: payload.due_date ? new Date(payload.due_date).toISOString() : undefined,
     })
-    setTasks((prev) => [task, ...prev])
-    const mergedLabels = [...availableLabels]
-    task.labels.forEach((label) => {
-      if (!mergedLabels.some((existing) => existing.id === label.id)) {
-        mergedLabels.push(label)
-      }
-    })
-    setAvailableLabels(mergedLabels)
   }
 
   const handleCreateTasks = async (newTasks: any[]) => {
@@ -293,34 +159,14 @@ function App() {
     if (payload.due_date) {
       payload.due_date = new Date(payload.due_date).toISOString()
     }
-    const task = await authorizedFetch<Task>(`/tasks/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(payload),
-    })
-    setTasks((prev) => prev.map((t) => (t.id === id ? task : t)))
-    
-    // Update available labels if new ones were created
-    const mergedLabels = [...availableLabels]
-    task.labels.forEach((label) => {
-      if (!mergedLabels.some((existing) => existing.id === label.id)) {
-        mergedLabels.push(label)
-      }
-    })
-    setAvailableLabels(mergedLabels)
-  }
-
-  const handleDeleteTask = async (id: number) => {
-    await authorizedFetch(`/tasks/${id}`, {
-      method: 'DELETE',
-      body: null,
-    })
-    setTasks((prev) => prev.filter((t) => t.id !== id))
+    await updateTask(id, payload)
   }
 
   const handleCreateEvent = async (event: FormEvent) => {
     event.preventDefault()
     if (!eventForm.title || !eventForm.start_time || !eventForm.end_time) return
-    const payload = {
+    
+    await createEvent({
       title: eventForm.title,
       description: eventForm.description || undefined,
       start_time: new Date(eventForm.start_time).toISOString(),
@@ -329,42 +175,27 @@ function App() {
       recurrence_type: eventForm.recurrence_type,
       recurrence_interval: Number(eventForm.recurrence_interval) || 1,
       recurrence_end_date: eventForm.recurrence_end_date ? new Date(eventForm.recurrence_end_date).toISOString() : undefined,
-    }
-    const created = await authorizedFetch<EventItem>('/events/', {
-      method: 'POST',
-      body: JSON.stringify(payload),
     })
-    setEvents((prev) => [created, ...prev])
+    
     setEventForm({ title: '', description: '', start_time: '', end_time: '', location: '', recurrence_type: 'none', recurrence_interval: 1, recurrence_end_date: '' })
   }
 
   const handleCreateEvents = async (newEvents: any[]) => {
     for (const event of newEvents) {
-      await authorizedFetch('/events/', {
-        method: 'POST',
-        body: JSON.stringify(event)
-      })
+      await createEvent(event)
     }
-    // Refresh events
-    const eventsResponse = await authorizedFetch<EventItem[]>('/events/')
-    setEvents(eventsResponse)
   }
 
   const handleCreatePage = async (event: FormEvent) => {
     event.preventDefault()
     if (!pageForm.title.trim()) return
-    const payload = {
+    
+    await createPage({
       title: pageForm.title,
       description: pageForm.description || undefined,
       visibility: pageForm.visibility,
-      layout: createDefaultLayout(),
-    }
-    const page = await authorizedFetch<PageDetail>('/pages/', {
-      method: 'POST',
-      body: JSON.stringify(payload),
     })
-    setPages((prev) => [...prev, page])
-    setSelectedPageId(page.id)
+    
     setPageForm({ title: '', description: '', visibility: 'private' })
   }
 
@@ -386,83 +217,6 @@ function App() {
 
   const removeTaskLabel = (label: string) => {
     setNewTaskLabels((prev) => prev.filter((item) => item !== label))
-  }
-
-  // Dashboard page handlers
-  const selectedPage = pages.find((p) => p.id === selectedPageId)
-
-  const handleUpdateColumn = (columnId: string, widgets: LayoutWidget[]) => {
-    if (!selectedPage) return
-    const updatedLayout = selectedPage.layout.map((col) =>
-      col.id === columnId ? { ...col, widgets } : col
-    )
-    updatePageLayout(updatedLayout)
-  }
-
-  const handleUpdateWidget = (columnId: string, widget: LayoutWidget) => {
-    if (!selectedPage) return
-    const updatedLayout = selectedPage.layout.map((col) =>
-      col.id === columnId
-        ? { ...col, widgets: col.widgets.map((w) => (w.id === widget.id ? widget : w)) }
-        : col
-    )
-    updatePageLayout(updatedLayout)
-  }
-
-  const handleRemoveWidget = (columnId: string, widgetId: string) => {
-    if (!selectedPage) return
-    const updatedLayout = selectedPage.layout.map((col) =>
-      col.id === columnId ? { ...col, widgets: col.widgets.filter((w) => w.id !== widgetId) } : col
-    )
-    updatePageLayout(updatedLayout)
-  }
-
-  const handleAddWidget = (columnId: string, type: string) => {
-    if (!selectedPage) return
-    const updatedLayout = selectedPage.layout.map((col) =>
-      col.id === columnId ? { ...col, widgets: [...col.widgets, createWidget(type as WidgetType)] } : col
-    )
-    updatePageLayout(updatedLayout)
-  }
-
-  const handleAddColumn = () => {
-    if (!selectedPage) return
-    const newColumn = {
-      id: randomId(),
-      title: `Column ${selectedPage.layout.length + 1}`,
-      width: 1,
-      widgets: [],
-    }
-    updatePageLayout([...selectedPage.layout, newColumn])
-  }
-
-  const handleRemoveColumn = (columnId: string) => {
-    if (!selectedPage) return
-    updatePageLayout(selectedPage.layout.filter((col) => col.id !== columnId))
-  }
-
-  const handleUpdateColumnTitle = (columnId: string, title: string) => {
-    if (!selectedPage) return
-    const updatedLayout = selectedPage.layout.map((col) =>
-      col.id === columnId ? { ...col, title } : col
-    )
-    updatePageLayout(updatedLayout)
-  }
-
-  const updatePageLayout = async (layout: PageDetail['layout']) => {
-    if (!selectedPage) return
-    const payload = {
-      title: selectedPage.title,
-      description: selectedPage.description,
-      visibility: selectedPage.visibility,
-      layout,
-    }
-    const saved = await authorizedFetch<PageDetail>(`/pages/${selectedPage.id}`, {
-      method: 'PUT',
-      body: JSON.stringify(payload),
-    })
-    setPages((prev) => prev.map((page) => (page.id === saved.id ? saved : page)))
-    setAppMessage(`Saved layout for "${saved.title}".`)
   }
 
   if (!token) {
@@ -576,59 +330,39 @@ function App() {
   const renderSection = () => {
     switch (activeSection) {
       case 'dashboard':
-        return selectedPage && token ? (
-          <DashboardGrid
-            columns={selectedPage.layout}
-            tasks={tasks}
-            events={events}
-            openwebui={openwebui}
-            token={token}
-            onUpdateColumn={handleUpdateColumn}
-            onUpdateWidget={handleUpdateWidget}
-            onRemoveWidget={handleRemoveWidget}
-            onAddWidget={handleAddWidget}
-            onAddColumn={handleAddColumn}
-            onRemoveColumn={handleRemoveColumn}
-            onUpdateColumnTitle={handleUpdateColumnTitle}
-          />
-        ) : (
-          <div className="empty-state-section">
-            <p className="muted">Use the plus button to create a page and start building your dashboard.</p>
-          </div>
-        )
+        return <DashboardGrid />
       case 'tasks':
-        return token ? (
+        return (
           <TasksPage
             token={token}
-            tasks={tasks}
+            tasks={useDataStore.getState().tasks} // We can access state directly if needed, or pass it. 
+            // Better: TasksPage should use useDataStore internally. But for now, passing from state to avoid refactoring everything at once.
             availableLabels={availableLabels}
             onCreateTask={handleCreateTaskDirect}
             onUpdateTask={handleUpdateTask}
-            onDeleteTask={handleDeleteTask}
+            onDeleteTask={deleteTask}
           />
-        ) : (
-          <div className="section-placeholder">Please login to access tasks</div>
         )
       case 'calendar':
         return <CalendarSection events={events} />
       case 'chat':
-        return token ? <ChatSection token={token} /> : <div className="section-placeholder">Please login to access chat</div>
+        return <ChatSection token={token} />
       case 'recipes':
-        return token ? <RecipeSection token={token} /> : <div className="section-placeholder">Please login to access recipes</div>
+        return <RecipeSection token={token} />
       case 'finance':
-        return token ? <FinanceSection token={token} /> : <div className="section-placeholder">Please login to peek at finance</div>
+        return <FinanceSection token={token} />
       case 'social':
-        return token ? <SocialSection token={token} /> : <div className="section-placeholder">Please login to access circles</div>
+        return <SocialSection token={token} />
       case 'image-gen':
-        return token ? <ImageGenerationSection token={token} /> : <div className="section-placeholder">Please login to access image generation</div>
+        return <ImageGenerationSection token={token} />
       case 'anime':
         return <AnimeSection />
       case 'iot':
         return <IoTSection />
       case 'settings':
-        return token ? <SettingsSection token={token} /> : <div className="section-placeholder">Please login to access settings</div>
+        return <SettingsSection token={token} />
       case 'admin':
-        return token ? <AdminSection token={token} /> : <div className="section-placeholder">Please login to access admin panel</div>
+        return <AdminSection token={token} />
       default:
         return null
     }
@@ -636,41 +370,32 @@ function App() {
 
   return (
     <div className="app-container">
-      <MenuBar
-        activeSection={activeSection}
-        onSectionChange={setActiveSection}
-        onLogout={logout}
-        onOpenCreate={() => setCreateOverlayOpen(true)}
-        username={user?.username}
-        tasks={tasks}
-        events={events}
-        pages={pages}
-      />
+      <MenuBar />
       <div className="app-main">
         <main className="main-content">
           <div className="workspace-shell">{renderSection()}</div>
         </main>
-        {token && (
-          <div className="floating-actions">
-            <button
-              className="floating-btn ai-btn"
-              onClick={() => setIsSmartGenOpen(true)}
-              aria-label="AI Smart Generator"
-              title="AI Smart Generator"
-            >
-              <MdAutoAwesome size={24} />
-            </button>
-            <button
-              className="floating-btn create-btn"
-              onClick={() => setCreateOverlayOpen(true)}
-              aria-label="Open creation panel"
-              title="Create New"
-            >
-              <span>+</span>
-            </button>
-          </div>
-        )}
-        {token && isCreateOverlayOpen && (
+        
+        <div className="floating-actions">
+          <button
+            className="floating-btn ai-btn"
+            onClick={() => setSmartGenOpen(true)}
+            aria-label="AI Smart Generator"
+            title="AI Smart Generator"
+          >
+            <MdAutoAwesome size={24} />
+          </button>
+          <button
+            className="floating-btn create-btn"
+            onClick={() => setCreateOverlayOpen(true)}
+            aria-label="Open creation panel"
+            title="Create New"
+          >
+            <span>+</span>
+          </button>
+        </div>
+        
+        {isCreateOverlayOpen && (
           <div className="create-overlay" role="dialog" aria-modal="true">
             <div className="create-overlay-card">
               <button
@@ -701,10 +426,10 @@ function App() {
             </div>
           </div>
         )}
-        {token && isSmartGenOpen && (
+        {isSmartGenOpen && (
           <SmartTaskGenerator
             token={token}
-            onClose={() => setIsSmartGenOpen(false)}
+            onClose={() => setSmartGenOpen(false)}
             onCreateTasks={handleCreateTasks}
             onCreateEvents={handleCreateEvents}
           />

@@ -16,47 +16,21 @@ import {
 } from 'react-icons/md'
 import { FaRobot } from 'react-icons/fa'
 import { ThemeSwitcher } from '../common/ThemeSwitcher'
-import type { Task, EventItem, PageDetail } from '../../types/models'
+import type { MenuSection } from '../../types/models'
+import { useUIStore } from '../../stores/useUIStore'
+import { useAuthStore } from '../../stores/useAuthStore'
+import { useDataStore } from '../../stores/useDataStore'
 import './MenuBar.css'
 
-type MenuSection =
-  | 'dashboard'
-  | 'tasks'
-  | 'chat'
-  | 'calendar'
-  | 'iot'
-  | 'settings'
-  | 'image-gen'
-  | 'anime'
-  | 'admin'
-  | 'recipes'
-  | 'finance'
-  | 'social'
-
-type MenuBarProps = {
-  activeSection: MenuSection
-  onSectionChange: (section: MenuSection) => void
-  onLogout: () => void
-  onOpenCreate: () => void
-  username?: string
-  tasks?: Task[]
-  events?: EventItem[]
-  pages?: PageDetail[]
-}
-
-export const MenuBar = ({
-  activeSection,
-  onSectionChange,
-  onLogout,
-  onOpenCreate,
-  username,
-  tasks = [],
-  events = [],
-  pages = [],
-}: MenuBarProps) => {
+export const MenuBar = () => {
   const [showSettings, setShowSettings] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [showSearchResults, setShowSearchResults] = useState(false)
+
+  // Store hooks
+  const { activeSection, setActiveSection, setCreateOverlayOpen } = useUIStore()
+  const { user, logout } = useAuthStore()
+  const { tasks, events, pages } = useDataStore()
 
   const menuItems = [
     { id: 'dashboard' as MenuSection, icon: MdDashboard, label: 'Dashboard' },
@@ -73,8 +47,12 @@ export const MenuBar = ({
   ]
 
   const handleMenuClick = (section: MenuSection) => {
-    onSectionChange(section)
+    setActiveSection(section)
     setShowSettings(false)
+  }
+
+  const handleLogout = () => {
+    logout()
   }
 
   const searchResults = useMemo(() => {
@@ -135,7 +113,7 @@ export const MenuBar = ({
                   <div 
                     key={task.id} 
                     className="search-result-item"
-                    onClick={() => onSectionChange('tasks')}
+                    onClick={() => setActiveSection('tasks')}
                   >
                     <span className="result-title">{task.title}</span>
                     <span className="result-subtitle">
@@ -152,7 +130,7 @@ export const MenuBar = ({
                   <div 
                     key={event.id} 
                     className="search-result-item"
-                    onClick={() => onSectionChange('calendar')}
+                    onClick={() => setActiveSection('calendar')}
                   >
                     <span className="result-title">{event.title}</span>
                     <span className="result-subtitle">
@@ -169,7 +147,7 @@ export const MenuBar = ({
                   <div 
                     key={page.id} 
                     className="search-result-item"
-                    onClick={() => onSectionChange('dashboard')}
+                    onClick={() => setActiveSection('dashboard')}
                   >
                     <span className="result-title">{page.title}</span>
                   </div>
@@ -183,7 +161,7 @@ export const MenuBar = ({
       <div className="menu-right">
         <button
           className="menu-item create-button"
-          onClick={onOpenCreate}
+          onClick={() => setCreateOverlayOpen(true)}
           title="Create"
         >
           <MdAdd size={24} />
@@ -199,10 +177,10 @@ export const MenuBar = ({
           {showSettings && (
             <div className="settings-dropdown">
               <div className="settings-header">
-                <strong>{username}</strong>
+                <strong>{user?.username}</strong>
               </div>
               <ThemeSwitcher />
-              <button onClick={onLogout} className="logout-button">
+              <button onClick={handleLogout} className="logout-button">
                 Logout
               </button>
             </div>
@@ -212,5 +190,3 @@ export const MenuBar = ({
     </nav>
   )
 }
-
-export type { MenuSection }

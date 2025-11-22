@@ -7,38 +7,12 @@ import { EventsWidget } from '../widgets/EventsWidget'
 import { NotesWidget } from '../widgets/NotesWidget'
 import { GiftListWidget } from '../widgets/GiftListWidget'
 import { OpenWebUIWidget } from '../widgets/OpenWebUIWidget'
-import type { LayoutColumn, LayoutWidget, Task, EventItem, OpenWebUiStatus } from '../../types/models'
+import type { LayoutWidget } from '../../types/models'
+import { useDataStore } from '../../stores/useDataStore'
+import { useAuthStore } from '../../stores/useAuthStore'
 import './DashboardGrid.css'
 
-type DashboardGridProps = {
-  columns: LayoutColumn[]
-  tasks: Task[]
-  events: EventItem[]
-  openwebui: OpenWebUiStatus | null
-  token: string
-  onUpdateColumn: (columnId: string, widgets: LayoutWidget[]) => void
-  onUpdateWidget: (columnId: string, widget: LayoutWidget) => void
-  onRemoveWidget: (columnId: string, widgetId: string) => void
-  onAddWidget: (columnId: string, type: string) => void
-  onAddColumn: () => void
-  onRemoveColumn: (columnId: string) => void
-  onUpdateColumnTitle: (columnId: string, title: string) => void
-}
-
-export const DashboardGrid = ({
-  columns,
-  tasks,
-  events,
-  openwebui,
-  token,
-  onUpdateColumn,
-  onUpdateWidget,
-  onRemoveWidget,
-  onAddWidget,
-  onAddColumn,
-  onRemoveColumn,
-  onUpdateColumnTitle,
-}: DashboardGridProps) => {
+export const DashboardGrid = () => {
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -46,6 +20,26 @@ export const DashboardGrid = ({
       },
     })
   )
+
+  const { 
+    pages, 
+    selectedPageId,
+    tasks, 
+    events, 
+    openwebui,
+    handleUpdateColumn,
+    handleUpdateWidget,
+    handleRemoveWidget,
+    handleAddWidget,
+    handleAddColumn,
+    handleRemoveColumn,
+    handleUpdateColumnTitle
+  } = useDataStore()
+
+  const { token } = useAuthStore()
+
+  const selectedPage = pages.find(p => p.id === selectedPageId)
+  const columns = selectedPage?.layout || []
 
   const handleDragEnd = (event: DragEndEvent, columnId: string) => {
     const { active, over } = event
@@ -60,7 +54,7 @@ export const DashboardGrid = ({
 
     if (oldIndex !== -1 && newIndex !== -1) {
       const newWidgets = arrayMove(column.widgets, oldIndex, newIndex)
-      onUpdateColumn(columnId, newWidgets)
+      handleUpdateColumn(columnId, newWidgets)
     }
   }
 
@@ -74,21 +68,25 @@ export const DashboardGrid = ({
         return (
           <NotesWidget
             widget={widget}
-            onUpdate={(updated) => onUpdateWidget(columnId, updated)}
+            onUpdate={(updated) => handleUpdateWidget(columnId, updated)}
           />
         )
       case 'gift-list':
         return (
           <GiftListWidget
             widget={widget}
-            onUpdate={(updated) => onUpdateWidget(columnId, updated)}
+            onUpdate={(updated) => handleUpdateWidget(columnId, updated)}
           />
         )
       case 'openwebui':
-        return <OpenWebUIWidget openwebui={openwebui} token={token} />
+        return <OpenWebUIWidget openwebui={openwebui} token={token || ''} />
       default:
         return <div className="muted">Widget not configured.</div>
     }
+  }
+
+  if (!selectedPage) {
+    return <div className="dashboard-grid empty">No page selected</div>
   }
 
   return (
@@ -98,13 +96,13 @@ export const DashboardGrid = ({
           <div className="column-header">
             <input
               value={column.title}
-              onChange={(e) => onUpdateColumnTitle(column.id, e.target.value)}
+              onChange={(e) => handleUpdateColumnTitle(column.id, e.target.value)}
               className="column-title-input"
             />
             <button
               type="button"
               className="column-remove"
-              onClick={() => onRemoveColumn(column.id)}
+              onClick={() => handleRemoveColumn(column.id)}
             >
               Remove column
             </button>
@@ -125,7 +123,7 @@ export const DashboardGrid = ({
                     key={widget.id}
                     id={widget.id}
                     title={widget.title}
-                    onRemove={() => onRemoveWidget(column.id, widget.id)}
+                    onRemove={() => handleRemoveWidget(column.id, widget.id)}
                   >
                     {renderWidgetContent(widget, column.id)}
                   </DraggableWidget>
@@ -138,7 +136,7 @@ export const DashboardGrid = ({
             <select
               onChange={(e) => {
                 if (e.target.value) {
-                  onAddWidget(column.id, e.target.value)
+                  handleAddWidget(column.id, e.target.value)
                   e.target.value = ''
                 }
               }}
@@ -158,7 +156,7 @@ export const DashboardGrid = ({
         </div>
       ))}
 
-      <button className="add-column-btn" onClick={onAddColumn}>
+      <button className="add-column-btn" onClick={handleAddColumn}>
         + Add column
       </button>
     </div>

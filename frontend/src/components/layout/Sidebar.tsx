@@ -9,8 +9,7 @@ import {
   MdAdminPanelSettings,
 } from 'react-icons/md'
 import { FaRobot } from 'react-icons/fa'
-import type { Label } from '../../types/models'
-import type { MenuSection } from './MenuBar'
+import type { Label, MenuSection } from '../../types/models'
 import './Sidebar.css'
 
 type SidebarProps = {
