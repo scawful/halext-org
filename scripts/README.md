@@ -7,6 +7,7 @@ This directory collects every helper shell script used across Halext Org. The fi
 | Category | Key Scripts | Notes |
 | --- | --- | --- |
 | **Deploy & Sync** | `server-deploy.sh`, `server-deploy-bg.sh`, `server-sync.sh`, `server-init.sh`, `setup-org.sh`, `deploy-to-ubuntu.sh` (`.example`), `deploy-frontend-fast.sh`, `deploy-frontend-local.sh`, `update-halext.sh` | Fast-forward the repo, rebuild assets, and restart services both locally and on Ubuntu.
+| **iOS TestFlight** | `deploy-testflight.sh`, `ios-version-bump.sh`, `ios-testflight.env.example` | One-click TestFlight deployment, semantic versioning, and App Store Connect API integration.
 | **Server Setup & Access** | `setup-ubuntu.sh`, `setup-openwebui.sh`, `setup-ssh-key.sh`, `copy-ssh-key-to-halext.sh`, `promote-halext-user.sh`, `migrate-presets-schema.sh`, `cloudflare-certbot.sh`, `site-health-check.sh` | Bootstrap infrastructure, manage credentials, and patch servers in place.
 | **macOS Automation** | `macos-sync.sh` (`macos-sync.env.example`), `macos-ollama-setup.sh`, `macos-ollama-server-setup.sh`, `refresh-halext.sh`, `dev-backend.sh` | Keep the local launchd/dev environments aligned with production expectations.
 | **Emergency & Diagnostics** | `emergency-ubuntu-cleanup.sh` (`.example`), `emergency-kill-ollama.sh`, `full-reset.sh`, `ubuntu-diagnose-performance.sh`, `ubuntu-test-mac-ollama.sh`, `sync-halext-perms.sh`, `fix-403.sh` | Recover from out-of-memory incidents, nginx breakage, or stubborn file-permission problems.
@@ -21,6 +22,54 @@ This directory collects every helper shell script used across Halext Org. The fi
 - `deploy-to-ubuntu.sh` (`deploy-to-ubuntu.sh.example`) – fully automated mac → Ubuntu deployment with prompts (copy `.example` and customize for your host).
 - `deploy-frontend-fast.sh` / `deploy-frontend-local.sh` – build the SPA locally then rsync to `/var/www/halext` when the server is underpowered.
 - `update-halext.sh` – convenience wrapper for pulling latest code, restarting the API, and checking health endpoints.
+
+## iOS TestFlight Deployment
+
+One-click deployment of the Cafe iOS app to TestFlight with semantic versioning support.
+
+- `deploy-testflight.sh` – unified deployment script that handles the full pipeline: preflight checks, version bump, clean build, archive, export, and upload to App Store Connect.
+- `ios-version-bump.sh` – manage semantic versions (major/minor/patch) and build numbers with automatic git commits.
+- `ios-testflight.env.example` – template for App Store Connect API credentials (copy to `ios-testflight.env`).
+
+### Quick Start
+
+```bash
+# Standard deployment (increments build number)
+./scripts/deploy-testflight.sh
+
+# Deploy with patch version bump (1.0.0 -> 1.0.1)
+./scripts/deploy-testflight.sh --bump-patch
+
+# Preview what would happen without making changes
+./scripts/deploy-testflight.sh --dry-run --verbose
+
+# Build only, upload manually via Xcode Organizer
+./scripts/deploy-testflight.sh --skip-upload
+```
+
+### Version Management
+
+```bash
+# Show current version info
+./scripts/ios-version-bump.sh show
+
+# Increment build number only
+./scripts/ios-version-bump.sh build
+
+# Bump patch/minor/major version
+./scripts/ios-version-bump.sh patch
+./scripts/ios-version-bump.sh minor
+./scripts/ios-version-bump.sh major
+
+# Set specific version
+./scripts/ios-version-bump.sh set 2.0.0
+```
+
+### Configuration
+
+1. Copy the env template: `cp scripts/ios-testflight.env.example scripts/ios-testflight.env`
+2. Add your App Store Connect API credentials (Key ID, Issuer ID, .p8 key path)
+3. See [docs/ios/TESTFLIGHT.md](/docs/ios/TESTFLIGHT.md) for detailed setup instructions
 
 ## Server Setup & Access
 - `setup-ubuntu.sh` – installs base packages, systemd units, nginx vhosts, and the Python virtualenv for a fresh VM.
