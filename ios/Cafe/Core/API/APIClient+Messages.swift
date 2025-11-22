@@ -80,13 +80,6 @@ extension APIClient {
         let _: EmptyResponse = try await performRequest(request)
     }
 
-    // MARK: - Typing Indicators
-
-    func sendTypingIndicator(conversationId: Int, isTyping: Bool) async throws {
-        let request = try authorizedRequest(path: "/messages/conversations/\(conversationId)/typing", method: "POST")
-        let _: EmptyResponse = try await performRequest(request)
-    }
-
     // MARK: - Users (for starting conversations)
 
     func searchUsers(query: String) async throws -> [User] {

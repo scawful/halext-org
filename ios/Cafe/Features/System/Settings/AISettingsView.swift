@@ -10,6 +10,7 @@ import SwiftUI
 struct AISettingsView: View {
     @Environment(AppState.self) var appState
     @State private var settingsManager = SettingsManager.shared
+    @State private var themeManager = ThemeManager.shared
     @State private var showingModelPicker = false
 
     var body: some View {
@@ -53,18 +54,18 @@ struct AISettingsView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("AI Model")
                             .font(.headline)
-                            .foregroundColor(.primary)
+                            .foregroundColor(themeManager.textColor)
 
                         Text(currentModelDisplay)
                             .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(themeManager.secondaryTextColor)
                     }
 
                     Spacer()
 
                     Image(systemName: "chevron.right")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(themeManager.secondaryTextColor)
                 }
             }
 
@@ -74,12 +75,12 @@ struct AISettingsView: View {
                 }) {
                     HStack {
                         Text("Reset to Default")
-                            .foregroundColor(.blue)
+                            .foregroundColor(themeManager.accentColor)
 
                         Spacer()
 
                         Image(systemName: "arrow.counterclockwise")
-                            .foregroundColor(.blue)
+                            .foregroundColor(themeManager.accentColor)
                     }
                 }
             }
@@ -116,7 +117,7 @@ struct AISettingsView: View {
                     LabeledContent("OpenWebUI") {
                         Text(openwebui)
                             .font(.caption2)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(themeManager.secondaryTextColor)
                     }
                 }
 
@@ -124,7 +125,7 @@ struct AISettingsView: View {
                     LabeledContent("Ollama Endpoint") {
                         Text(ollama)
                             .font(.caption2)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(themeManager.secondaryTextColor)
                     }
                 }
 
@@ -137,10 +138,10 @@ struct AISettingsView: View {
                                         .font(.headline)
                                     if credential.hasKey {
                                         Image(systemName: "checkmark.shield.fill")
-                                            .foregroundColor(.green)
+                                            .foregroundColor(themeManager.successColor)
                                     } else {
                                         Image(systemName: "exclamationmark.triangle.fill")
-                                            .foregroundColor(.orange)
+                                            .foregroundColor(themeManager.warningColor)
                                     }
                                     Spacer()
                                 }
@@ -148,17 +149,17 @@ struct AISettingsView: View {
                                 if let masked = credential.maskedKey, credential.hasKey {
                                     Text(masked)
                                         .font(.caption)
-                                        .foregroundColor(.secondary)
+                                        .foregroundColor(themeManager.secondaryTextColor)
                                 } else if !credential.hasKey {
                                     Text("No API key stored")
                                         .font(.caption)
-                                        .foregroundColor(.secondary)
+                                        .foregroundColor(themeManager.secondaryTextColor)
                                 }
 
                                 if let model = credential.model {
                                     Text("Preferred model: \(model)")
                                         .font(.caption2)
-                                        .foregroundColor(.secondary)
+                                        .foregroundColor(themeManager.secondaryTextColor)
                                 }
                             }
                             .padding(.vertical, 4)
@@ -192,7 +193,7 @@ struct AISettingsView: View {
 
                     Text("Only use local or self-hosted models")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(themeManager.secondaryTextColor)
                 }
             }
 
@@ -203,7 +204,7 @@ struct AISettingsView: View {
             }) {
                 HStack {
                     Label("Refresh Models", systemImage: "arrow.clockwise")
-                        .foregroundColor(.primary)
+                        .foregroundColor(themeManager.textColor)
 
                     Spacer()
 

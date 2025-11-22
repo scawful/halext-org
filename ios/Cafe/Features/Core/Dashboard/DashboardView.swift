@@ -13,74 +13,104 @@ struct DashboardView: View {
     @State private var showAIGenerator = false
     @State private var showingLayoutEditor = false
     @State private var showingAgentHub = false
+    @State private var hasAppeared = false
 
     var body: some View {
         NavigationStack {
             ScrollView(.vertical, showsIndicators: true) {
-                VStack(spacing: 20) {
-                    // Welcome header
-                    WelcomeHeader()
-                        .padding(.horizontal)
-
-                    // Partner Status Card (Chris)
-                    PartnerStatusCard()
-                        .padding(.horizontal)
-
-                    // AI Features Section
-                    AIFeaturesSection(
-                        showAIGenerator: $showAIGenerator,
-                        showingAgentHub: $showingAgentHub
-                    )
-                    .padding(.horizontal)
-
-                    // Stats cards
-                    StatsCardsView(viewModel: viewModel)
-                        .padding(.horizontal)
-
-                    // Today's tasks widget
-                    if !viewModel.todaysTasks.isEmpty {
-                        TodaysTasksWidget(tasks: viewModel.todaysTasks)
+                if viewModel.isLoading && viewModel.tasks.isEmpty && !hasAppeared {
+                    // Skeleton loading state
+                    DashboardSkeletonView()
+                        .padding(.vertical)
+                        .transition(.opacity)
+                } else {
+                    VStack(spacing: 20) {
+                        // Welcome header
+                        WelcomeHeader()
                             .padding(.horizontal)
-                    }
+                            .staggeredEntrance(index: 0)
 
-                    // Overdue tasks (if any)
-                    if !viewModel.overdueTasks.isEmpty {
-                        OverdueTasksWidget(tasks: viewModel.overdueTasks)
+                        // Partner Status Card (Chris)
+                        PartnerStatusCard()
                             .padding(.horizontal)
-                    }
+                            .staggeredEntrance(index: 1)
 
-                    // Upcoming events widget
-                    if !viewModel.upcomingEvents.isEmpty {
-                        UpcomingEventsWidget(events: viewModel.upcomingEvents)
+                        // AI Features Section
+                        AIFeaturesSection(
+                            showAIGenerator: $showAIGenerator,
+                            showingAgentHub: $showingAgentHub
+                        )
+                        .padding(.horizontal)
+                        .staggeredEntrance(index: 2)
+
+                        // Stats cards
+                        StatsCardsView(viewModel: viewModel)
                             .padding(.horizontal)
+                            .staggeredEntrance(index: 3)
+
+                        // Today's tasks widget
+                        if !viewModel.todaysTasks.isEmpty {
+                            TodaysTasksWidget(tasks: viewModel.todaysTasks)
+                                .padding(.horizontal)
+                                .staggeredEntrance(index: 4)
+                                .transition(.scaleAndFade)
+                        } else if hasAppeared {
+                            // Show empty state when no tasks
+                            DashboardEmptyTasksCard()
+                                .padding(.horizontal)
+                                .staggeredEntrance(index: 4)
+                                .transition(.scaleAndFade)
+                        }
+
+                        // Overdue tasks (if any)
+                        if !viewModel.overdueTasks.isEmpty {
+                            OverdueTasksWidget(tasks: viewModel.overdueTasks)
+                                .padding(.horizontal)
+                                .staggeredEntrance(index: 5)
+                                .transition(.scaleAndFade)
+                        }
+
+                        // Upcoming events widget
+                        if !viewModel.upcomingEvents.isEmpty {
+                            UpcomingEventsWidget(events: viewModel.upcomingEvents)
+                                .padding(.horizontal)
+                                .staggeredEntrance(index: 6)
+                                .transition(.scaleAndFade)
+                        }
+
+                        // Upcoming Together Card (Shared Events)
+                        UpcomingTogetherCard()
+                            .padding(.horizontal)
+                            .staggeredEntrance(index: 7)
+
+                        // Shared Tasks Card
+                        SharedTasksCard()
+                            .padding(.horizontal)
+                            .staggeredEntrance(index: 8)
+
+                        // Meal Planning Widget
+                        MealPlanningWidget()
+                            .padding(.horizontal)
+                            .staggeredEntrance(index: 9)
+
+                        // iOS Features Discovery
+                        IOSFeaturesWidget()
+                            .padding(.horizontal)
+                            .staggeredEntrance(index: 10)
+
+                        // Quick actions
+                        QuickActionsWidget()
+                            .padding(.horizontal)
+                            .staggeredEntrance(index: 11)
+
+                        // All Apps Grid
+                        AllAppsWidget()
+                            .padding(.horizontal)
+                            .staggeredEntrance(index: 12)
                     }
-                    
-                    // Upcoming Together Card (Shared Events)
-                    UpcomingTogetherCard()
-                        .padding(.horizontal)
-                    
-                    // Shared Tasks Card
-                    SharedTasksCard()
-                        .padding(.horizontal)
-
-                    // Meal Planning Widget
-                    MealPlanningWidget()
-                        .padding(.horizontal)
-
-                    // iOS Features Discovery
-                    IOSFeaturesWidget()
-                        .padding(.horizontal)
-
-                    // Quick actions
-                    QuickActionsWidget()
-                        .padding(.horizontal)
-
-                    // All Apps Grid
-                    AllAppsWidget()
-                        .padding(.horizontal)
+                    .padding(.vertical)
+                    .padding(.bottom, 100) // Extra padding to prevent getting stuck at bottom
                 }
-                .padding(.vertical)
-                .padding(.bottom, 100) // Extra padding to prevent getting stuck at bottom
             }
             .background(themeManager.backgroundColor)
             .navigationTitle("Dashboard")
@@ -88,12 +118,14 @@ struct DashboardView: View {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Menu {
                         Button {
+                            HapticManager.selection()
                             showAIGenerator = true
                         } label: {
                             Label("AI Generator", systemImage: "sparkles")
                         }
 
                         Button {
+                            HapticManager.selection()
                             showingAgentHub = true
                         } label: {
                             Label("Agent Hub", systemImage: "atom")
@@ -102,6 +134,7 @@ struct DashboardView: View {
                         Divider()
 
                         Button {
+                            HapticManager.selection()
                             showingLayoutEditor = true
                         } label: {
                             Label("Customize Dashboard", systemImage: "slider.horizontal.3")
@@ -114,18 +147,20 @@ struct DashboardView: View {
                 }
             }
             .refreshable {
+                HapticManager.lightImpact()
                 await viewModel.loadDashboardData()
+                HapticManager.success()
             }
             .task {
                 await viewModel.loadDashboardData()
-            }
-            .overlay {
-                if viewModel.isLoading && viewModel.tasks.isEmpty {
-                    ProgressView()
+                withAnimation(.easeOut(duration: 0.3)) {
+                    hasAppeared = true
                 }
             }
             .sheet(isPresented: $showAIGenerator) {
                 SmartGeneratorView()
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
             }
             .sheet(isPresented: $showingAgentHub) {
                 NavigationStack {
@@ -140,6 +175,8 @@ struct DashboardView: View {
                             }
                         }
                 }
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
             }
             .sheet(isPresented: $showingLayoutEditor) {
                 NavigationStack {
@@ -152,6 +189,8 @@ struct DashboardView: View {
                             }
                         }
                 }
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
             }
         }
     }
@@ -163,15 +202,20 @@ struct AIFeaturesSection: View {
     @Binding var showAIGenerator: Bool
     @Binding var showingAgentHub: Bool
     @Environment(ThemeManager.self) var themeManager
+    @State private var isMainCardPressed = false
+    @State private var isAgentHubPressed = false
+    @State private var isQuickGenPressed = false
+    @State private var sparkleAnimation = false
 
     var body: some View {
         VStack(spacing: 12) {
             // Main AI Generator Card
             Button {
+                HapticManager.mediumImpact()
                 showAIGenerator = true
             } label: {
                 HStack(spacing: 16) {
-                    // Icon
+                    // Animated Icon
                     ZStack {
                         Circle()
                             .fill(
@@ -182,10 +226,13 @@ struct AIFeaturesSection: View {
                                 )
                             )
                             .frame(width: 60, height: 60)
+                            .shadow(color: .purple.opacity(0.4), radius: isMainCardPressed ? 2 : 8, y: isMainCardPressed ? 1 : 4)
 
                         Image(systemName: "sparkles")
                             .font(.title2)
                             .foregroundColor(.white)
+                            .rotationEffect(.degrees(sparkleAnimation ? 10 : -10))
+                            .scaleEffect(sparkleAnimation ? 1.1 : 1.0)
                     }
 
                     // Content
@@ -193,17 +240,19 @@ struct AIFeaturesSection: View {
                         HStack {
                             Text("AI Task Generator")
                                 .font(.headline)
-                                .foregroundColor(.primary)
+                                .foregroundColor(themeManager.textColor)
 
                             Spacer()
 
                             Image(systemName: "arrow.right.circle.fill")
                                 .foregroundColor(.blue)
+                                .offset(x: isMainCardPressed ? 4 : 0)
+                                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isMainCardPressed)
                         }
 
                         Text("Describe what you need in plain English and let AI create tasks")
                             .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(themeManager.secondaryTextColor)
                             .lineLimit(2)
                     }
 
@@ -215,8 +264,8 @@ struct AIFeaturesSection: View {
                         .fill(
                             LinearGradient(
                                 colors: [
-                                    Color.blue.opacity(0.1),
-                                    Color.purple.opacity(0.1)
+                                    Color.blue.opacity(isMainCardPressed ? 0.15 : 0.1),
+                                    Color.purple.opacity(isMainCardPressed ? 0.15 : 0.1)
                                 ],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
@@ -234,7 +283,20 @@ struct AIFeaturesSection: View {
                             lineWidth: 1.5
                         )
                 )
+                .scaleEffect(isMainCardPressed ? 0.98 : 1.0)
+                .animation(.spring(response: 0.2, dampingFraction: 0.7), value: isMainCardPressed)
             }
+            .buttonStyle(.plain)
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { _ in
+                        if !isMainCardPressed {
+                            isMainCardPressed = true
+                            HapticManager.lightImpact()
+                        }
+                    }
+                    .onEnded { _ in isMainCardPressed = false }
+            )
             .accessibilityLabel("AI Task Generator")
             .accessibilityHint("Opens AI generator to create tasks from plain English descriptions")
             .accessibilityAddTraits(.isButton)
@@ -242,15 +304,18 @@ struct AIFeaturesSection: View {
             // AI Quick Actions Row
             HStack(spacing: 12) {
                 Button {
+                    HapticManager.selection()
                     showingAgentHub = true
                 } label: {
                     HStack(spacing: 8) {
                         Image(systemName: "atom")
                             .font(.subheadline)
                             .foregroundColor(.blue)
+                            .rotationEffect(.degrees(isAgentHubPressed ? 180 : 0))
+                            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isAgentHubPressed)
                         Text("Agent Hub")
                             .font(.subheadline)
-                            .foregroundColor(.primary)
+                            .foregroundColor(themeManager.textColor)
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 10)
@@ -258,21 +323,32 @@ struct AIFeaturesSection: View {
                         RoundedRectangle(cornerRadius: 12)
                             .fill(Color(.systemGray6))
                     )
+                    .scaleEffect(isAgentHubPressed ? 0.95 : 1.0)
+                    .animation(.spring(response: 0.2, dampingFraction: 0.7), value: isAgentHubPressed)
                 }
+                .buttonStyle(.plain)
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { _ in isAgentHubPressed = true }
+                        .onEnded { _ in isAgentHubPressed = false }
+                )
                 .accessibilityLabel("Agent Hub")
                 .accessibilityHint("Opens the AI Agent Hub to access specialized AI assistants")
                 .accessibilityAddTraits(.isButton)
 
                 Button {
+                    HapticManager.selection()
                     showAIGenerator = true
                 } label: {
                     HStack(spacing: 8) {
                         Image(systemName: "brain")
                             .font(.subheadline)
                             .foregroundColor(.purple)
+                            .scaleEffect(isQuickGenPressed ? 1.2 : 1.0)
+                            .animation(.spring(response: 0.2, dampingFraction: 0.6), value: isQuickGenPressed)
                         Text("Quick Generate")
                             .font(.subheadline)
-                            .foregroundColor(.primary)
+                            .foregroundColor(themeManager.textColor)
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 10)
@@ -280,10 +356,24 @@ struct AIFeaturesSection: View {
                         RoundedRectangle(cornerRadius: 12)
                             .fill(Color(.systemGray6))
                     )
+                    .scaleEffect(isQuickGenPressed ? 0.95 : 1.0)
+                    .animation(.spring(response: 0.2, dampingFraction: 0.7), value: isQuickGenPressed)
                 }
+                .buttonStyle(.plain)
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { _ in isQuickGenPressed = true }
+                        .onEnded { _ in isQuickGenPressed = false }
+                )
                 .accessibilityLabel("Quick Generate")
                 .accessibilityHint("Opens the AI generator for quickly creating tasks")
                 .accessibilityAddTraits(.isButton)
+            }
+        }
+        .onAppear {
+            // Start sparkle animation
+            withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
+                sparkleAnimation = true
             }
         }
     }
@@ -293,6 +383,9 @@ struct AIFeaturesSection: View {
 
 struct WelcomeHeader: View {
     @Environment(ThemeManager.self) var themeManager
+    @State private var iconRotation = 0.0
+    @State private var iconScale = 1.0
+    @State private var showContent = false
 
     var body: some View {
         HStack {
@@ -301,24 +394,54 @@ struct WelcomeHeader: View {
                     .font(.title2)
                     .fontWeight(.bold)
                     .foregroundColor(themeManager.textColor)
+                    .opacity(showContent ? 1 : 0)
+                    .offset(x: showContent ? 0 : -20)
 
                 Text(DateFormatter.localizedString(from: Date(), dateStyle: .long, timeStyle: .none))
                     .font(.subheadline)
                     .foregroundColor(themeManager.secondaryTextColor)
+                    .opacity(showContent ? 1 : 0)
+                    .offset(x: showContent ? 0 : -20)
             }
 
             Spacer()
 
-            // Decorative icon
-            Image(systemName: "sun.max.fill")
-                .font(.largeTitle)
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [.orange, .yellow],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
+            // Animated decorative icon
+            ZStack {
+                // Glow effect
+                Circle()
+                    .fill(iconGlowColor.opacity(0.2))
+                    .frame(width: 60, height: 60)
+                    .blur(radius: 10)
+                    .scaleEffect(iconScale)
+
+                Image(systemName: timeIcon)
+                    .font(.largeTitle)
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: iconColors,
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
                     )
-                )
+                    .rotationEffect(.degrees(iconRotation))
+                    .scaleEffect(iconScale)
+            }
+            .opacity(showContent ? 1 : 0)
+            .accessibilityHidden(true)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(greetingText). Today is \(DateFormatter.localizedString(from: Date(), dateStyle: .long, timeStyle: .none))")
+        .onAppear {
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
+                showContent = true
+            }
+
+            // Subtle continuous animation for the icon
+            withAnimation(.easeInOut(duration: 3).repeatForever(autoreverses: true)) {
+                iconRotation = 5
+                iconScale = 1.05
+            }
         }
     }
 
@@ -331,6 +454,54 @@ struct WelcomeHeader: View {
             return "Good Afternoon"
         default:
             return "Good Evening"
+        }
+    }
+
+    private var timeIcon: String {
+        let hour = Calendar.current.component(.hour, from: Date())
+        switch hour {
+        case 0..<6:
+            return "moon.stars.fill"
+        case 6..<12:
+            return "sun.max.fill"
+        case 12..<17:
+            return "sun.min.fill"
+        case 17..<20:
+            return "sunset.fill"
+        default:
+            return "moon.fill"
+        }
+    }
+
+    private var iconColors: [Color] {
+        let hour = Calendar.current.component(.hour, from: Date())
+        switch hour {
+        case 0..<6:
+            return [.indigo, .purple]
+        case 6..<12:
+            return [.orange, .yellow]
+        case 12..<17:
+            return [.orange, .red]
+        case 17..<20:
+            return [.orange, .pink]
+        default:
+            return [.indigo, .blue]
+        }
+    }
+
+    private var iconGlowColor: Color {
+        let hour = Calendar.current.component(.hour, from: Date())
+        switch hour {
+        case 0..<6:
+            return .purple
+        case 6..<12:
+            return .orange
+        case 12..<17:
+            return .orange
+        case 17..<20:
+            return .pink
+        default:
+            return .indigo
         }
     }
 }
@@ -377,28 +548,109 @@ struct StatCard: View {
     let icon: String
     let color: Color
     @Environment(ThemeManager.self) var themeManager
+    @State private var isPressed = false
+    @State private var hasAppeared = false
 
     var body: some View {
         VStack(spacing: 8) {
-            Image(systemName: icon)
-                .font(.title2)
-                .foregroundColor(color)
+            ZStack {
+                Circle()
+                    .fill(color.opacity(0.1))
+                    .frame(width: 40, height: 40)
 
-            Text(value)
-                .font(.title)
-                .fontWeight(.bold)
-                .foregroundColor(themeManager.textColor)
+                Image(systemName: icon)
+                    .font(.title3)
+                    .foregroundColor(color)
+            }
+            .scaleEffect(hasAppeared ? 1 : 0.5)
+            .opacity(hasAppeared ? 1 : 0)
+            .accessibilityHidden(true)
+
+            AnimatedNumber(Int(value) ?? 0, font: .title2, color: themeManager.textColor)
 
             Text(label)
                 .font(.caption)
                 .foregroundColor(themeManager.secondaryTextColor)
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
+                .minimumScaleFactor(0.8)
         }
         .frame(maxWidth: .infinity)
         .padding()
-        .background(themeManager.cardBackgroundColor) // Using background directly as StatCard is inside a grid which might not want rounded corners individually or different radius
-        .cornerRadius(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(themeManager.cardBackgroundColor)
+                .shadow(color: isPressed ? color.opacity(0.2) : .clear, radius: 4, y: 2)
+        )
+        .scaleEffect(isPressed ? 0.95 : 1.0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isPressed)
+        .onAppear {
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.7).delay(0.1)) {
+                hasAppeared = true
+            }
+        }
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in
+                    if !isPressed {
+                        isPressed = true
+                        HapticManager.lightImpact()
+                    }
+                }
+                .onEnded { _ in isPressed = false }
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(label): \(value)")
+    }
+}
+
+// MARK: - Dashboard Empty Tasks Card
+
+struct DashboardEmptyTasksCard: View {
+    @Environment(ThemeManager.self) var themeManager
+    @State private var showNewTask = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundColor(.blue)
+                Text("Today's Tasks")
+                    .font(.headline)
+                    .foregroundColor(themeManager.textColor)
+                Spacer()
+            }
+
+            DashboardEmptyState(
+                icon: "sun.max.fill",
+                title: "No tasks for today",
+                message: "Your day is clear! Add a task to stay productive.",
+                suggestion: "Plan tomorrow's tasks now",
+                actionTitle: "Add Task",
+                action: { showNewTask = true },
+                accentColor: .blue
+            )
+        }
+        .padding()
+        .themedCardBackground()
+        .sheet(isPresented: $showNewTask) {
+            NewTaskView { newTask in
+                await createTask(newTask)
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        }
+    }
+
+    private func createTask(_ taskCreate: TaskCreate) async {
+        do {
+            _ = try await APIClient.shared.createTask(taskCreate)
+            showNewTask = false
+            HapticManager.success()
+        } catch {
+            print("Failed to create task:", error)
+            HapticManager.error()
+        }
     }
 }
 
@@ -413,6 +665,7 @@ struct TodaysTasksWidget: View {
             HStack {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundColor(.blue)
+                    .accessibilityHidden(true)
                 Text("Today's Tasks")
                     .font(.headline)
                     .foregroundColor(themeManager.textColor)
@@ -421,6 +674,8 @@ struct TodaysTasksWidget: View {
                     .font(.caption)
                     .foregroundColor(themeManager.secondaryTextColor)
             }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Today's Tasks: \(tasks.count) task\(tasks.count == 1 ? "" : "s")")
 
             VStack(spacing: 8) {
                 ForEach(tasks.prefix(5)) { task in
@@ -430,6 +685,7 @@ struct TodaysTasksWidget: View {
         }
         .padding()
         .themedCardBackground()
+        .accessibilityElement(children: .contain)
     }
 }
 
@@ -441,6 +697,7 @@ struct CompactTaskRow: View {
         HStack(spacing: 12) {
             Image(systemName: task.completed ? "checkmark.circle.fill" : "circle")
                 .foregroundColor(task.completed ? .green : .secondary)
+                .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(task.title)
@@ -474,6 +731,23 @@ struct CompactTaskRow: View {
             }
         }
         .padding(.vertical, 4)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(taskAccessibilityLabel)
+    }
+
+    private var taskAccessibilityLabel: String {
+        var label = task.completed ? "Completed: " : "Pending: "
+        label += task.title
+        if let dueDate = task.dueDate {
+            let formatter = DateFormatter()
+            formatter.timeStyle = .short
+            label += ", due at \(formatter.string(from: dueDate))"
+        }
+        if !task.labels.isEmpty {
+            let labelNames = task.labels.prefix(2).map { $0.name }.joined(separator: ", ")
+            label += ", labels: \(labelNames)"
+        }
+        return label
     }
 }
 
@@ -488,6 +762,7 @@ struct OverdueTasksWidget: View {
             HStack {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundColor(.red)
+                    .accessibilityHidden(true)
                 Text("Overdue")
                     .font(.headline)
                     .foregroundColor(themeManager.textColor)
@@ -496,6 +771,9 @@ struct OverdueTasksWidget: View {
                     .font(.caption)
                     .foregroundColor(.red)
             }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Overdue Tasks: \(tasks.count) task\(tasks.count == 1 ? "" : "s") need attention")
+            .accessibilityAddTraits(.isHeader)
 
             VStack(spacing: 8) {
                 ForEach(tasks.prefix(3)) { task in
@@ -509,6 +787,7 @@ struct OverdueTasksWidget: View {
             RoundedRectangle(cornerRadius: 16)
                 .stroke(Color.red.opacity(0.3), lineWidth: 1)
         )
+        .accessibilityElement(children: .contain)
     }
 }
 
@@ -523,11 +802,15 @@ struct UpcomingEventsWidget: View {
             HStack {
                 Image(systemName: "calendar")
                     .foregroundColor(.purple)
+                    .accessibilityHidden(true)
                 Text("Upcoming Events")
                     .font(.headline)
                     .foregroundColor(themeManager.textColor)
                 Spacer()
             }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Upcoming Events: \(events.count) event\(events.count == 1 ? "" : "s")")
+            .accessibilityAddTraits(.isHeader)
 
             VStack(spacing: 12) {
                 ForEach(events) { event in
@@ -537,6 +820,7 @@ struct UpcomingEventsWidget: View {
         }
         .padding()
         .themedCardBackground()
+        .accessibilityElement(children: .contain)
     }
 }
 
@@ -562,6 +846,7 @@ struct EventRow: View {
                 RoundedRectangle(cornerRadius: 8)
                     .fill(Color.purple.opacity(0.1))
             )
+            .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(event.title)
@@ -591,6 +876,20 @@ struct EventRow: View {
 
             Spacer()
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(eventAccessibilityLabel)
+    }
+
+    private var eventAccessibilityLabel: String {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateStyle = .medium
+        dateFormatter.timeStyle = .short
+
+        var label = "\(event.title) on \(dateFormatter.string(from: event.startTime))"
+        if let location = event.location {
+            label += ", at \(location)"
+        }
+        return label
     }
 }
 
@@ -600,7 +899,6 @@ struct QuickActionsWidget: View {
     @State private var showAIGenerator = false
     @State private var showNewTask = false
     @State private var showNewEvent = false
-    @State private var showViewAll = false
     @Environment(ThemeManager.self) var themeManager
 
     var body: some View {
@@ -613,98 +911,73 @@ struct QuickActionsWidget: View {
                 GridItem(.flexible()),
                 GridItem(.flexible())
             ], spacing: 12) {
-                Button {
-                    showNewTask = true
-                } label: {
-                    VStack(spacing: 8) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.title2)
-                            .foregroundColor(.blue)
-
-                        Text("New Task")
-                            .font(.caption)
-                            .foregroundColor(themeManager.textColor)
+                QuickActionButton(
+                    icon: "plus.circle.fill",
+                    title: "New Task",
+                    color: .blue,
+                    action: {
+                        HapticManager.selection()
+                        showNewTask = true
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(themeManager.backgroundColor)
-                    )
-                }
+                )
+                .accessibilityLabel("New Task")
+                .accessibilityHint("Opens form to create a new task")
 
-                Button {
-                    showNewEvent = true
-                } label: {
-                    VStack(spacing: 8) {
-                        Image(systemName: "calendar.badge.plus")
-                            .font(.title2)
-                            .foregroundColor(.purple)
-
-                        Text("New Event")
-                            .font(.caption)
-                            .foregroundColor(themeManager.textColor)
+                QuickActionButton(
+                    icon: "calendar.badge.plus",
+                    title: "New Event",
+                    color: .purple,
+                    action: {
+                        HapticManager.selection()
+                        showNewEvent = true
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(themeManager.backgroundColor)
-                    )
-                }
+                )
+                .accessibilityLabel("New Event")
+                .accessibilityHint("Opens form to create a new calendar event")
 
-                Button {
-                    showAIGenerator = true
-                } label: {
-                    VStack(spacing: 8) {
-                        Image(systemName: "sparkles")
-                            .font(.title2)
-                            .foregroundColor(.orange)
-
-                        Text("AI Generator")
-                            .font(.caption)
-                            .foregroundColor(themeManager.textColor)
+                QuickActionButton(
+                    icon: "sparkles",
+                    title: "AI Generator",
+                    color: .orange,
+                    action: {
+                        HapticManager.selection()
+                        showAIGenerator = true
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(themeManager.backgroundColor)
-                    )
-                }
+                )
+                .accessibilityLabel("AI Generator")
+                .accessibilityHint("Opens AI assistant to generate tasks automatically")
 
                 NavigationLink(destination: TaskListView()) {
-                    VStack(spacing: 8) {
-                        Image(systemName: "list.bullet")
-                            .font(.title2)
-                            .foregroundColor(.green)
-
-                        Text("View All")
-                            .font(.caption)
-                            .foregroundColor(themeManager.textColor)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(themeManager.backgroundColor)
+                    QuickActionButtonContent(
+                        icon: "list.bullet",
+                        title: "View All",
+                        color: .green,
+                        isPressed: false
                     )
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("View All Tasks")
+                .accessibilityHint("Opens the full task list")
             }
         }
         .padding()
         .themedCardBackground()
         .sheet(isPresented: $showAIGenerator) {
             SmartGeneratorView()
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showNewTask) {
             NewTaskView { newTask in
                 await createTask(newTask)
             }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showNewEvent) {
             NewEventView(viewModel: CalendarViewModel())
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
         }
     }
 
@@ -718,6 +991,84 @@ struct QuickActionsWidget: View {
             print("Failed to create task:", error)
             HapticManager.error()
         }
+    }
+}
+
+// MARK: - Quick Action Button
+
+struct QuickActionButton: View {
+    let icon: String
+    let title: String
+    let color: Color
+    let action: () -> Void
+
+    @State private var isPressed = false
+    @Environment(ThemeManager.self) var themeManager
+
+    var body: some View {
+        Button(action: action) {
+            QuickActionButtonContent(
+                icon: icon,
+                title: title,
+                color: color,
+                isPressed: isPressed
+            )
+        }
+        .buttonStyle(.plain)
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in
+                    if !isPressed {
+                        isPressed = true
+                        HapticManager.lightImpact()
+                    }
+                }
+                .onEnded { _ in isPressed = false }
+        )
+    }
+}
+
+struct QuickActionButtonContent: View {
+    let icon: String
+    let title: String
+    let color: Color
+    let isPressed: Bool
+
+    @Environment(ThemeManager.self) var themeManager
+
+    var body: some View {
+        VStack(spacing: 8) {
+            ZStack {
+                Circle()
+                    .fill(color.opacity(0.15))
+                    .frame(width: 44, height: 44)
+                    .scaleEffect(isPressed ? 0.9 : 1.0)
+
+                Image(systemName: icon)
+                    .font(.title2)
+                    .foregroundColor(color)
+                    .scaleEffect(isPressed ? 1.1 : 1.0)
+            }
+            .animation(.spring(response: 0.25, dampingFraction: 0.6), value: isPressed)
+
+            Text(title)
+                .font(.caption)
+                .fontWeight(.medium)
+                .foregroundColor(themeManager.textColor)
+        }
+        .frame(maxWidth: .infinity)
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(themeManager.cardBackgroundColor)
+                .shadow(
+                    color: isPressed ? color.opacity(0.2) : .black.opacity(0.03),
+                    radius: isPressed ? 2 : 4,
+                    y: isPressed ? 1 : 2
+                )
+        )
+        .scaleEffect(isPressed ? 0.95 : 1.0)
+        .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isPressed)
     }
 }
 
@@ -738,6 +1089,7 @@ struct IOSFeaturesWidget: View {
                             endPoint: .bottomTrailing
                         )
                     )
+                    .accessibilityHidden(true)
 
                 Text("Discover iOS Features")
                     .font(.headline)
@@ -750,7 +1102,10 @@ struct IOSFeaturesWidget: View {
                         .font(.caption)
                         .foregroundColor(.blue)
                 }
+                .accessibilityLabel("See all iOS features")
+                .accessibilityHint("Opens a list of all available iOS features")
             }
+            .accessibilityElement(children: .contain)
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
@@ -827,6 +1182,8 @@ struct IOSFeaturesWidget: View {
         )
         .sheet(isPresented: $showAllFeatures) {
             IOSFeaturesDetailView()
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
         }
     }
 }
@@ -853,6 +1210,10 @@ struct IOSFeatureCard: View {
             )
         }
         .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(title) feature\(badge != nil ? ", \(badge!)" : "")")
+        .accessibilityHint(description)
+        .accessibilityAddTraits(.isButton)
         .simultaneousGesture(
             DragGesture(minimumDistance: 0)
                 .onChanged { _ in isPressed = true }
@@ -936,11 +1297,15 @@ struct MealPlanningWidget: View {
             HStack {
                 Image(systemName: "fork.knife")
                     .foregroundColor(.orange)
+                    .accessibilityHidden(true)
                 Text("What's for Dinner?")
                     .font(.headline)
                     .foregroundColor(themeManager.textColor)
                 Spacer()
             }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Meal Planning: What's for Dinner?")
+            .accessibilityAddTraits(.isHeader)
 
             VStack(spacing: 12) {
                 // Recipe Ideas Button
@@ -970,6 +1335,8 @@ struct MealPlanningWidget: View {
                     )
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Recipe Ideas")
+                .accessibilityHint("Opens AI-powered recipe suggestions based on your preferences")
 
                 // Meal Plan Button
                 Button(action: { showingMealPlan = true }) {
@@ -998,6 +1365,8 @@ struct MealPlanningWidget: View {
                     )
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Weekly Meal Plan")
+                .accessibilityHint("Opens meal planning view to organize your weekly meals")
             }
 
             // Quick Tips
@@ -1016,9 +1385,13 @@ struct MealPlanningWidget: View {
         .themedCardBackground()
         .sheet(isPresented: $showingRecipeGenerator) {
             RecipeGeneratorView()
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showingMealPlan) {
             MealPlanGeneratorView()
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
         }
     }
 }
@@ -1028,19 +1401,27 @@ struct MealPlanningWidget: View {
 struct AllAppsWidget: View {
     @Environment(ThemeManager.self) var themeManager
 
+    private var appCount: Int {
+        NavigationTab.allCases.filter { $0 != .dashboard && $0 != .more && $0 != .settings }.count
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Image(systemName: "square.grid.2x2")
                     .foregroundColor(.blue)
+                    .accessibilityHidden(true)
                 Text("All Apps")
                     .font(.headline)
                     .foregroundColor(themeManager.textColor)
                 Spacer()
-                Text("\(NavigationTab.allCases.filter { $0 != .dashboard && $0 != .more && $0 != .settings }.count)")
+                Text("\(appCount)")
                     .font(.caption)
                     .foregroundColor(themeManager.secondaryTextColor)
             }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("All Apps: \(appCount) app\(appCount == 1 ? "" : "s") available")
+            .accessibilityAddTraits(.isHeader)
 
             LazyVGrid(columns: [
                 GridItem(.flexible()),
@@ -1102,6 +1483,8 @@ struct DashboardAppButton: View {
             }
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("Open \(tab.rawValue)")
+        .accessibilityHint("Navigate to the \(tab.rawValue) section of the app")
         .simultaneousGesture(
             DragGesture(minimumDistance: 0)
                 .onChanged { _ in isPressed = true }

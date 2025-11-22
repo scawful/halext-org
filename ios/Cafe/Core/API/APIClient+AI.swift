@@ -341,6 +341,16 @@ struct ProviderCredentialStatus: Codable, Hashable {
         case keyName = "key_name"
         case model
     }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        provider = try container.decode(String.self, forKey: .provider)
+        // Default to false if has_key is missing from the response
+        hasKey = try container.decodeIfPresent(Bool.self, forKey: .hasKey) ?? false
+        maskedKey = try container.decodeIfPresent(String.self, forKey: .maskedKey)
+        keyName = try container.decodeIfPresent(String.self, forKey: .keyName)
+        model = try container.decodeIfPresent(String.self, forKey: .model)
+    }
 }
 
 struct AIModel: Codable, Identifiable, Hashable {

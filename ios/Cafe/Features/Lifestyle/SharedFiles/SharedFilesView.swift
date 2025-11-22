@@ -15,15 +15,16 @@ struct SharedFilesView: View {
             VStack(spacing: 20) {
                 Image(systemName: "folder.badge.person.crop")
                     .font(.system(size: 60))
-                    .foregroundColor(.indigo)
+                    .foregroundColor(themeManager.accentColor)
 
                 Text("Shared Files")
                     .font(.title)
                     .fontWeight(.bold)
+                    .foregroundColor(themeManager.textColor)
 
                 Text("File storage and sharing feature coming soon")
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(themeManager.secondaryTextColor)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal)
 
@@ -67,6 +68,7 @@ struct SharedFilesView: View {
 }
 
 struct FeatureComingSoonRow: View {
+    @Environment(ThemeManager.self) private var themeManager
     let icon: String
     let title: String
     let description: String
@@ -75,17 +77,18 @@ struct FeatureComingSoonRow: View {
         HStack(spacing: 12) {
             Image(systemName: icon)
                 .font(.title3)
-                .foregroundColor(.indigo)
+                .foregroundColor(themeManager.accentColor)
                 .frame(width: 30)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.subheadline)
                     .fontWeight(.semibold)
+                    .foregroundColor(themeManager.textColor)
 
                 Text(description)
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(themeManager.secondaryTextColor)
             }
 
             Spacer()

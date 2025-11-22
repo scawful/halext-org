@@ -2,7 +2,7 @@
 //  LockScreenWidgets.swift
 //  CafeWidgets
 //
-//  Lock screen and StandBy mode widgets (iOS 16+)
+//  Lock screen and StandBy mode widgets with refined visual design (iOS 16+)
 //
 
 import WidgetKit
@@ -15,6 +15,7 @@ struct CafeLockScreenWidgets: WidgetBundle {
         TaskCountWidget()
         NextEventWidget()
         CompletedTodayWidget()
+        TaskProgressWidget()
     }
 }
 
@@ -35,7 +36,12 @@ struct TaskCountWidget: Widget {
 
 struct TaskCountProvider: TimelineProvider {
     func placeholder(in context: Context) -> WidgetEntry {
-        WidgetEntry(date: Date(), tasks: [], events: [], lastUpdate: Date())
+        WidgetEntry(
+            date: Date(),
+            tasks: Array(repeating: WidgetTask(id: 0, title: "Task", description: nil, completed: false, dueDate: Date(), createdAt: Date(), labels: []), count: 3),
+            events: [],
+            lastUpdate: Date()
+        )
     }
 
     func getSnapshot(in context: Context, completion: @escaping (WidgetEntry) -> ()) {
@@ -61,18 +67,111 @@ struct TaskCountWidgetView: View {
         ZStack {
             AccessoryWidgetBackground()
 
-            VStack(spacing: 2) {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 20))
+            if entry.tasks.isEmpty {
+                // All done state
+                VStack(spacing: 1) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 22, weight: .medium))
 
-                Text("\(entry.tasks.count)")
-                    .font(.system(size: 24, weight: .bold))
+                    Text("Done")
+                        .font(.system(size: 10, weight: .semibold))
+                        .textCase(.uppercase)
+                }
+            } else {
+                // Task count state
+                VStack(spacing: 0) {
+                    Image(systemName: "checklist")
+                        .font(.system(size: 14, weight: .medium))
+                        .padding(.bottom, 1)
 
-                Text("tasks")
-                    .font(.system(size: 10))
-                    .textCase(.uppercase)
+                    Text("\(entry.tasks.count)")
+                        .font(.system(size: 22, weight: .bold, design: .rounded))
+
+                    Text(entry.tasks.count == 1 ? "task" : "tasks")
+                        .font(.system(size: 8, weight: .medium))
+                        .textCase(.uppercase)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
+        .widgetAccentable()
+    }
+}
+
+// MARK: - Task Progress Widget (Circular with Gauge)
+
+struct TaskProgressWidget: Widget {
+    let kind: String = "TaskProgressWidget"
+
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: kind, provider: TaskProgressProvider()) { entry in
+            TaskProgressWidgetView(entry: entry)
+        }
+        .configurationDisplayName("Task Progress")
+        .description("Your daily task completion progress")
+        .supportedFamilies([.accessoryCircular])
+    }
+}
+
+struct TaskProgressProvider: TimelineProvider {
+    func placeholder(in context: Context) -> TaskProgressEntry {
+        TaskProgressEntry(date: Date(), completedCount: 3, totalCount: 5)
+    }
+
+    func getSnapshot(in context: Context, completion: @escaping (TaskProgressEntry) -> ()) {
+        let completedCount = WidgetDataProvider.shared.completedTodayCount
+        let pendingCount = WidgetDataProvider.shared.todaysTasks.count
+        let entry = TaskProgressEntry(
+            date: Date(),
+            completedCount: completedCount,
+            totalCount: completedCount + pendingCount
+        )
+        completion(entry)
+    }
+
+    func getTimeline(in context: Context, completion: @escaping (Timeline<TaskProgressEntry>) -> ()) {
+        let completedCount = WidgetDataProvider.shared.completedTodayCount
+        let pendingCount = WidgetDataProvider.shared.todaysTasks.count
+        let entry = TaskProgressEntry(
+            date: Date(),
+            completedCount: completedCount,
+            totalCount: completedCount + pendingCount
+        )
+
+        let nextUpdate = Calendar.current.date(byAdding: .minute, value: 15, to: Date())!
+        let timeline = Timeline(entries: [entry], policy: .after(nextUpdate))
+        completion(timeline)
+    }
+}
+
+struct TaskProgressEntry: TimelineEntry {
+    let date: Date
+    let completedCount: Int
+    let totalCount: Int
+
+    var progress: Double {
+        guard totalCount > 0 else { return 1.0 }
+        return Double(completedCount) / Double(totalCount)
+    }
+}
+
+struct TaskProgressWidgetView: View {
+    var entry: TaskProgressEntry
+
+    var body: some View {
+        Gauge(value: entry.progress) {
+            Image(systemName: "checkmark.circle.fill")
+        } currentValueLabel: {
+            VStack(spacing: 0) {
+                Text("\(entry.completedCount)")
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                Text("/\(entry.totalCount)")
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .gaugeStyle(.accessoryCircularCapacity)
+        .widgetAccentable()
     }
 }
 
@@ -96,7 +195,7 @@ struct NextEventProvider: TimelineProvider {
         WidgetEntry(
             date: Date(),
             tasks: [],
-            events: [WidgetEvent(id: 1, title: "Team Meeting", startTime: Date(), endTime: Date(), location: "Office")],
+            events: [WidgetEvent(id: 1, title: "Team Meeting", startTime: Date().addingTimeInterval(1800), endTime: Date().addingTimeInterval(5400), location: "Conference Room")],
             lastUpdate: Date()
         )
     }
@@ -126,57 +225,90 @@ struct NextEventWidgetView: View {
 
     var body: some View {
         if let event = nextEvent {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
+            VStack(alignment: .leading, spacing: 3) {
+                // Header row with icon and time indicator
+                HStack(spacing: 4) {
                     Image(systemName: "calendar")
-                        .font(.caption)
-                    Text("NEXT EVENT")
-                        .font(.caption2)
-                        .fontWeight(.semibold)
-                        .textCase(.uppercase)
-                }
-                .foregroundColor(.secondary)
+                        .font(.system(size: 10, weight: .semibold))
 
+                    Text(timeUntilEvent(event.startTime))
+                        .font(.system(size: 10, weight: .semibold))
+                        .textCase(.uppercase)
+
+                    Spacer()
+                }
+                .foregroundStyle(.secondary)
+
+                // Event title
                 Text(event.title)
-                    .font(.headline)
-                    .fontWeight(.semibold)
+                    .font(.system(size: 14, weight: .bold))
                     .lineLimit(1)
 
-                HStack(spacing: 8) {
+                // Event details row
+                HStack(spacing: 6) {
+                    // Time
                     HStack(spacing: 2) {
                         Image(systemName: "clock")
-                            .font(.caption2)
+                            .font(.system(size: 9, weight: .medium))
                         Text(event.startTime, style: .time)
-                            .font(.caption)
+                            .font(.system(size: 11, weight: .medium))
                     }
 
+                    // Location (if available)
                     if let location = event.location {
                         HStack(spacing: 2) {
-                            Image(systemName: "location")
-                                .font(.caption2)
+                            Image(systemName: "location.fill")
+                                .font(.system(size: 8, weight: .medium))
                             Text(location)
-                                .font(.caption)
+                                .font(.system(size: 11, weight: .medium))
                                 .lineLimit(1)
                         }
                     }
                 }
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
             }
+            .widgetAccentable()
         } else {
+            // Empty state
             VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Image(systemName: "calendar")
-                        .font(.caption)
+                HStack(spacing: 4) {
+                    Image(systemName: "calendar.badge.checkmark")
+                        .font(.system(size: 12, weight: .semibold))
+
                     Text("CALENDAR")
-                        .font(.caption2)
-                        .fontWeight(.semibold)
+                        .font(.system(size: 10, weight: .bold))
                         .textCase(.uppercase)
                 }
 
                 Text("No upcoming events")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.secondary)
+
+                Text("Enjoy your free time")
+                    .font(.system(size: 11, weight: .regular))
+                    .foregroundStyle(.tertiary)
             }
+            .widgetAccentable()
+        }
+    }
+
+    private func timeUntilEvent(_ date: Date) -> String {
+        let now = Date()
+        let interval = date.timeIntervalSince(now)
+
+        if interval < 0 {
+            return "Now"
+        } else if interval < 60 {
+            return "In < 1 min"
+        } else if interval < 3600 {
+            let minutes = Int(interval / 60)
+            return "In \(minutes) min"
+        } else if interval < 86400 {
+            let hours = Int(interval / 3600)
+            return "In \(hours) hr"
+        } else {
+            let days = Int(interval / 86400)
+            return "In \(days)d"
         }
     }
 }
@@ -197,17 +329,19 @@ struct CompletedTodayWidget: Widget {
 }
 
 struct CompletedTodayProvider: TimelineProvider {
-    func placeholder(in context: Context) -> WidgetEntry {
-        WidgetEntry(date: Date(), tasks: [], events: [], lastUpdate: Date())
+    func placeholder(in context: Context) -> CompletedEntry {
+        CompletedEntry(date: Date(), completedCount: 5)
     }
 
-    func getSnapshot(in context: Context, completion: @escaping (WidgetEntry) -> ()) {
-        let entry = WidgetEntry(date: Date(), tasks: [], events: [], lastUpdate: Date())
+    func getSnapshot(in context: Context, completion: @escaping (CompletedEntry) -> ()) {
+        let count = WidgetDataProvider.shared.completedTodayCount
+        let entry = CompletedEntry(date: Date(), completedCount: count)
         completion(entry)
     }
 
-    func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> ()) {
-        let entry = WidgetEntry(date: Date(), tasks: [], events: [], lastUpdate: Date())
+    func getTimeline(in context: Context, completion: @escaping (Timeline<CompletedEntry>) -> ()) {
+        let count = WidgetDataProvider.shared.completedTodayCount
+        let entry = CompletedEntry(date: Date(), completedCount: count)
 
         let nextUpdate = Calendar.current.date(byAdding: .minute, value: 15, to: Date())!
         let timeline = Timeline(entries: [entry], policy: .after(nextUpdate))
@@ -215,18 +349,26 @@ struct CompletedTodayProvider: TimelineProvider {
     }
 }
 
-struct CompletedTodayWidgetView: View {
-    var entry: WidgetEntry
+struct CompletedEntry: TimelineEntry {
+    let date: Date
+    let completedCount: Int
+}
 
-    var completedCount: Int {
-        WidgetDataProvider.shared.completedTodayCount
-    }
+struct CompletedTodayWidgetView: View {
+    var entry: CompletedEntry
 
     var body: some View {
         HStack(spacing: 4) {
             Image(systemName: "checkmark.circle.fill")
-            Text("\(completedCount) completed today")
+                .font(.system(size: 12, weight: .medium))
+
+            if entry.completedCount == 0 {
+                Text("No tasks completed yet")
+            } else {
+                Text("\(entry.completedCount) completed today")
+            }
         }
+        .widgetAccentable()
     }
 }
 
@@ -241,6 +383,20 @@ struct CompletedTodayWidgetView: View {
         events: [],
         lastUpdate: Date()
     )
+    WidgetEntry(
+        date: Date(),
+        tasks: [],
+        events: [],
+        lastUpdate: Date()
+    )
+}
+
+#Preview("Task Progress", as: .accessoryCircular) {
+    TaskProgressWidget()
+} timeline: {
+    TaskProgressEntry(date: Date(), completedCount: 3, totalCount: 5)
+    TaskProgressEntry(date: Date(), completedCount: 5, totalCount: 5)
+    TaskProgressEntry(date: Date(), completedCount: 0, totalCount: 0)
 }
 
 #Preview("Next Event", as: .accessoryRectangular) {
@@ -249,7 +405,13 @@ struct CompletedTodayWidgetView: View {
     WidgetEntry(
         date: Date(),
         tasks: [],
-        events: [WidgetEvent(id: 1, title: "Team Standup", startTime: Date(), endTime: Date(), location: "Zoom")],
+        events: [WidgetEvent(id: 1, title: "Team Standup", startTime: Date().addingTimeInterval(1800), endTime: Date().addingTimeInterval(3600), location: "Zoom")],
+        lastUpdate: Date()
+    )
+    WidgetEntry(
+        date: Date(),
+        tasks: [],
+        events: [],
         lastUpdate: Date()
     )
 }
@@ -257,5 +419,6 @@ struct CompletedTodayWidgetView: View {
 #Preview("Completed Today", as: .accessoryInline) {
     CompletedTodayWidget()
 } timeline: {
-    WidgetEntry(date: Date(), tasks: [], events: [], lastUpdate: Date())
+    CompletedEntry(date: Date(), completedCount: 7)
+    CompletedEntry(date: Date(), completedCount: 0)
 }

@@ -9,8 +9,9 @@ import SwiftUI
 
 struct NewGoalView: View {
     @Environment(\.dismiss) var dismiss
+    @Environment(ThemeManager.self) var themeManager
     let viewModel: GoalsViewModel
-    
+
     @State private var title = ""
     @State private var description = ""
     @State private var isSubmitting = false
@@ -30,16 +31,17 @@ struct NewGoalView: View {
                 Section("Sharing") {
                     HStack {
                         Image(systemName: "person.2.fill")
-                            .foregroundColor(.pink)
+                            .foregroundColor(themeManager.accentColor)
                         Text("Will be shared with \(preferredContactUsername.capitalized)")
                             .font(.subheadline)
+                            .foregroundColor(themeManager.textColor)
                     }
                 }
                 
                 if let error = errorMessage {
                     Section {
                         Text(error)
-                            .foregroundColor(.red)
+                            .foregroundColor(themeManager.errorColor)
                             .font(.caption)
                     }
                 }

@@ -8,21 +8,34 @@
 import SwiftUI
 
 struct MemoriesView: View {
+    @Environment(ThemeManager.self) var themeManager
     @State private var viewModel = MemoriesViewModel()
     @State private var showingNewMemory = false
-    
+    @State private var searchText = ""
+
+    var filteredMemories: [Memory] {
+        if searchText.isEmpty {
+            return viewModel.memories
+        }
+        return viewModel.memories.filter { memory in
+            memory.title.localizedCaseInsensitiveContains(searchText) ||
+            (memory.content?.localizedCaseInsensitiveContains(searchText) ?? false) ||
+            (memory.location?.localizedCaseInsensitiveContains(searchText) ?? false)
+        }
+    }
+
     var body: some View {
         NavigationStack {
             Group {
                 if viewModel.isLoading {
                     ProgressView()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if viewModel.memories.isEmpty {
+                } else if filteredMemories.isEmpty && searchText.isEmpty {
                     EmptyMemoriesView(onCreateMemory: { showingNewMemory = true })
                 } else {
                     ScrollView {
                         LazyVStack(spacing: 20) {
-                            ForEach(viewModel.memories) { memory in
+                            ForEach(filteredMemories) { memory in
                                 NavigationLink {
                                     MemoryDetailView(memory: memory)
                                 } label: {
@@ -48,6 +61,7 @@ struct MemoriesView: View {
             .sheet(isPresented: $showingNewMemory) {
                 NewMemoryView(viewModel: viewModel)
             }
+            .searchable(text: $searchText, prompt: "Search memories")
             .task {
                 await viewModel.loadMemories()
             }
@@ -61,8 +75,9 @@ struct MemoriesView: View {
 // MARK: - Memory Card
 
 struct MemoryCard: View {
+    @Environment(ThemeManager.self) var themeManager
     let memory: Memory
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             // Header
@@ -73,14 +88,14 @@ struct MemoryCard: View {
                     
                     Text(memory.createdAt, style: .relative)
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(themeManager.secondaryTextColor)
                 }
                 
                 Spacer()
                 
                 Image(systemName: "person.2.fill")
                     .font(.caption)
-                    .foregroundColor(.pink)
+                    .foregroundColor(themeManager.accentColor)
             }
             
             // Content
@@ -88,7 +103,7 @@ struct MemoryCard: View {
                 Text(content)
                     .font(.subheadline)
                     .lineLimit(3)
-                    .foregroundColor(.primary)
+                    .foregroundColor(themeManager.textColor)
             }
             
             // Photos preview
@@ -111,11 +126,11 @@ struct MemoryCard: View {
                         if photos.count > 3 {
                             Text("+\(photos.count - 3)")
                                 .font(.caption)
-                                .foregroundColor(.secondary)
+                                .foregroundColor(themeManager.secondaryTextColor)
                                 .frame(width: 80, height: 80)
                                 .background(
                                     RoundedRectangle(cornerRadius: 8)
-                                        .fill(Color.gray.opacity(0.2))
+                                        .fill(themeManager.cardBackgroundColor)
                                 )
                         }
                     }
@@ -130,13 +145,13 @@ struct MemoryCard: View {
                     Text(location)
                         .font(.caption)
                 }
-                .foregroundColor(.secondary)
+                .foregroundColor(themeManager.secondaryTextColor)
             }
         }
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(ThemeManager.shared.cardBackgroundColor)
+                .fill(themeManager.cardBackgroundColor)
                 .shadow(color: .black.opacity(0.05), radius: 8, y: 2)
         )
     }
@@ -145,27 +160,29 @@ struct MemoryCard: View {
 // MARK: - Empty State
 
 struct EmptyMemoriesView: View {
+    @Environment(ThemeManager.self) var themeManager
     let onCreateMemory: () -> Void
-    
+
     var body: some View {
         VStack(spacing: 16) {
             Image(systemName: "photo.on.rectangle.angled")
                 .font(.system(size: 60))
-                .foregroundColor(.secondary)
-            
+                .foregroundColor(themeManager.secondaryTextColor)
+
             Text("No Memories Yet")
                 .font(.title2)
                 .fontWeight(.semibold)
-            
+                .foregroundColor(themeManager.textColor)
+
             Text("Create your first shared memory together")
                 .font(.subheadline)
-                .foregroundColor(.secondary)
+                .foregroundColor(themeManager.secondaryTextColor)
                 .multilineTextAlignment(.center)
-            
+
             Button(action: onCreateMemory) {
                 Label("Create Memory", systemImage: "plus.circle.fill")
                     .padding()
-                    .background(Color.blue)
+                    .background(themeManager.accentColor)
                     .foregroundColor(.white)
                     .cornerRadius(10)
             }

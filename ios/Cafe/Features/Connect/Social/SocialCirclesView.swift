@@ -16,7 +16,7 @@ struct SocialCirclesView: View {
     @State private var errorMessage: String?
     @State private var inviteCode: String = ""
     @State private var pulseMessage: String = "Sending cozy encouragement"
-    @State private var pressedCircleId: String?
+    @State private var pressedCircleId: Int?
     @State private var isSendButtonPressed = false
     @State private var isJoinButtonPressed = false
 
@@ -72,7 +72,7 @@ struct SocialCirclesView: View {
                         isPressed: pressedCircleId == circle.id,
                         themeManager: themeManager
                     )
-                    .scaleEffect(pressedCircleId == circle.id ? 0.97 : 1.0)
+                    .scaleEffect(pressedCircleId == circle.id ? 0.95 : 1.0)
                     .animation(.spring(response: 0.2, dampingFraction: 0.7), value: pressedCircleId)
                     .simultaneousGesture(
                         DragGesture(minimumDistance: 0)

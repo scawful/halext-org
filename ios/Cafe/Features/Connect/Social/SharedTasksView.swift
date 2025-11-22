@@ -204,12 +204,21 @@ struct SharedTasksView: View {
     }
 
     private func deleteTask(_ task: SharedTask) {
-        // Remove from local list
+        // Optimistically remove from local list for immediate UI feedback
         if let index = socialManager.sharedTasks.firstIndex(where: { $0.id == task.id }) {
             socialManager.sharedTasks.remove(at: index)
         }
 
-        // TODO: Delete from CloudKit
+        // Delete from CloudKit
+        _Concurrency.Task {
+            do {
+                try await socialManager.deleteSharedTask(task)
+            } catch {
+                // Restore task on failure
+                socialManager.sharedTasks.append(task)
+                errorMessage = "Failed to delete task: \(error.localizedDescription)"
+            }
+        }
     }
 }
 

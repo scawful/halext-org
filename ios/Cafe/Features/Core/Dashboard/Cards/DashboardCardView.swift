@@ -74,6 +74,8 @@ struct DashboardCardView<Content: View>: View {
                                 .background(Circle().fill(Color.blue))
                                 .shadow(radius: 2)
                         }
+                        .accessibilityLabel("Configure \(card.type.displayName)")
+                        .accessibilityHint("Opens settings to customize this card")
                     }
 
                     if let onRemove = onRemove {
@@ -85,6 +87,8 @@ struct DashboardCardView<Content: View>: View {
                                 .background(Circle().fill(Color.red))
                                 .shadow(radius: 2)
                         }
+                        .accessibilityLabel("Remove \(card.type.displayName)")
+                        .accessibilityHint("Removes this card from the dashboard")
                     }
                 }
                 .offset(x: 8, y: -8)
@@ -105,6 +109,9 @@ struct DragHandle: View {
             }
         }
         .padding(.vertical, 4)
+        .accessibilityLabel("Drag handle")
+        .accessibilityHint("Use drag gesture to reorder this card")
+        .accessibilityAddTraits(.allowsDirectInteraction)
     }
 }
 
@@ -160,21 +167,128 @@ struct CardHeader: View {
 // MARK: - Empty Card State
 
 struct EmptyCardState: View {
+    @Environment(ThemeManager.self) var themeManager
+
     let icon: String
     let message: String
+    var suggestion: String? = nil
+    var actionTitle: String? = nil
+    var action: (() -> Void)? = nil
+    var accentColor: Color = .secondary
+
+    @State private var animateIcon = false
 
     var body: some View {
         VStack(spacing: 12) {
-            Image(systemName: icon)
-                .font(.largeTitle)
-                .foregroundColor(.secondary.opacity(0.5))
+            ZStack {
+                // Animated background circle
+                Circle()
+                    .fill(accentColor.opacity(0.08))
+                    .frame(width: 56, height: 56)
+                    .scaleEffect(animateIcon ? 1.1 : 1.0)
 
-            Text(message)
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
+                Image(systemName: icon)
+                    .font(.title2)
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [accentColor.opacity(0.7), accentColor.opacity(0.4)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .scaleEffect(animateIcon ? 1.05 : 1.0)
+            }
+            .accessibilityHidden(true)
+
+            VStack(spacing: 6) {
+                Text(message)
+                    .font(.subheadline)
+                    .foregroundColor(themeManager.secondaryTextColor)
+                    .multilineTextAlignment(.center)
+
+                if let suggestion = suggestion {
+                    HStack(spacing: 4) {
+                        Image(systemName: "lightbulb.fill")
+                            .font(.caption2)
+                            .foregroundColor(.yellow)
+
+                        Text(suggestion)
+                            .font(.caption)
+                            .foregroundColor(themeManager.secondaryTextColor.opacity(0.8))
+                    }
+                }
+            }
+
+            if let actionTitle = actionTitle, let action = action {
+                Button {
+                    HapticManager.selection()
+                    action()
+                } label: {
+                    Text(actionTitle)
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(accentColor)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 6)
+                        .background(
+                            Capsule()
+                                .fill(accentColor.opacity(0.1))
+                        )
+                }
+                .cardPressAnimation(scale: 0.95)
+            }
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 32)
+        .padding(.vertical, 24)
+        .onAppear {
+            withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
+                animateIcon = true
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(message)
+    }
+}
+
+// MARK: - Enhanced Empty Card State for specific contexts
+
+struct TaskEmptyCardState: View {
+    var onAddTask: (() -> Void)? = nil
+
+    var body: some View {
+        EmptyCardState(
+            icon: "checkmark.circle",
+            message: "No tasks here",
+            suggestion: "Stay productive by planning ahead",
+            actionTitle: onAddTask != nil ? "Add Task" : nil,
+            action: onAddTask,
+            accentColor: .blue
+        )
+    }
+}
+
+struct EventEmptyCardState: View {
+    var onAddEvent: (() -> Void)? = nil
+
+    var body: some View {
+        EmptyCardState(
+            icon: "calendar.badge.plus",
+            message: "No upcoming events",
+            suggestion: "Schedule something fun",
+            actionTitle: onAddEvent != nil ? "Add Event" : nil,
+            action: onAddEvent,
+            accentColor: .purple
+        )
+    }
+}
+
+struct OverdueEmptyCardState: View {
+    var body: some View {
+        EmptyCardState(
+            icon: "checkmark.seal.fill",
+            message: "All caught up!",
+            suggestion: "Great job staying on top of things",
+            accentColor: .green
+        )
     }
 }

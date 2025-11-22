@@ -368,11 +368,28 @@ extension View {
             .cornerRadius(12)
     }
 
-    func themedCardBackground(cornerRadius: CGFloat = 16, shadow: Bool = true) -> some View {
+    func themedCardBackground(cornerRadius: CGFloat = 16, shadow: Bool = true, useGradient: Bool = false) -> some View {
         self.background(
-            RoundedRectangle(cornerRadius: cornerRadius)
-                .fill(ThemeManager.shared.cardBackgroundColor)
-                .shadow(color: shadow ? .black.opacity(0.05) : .clear, radius: 8, y: 2)
+            Group {
+                if useGradient {
+                    RoundedRectangle(cornerRadius: cornerRadius)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    ThemeManager.shared.cardBackgroundColor,
+                                    ThemeManager.shared.cardBackgroundColor.opacity(0.95)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .shadow(color: shadow ? .black.opacity(0.08) : .clear, radius: shadow ? 12 : 0, y: shadow ? 4 : 0)
+                } else {
+                    RoundedRectangle(cornerRadius: cornerRadius)
+                        .fill(ThemeManager.shared.cardBackgroundColor)
+                        .shadow(color: shadow ? .black.opacity(0.05) : .clear, radius: 8, y: 2)
+                }
+            }
         )
     }
 
@@ -390,8 +407,8 @@ extension View {
     }
     
     /// Applies a themed button style with gradient support
-    func themedButton(style: ThemedButtonStyle = .primary, cornerRadius: CGFloat = 12) -> some View {
-        self.modifier(ThemedButtonModifier(style: style, cornerRadius: cornerRadius))
+    func themedButton(style: ThemedButtonStyle = .primary, cornerRadius: CGFloat = 12, useGradient: Bool = false) -> some View {
+        self.modifier(ThemedButtonModifier(style: style, cornerRadius: cornerRadius, useGradient: useGradient))
     }
     
     /// Applies a themed card style with consistent styling
@@ -437,7 +454,14 @@ enum ThemedButtonStyle {
 struct ThemedButtonModifier: ViewModifier {
     let style: ThemedButtonStyle
     let cornerRadius: CGFloat
+    let useGradient: Bool
     @Environment(ThemeManager.self) var themeManager
+    
+    init(style: ThemedButtonStyle = .primary, cornerRadius: CGFloat = 12, useGradient: Bool = false) {
+        self.style = style
+        self.cornerRadius = cornerRadius
+        self.useGradient = useGradient
+    }
     
     func body(content: Content) -> some View {
         content
@@ -446,13 +470,25 @@ struct ThemedButtonModifier: ViewModifier {
             .background(backgroundView)
             .foregroundColor(foregroundColor)
             .cornerRadius(cornerRadius)
+            .shadow(color: shadowColor, radius: shadowRadius, x: 0, y: shadowY)
     }
     
     @ViewBuilder
     private var backgroundView: some View {
         switch style {
         case .primary:
-            themeManager.accentColor
+            if useGradient {
+                LinearGradient(
+                    colors: [
+                        themeManager.accentColor,
+                        themeManager.accentColor.opacity(0.75)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            } else {
+                themeManager.accentColor
+            }
         case .secondary:
             themeManager.cardBackgroundColor
         case .outline:
@@ -475,6 +511,33 @@ struct ThemedButtonModifier: ViewModifier {
             return .white
         case .secondary, .outline:
             return themeManager.textColor
+        }
+    }
+    
+    private var shadowColor: Color {
+        switch style {
+        case .primary, .gradient:
+            return themeManager.accentColor.opacity(0.3)
+        default:
+            return .clear
+        }
+    }
+    
+    private var shadowRadius: CGFloat {
+        switch style {
+        case .primary, .gradient:
+            return 8
+        default:
+            return 0
+        }
+    }
+    
+    private var shadowY: CGFloat {
+        switch style {
+        case .primary, .gradient:
+            return 4
+        default:
+            return 0
         }
     }
 }

@@ -154,15 +154,127 @@ class AppState {
         // Clear local cache and pending actions
         do {
             try await SyncManager.shared.clearCache()
-            print("🗑️ Local cache cleared on logout")
+            print("Local cache cleared on logout")
         } catch {
-            print("❌ Failed to clear cache: \(error.localizedDescription)")
+            print("Failed to clear cache: \(error.localizedDescription)")
         }
 
         authToken = nil
         currentUser = nil
         isAuthenticated = false
         errorMessage = nil
+    }
+
+    /// Delete the user's account permanently
+    /// This performs a two-phase cleanup:
+    /// 1. Calls the backend API to delete the account
+    /// 2. Clears all local data (Keychain, SwiftData, UserDefaults, Spotlight)
+    @MainActor
+    func deleteAccount() async throws {
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            print("Starting account deletion process...")
+
+            // Phase 1: Call backend API to delete account
+            try await APIClient.shared.deleteAccount()
+            print("Account deleted from server")
+
+            // Phase 2: Clear all local data
+            await performFullLocalDataCleanup()
+
+            // Reset app state
+            authToken = nil
+            currentUser = nil
+            isAuthenticated = false
+            isLoading = false
+
+            print("Account deletion completed successfully")
+        } catch {
+            isLoading = false
+            errorMessage = error.localizedDescription
+            print("Account deletion failed: \(error.localizedDescription)")
+            throw error
+        }
+    }
+
+    /// Performs comprehensive cleanup of all local data
+    /// Called during account deletion and can be reused for data reset scenarios
+    @MainActor
+    private func performFullLocalDataCleanup() async {
+        // Clear Keychain (tokens, access codes)
+        KeychainManager.shared.clearAll()
+        print("Keychain data cleared")
+
+        // Clear notifications
+        NotificationManager.shared.removeAllPendingNotifications()
+        NotificationManager.shared.clearBadge()
+        print("Notifications cleared")
+
+        // Clear SwiftData local storage
+        do {
+            try await SyncManager.shared.clearCache()
+            print("SwiftData cache cleared")
+        } catch {
+            print("Failed to clear SwiftData cache: \(error.localizedDescription)")
+        }
+
+        // Clear Spotlight index
+        SpotlightManager.shared.clearAll()
+        print("Spotlight index cleared")
+
+        // Clear UserDefaults for this app
+        clearUserDefaults()
+        print("UserDefaults cleared")
+
+        // Clear AI state
+        aiModels = nil
+        aiProviderInfo = nil
+        print("AI state cleared")
+    }
+
+    /// Clears app-specific UserDefaults entries
+    private func clearUserDefaults() {
+        let defaults = UserDefaults.standard
+
+        // Known app-specific keys
+        let keysToRemove = [
+            "currentUsername",
+            "currentUserId",
+            "useProductionAPI",
+            "lastSyncDate",
+            "preferredAIModel",
+            "dashboardLayout",
+            "themePreference",
+            "accentColor",
+            "fontSizePreference",
+            "quietHoursEnabled",
+            "quietHoursStart",
+            "quietHoursEnd",
+            "analyticsEnabled",
+            "crashReportingEnabled",
+            "iCloudSyncEnabled",
+            "offlineMode",
+            "labsEnabled",
+            "enabledLabsFeatures",
+            "recentlyChangedSettings",
+            "preferredContactUsername"
+        ]
+
+        for key in keysToRemove {
+            defaults.removeObject(forKey: key)
+        }
+
+        // Also clear any keys with our app's prefix if using one
+        if let bundleId = Bundle.main.bundleIdentifier {
+            let allKeys = defaults.dictionaryRepresentation().keys
+            for key in allKeys where key.hasPrefix(bundleId) {
+                defaults.removeObject(forKey: key)
+            }
+        }
+
+        defaults.synchronize()
     }
     
     @MainActor

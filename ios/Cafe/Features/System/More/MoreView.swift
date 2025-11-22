@@ -168,6 +168,8 @@ struct MoreView: View {
             )
             .sheet(isPresented: $showIOSFeatures) {
                 IOSFeaturesDetailView()
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
             }
         }
     }

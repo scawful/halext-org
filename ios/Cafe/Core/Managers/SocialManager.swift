@@ -443,6 +443,48 @@ class SocialManager {
         print("✅ Fetched \(sharedTasks.count) shared tasks")
     }
 
+    func deleteSharedTask(_ sharedTask: SharedTask) async throws {
+        guard let profile = currentProfile else {
+            throw SocialError.noProfile
+        }
+        guard isCloudKitAvailable else {
+            throw SocialError.cloudKitUnavailable
+        }
+
+        let recordID = CKRecord.ID(recordName: sharedTask.id)
+
+        do {
+            _ = try await publicDatabase.deleteRecord(withID: recordID)
+
+            // Remove from local cache
+            sharedTasks.removeAll { $0.id == sharedTask.id }
+
+            // Create activity for deletion
+            let activity = ActivityItem(
+                connectionId: sharedTask.connectionId,
+                profileId: profile.id,
+                activityType: .taskCreated, // Using taskCreated as proxy; ideally add .taskDeleted
+                title: "Deleted task: \(sharedTask.title)",
+                relatedTaskId: sharedTask.id
+            )
+            try? await createActivity(activity)
+
+            print("✅ Deleted shared task: \(sharedTask.title)")
+        } catch let error as CKError {
+            // Handle specific CloudKit errors
+            switch error.code {
+            case .unknownItem:
+                // Record already deleted, remove from local cache
+                sharedTasks.removeAll { $0.id == sharedTask.id }
+                print("⚠️ Task already deleted from CloudKit")
+            case .networkUnavailable, .networkFailure:
+                throw SocialError.cloudKitUnavailable
+            default:
+                throw error
+            }
+        }
+    }
+
     // MARK: - Activity Feed
 
     func createActivity(_ activity: ActivityItem) async throws {

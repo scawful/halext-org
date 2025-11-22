@@ -10,7 +10,7 @@ import SwiftUI
 struct ThemeSettingsView: View {
     @State private var themeManager = ThemeManager.shared
     @State private var showColorPicker = false
-    @State private var customAccentColor: Color = .blue
+    @State private var customAccentColor: Color = ThemeManager.shared.accentColor
 
     var body: some View {
         List {
@@ -177,7 +177,7 @@ struct ThemeRow: View {
                     .frame(width: 20, height: 20)
                     .overlay(
                         Circle()
-                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                            .stroke(ThemeManager.shared.secondaryTextColor.opacity(0.3), lineWidth: 1)
                     )
 
                 Circle()
@@ -185,7 +185,7 @@ struct ThemeRow: View {
                     .frame(width: 20, height: 20)
                     .overlay(
                         Circle()
-                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                            .stroke(ThemeManager.shared.secondaryTextColor.opacity(0.3), lineWidth: 1)
                     )
             }
 
@@ -212,11 +212,13 @@ struct ColorPreviewRow: View {
     let title: String
     let color: Color
 
+    private var themeManager: ThemeManager { ThemeManager.shared }
+
     var body: some View {
         HStack {
             Text(title)
                 .font(.subheadline)
-                .foregroundColor(.secondary)
+                .foregroundColor(themeManager.secondaryTextColor)
 
             Spacer()
 
@@ -225,7 +227,7 @@ struct ColorPreviewRow: View {
                 .frame(width: 60, height: 32)
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                        .stroke(themeManager.secondaryTextColor.opacity(0.3), lineWidth: 1)
                 )
         }
     }
@@ -236,6 +238,8 @@ struct ColorPreviewRow: View {
 struct AppIconButton: View {
     let icon: AppIcon
     let isSelected: Bool
+
+    private var themeManager: ThemeManager { ThemeManager.shared }
 
     var body: some View {
         VStack(spacing: 8) {
@@ -250,12 +254,12 @@ struct AppIconButton: View {
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
-                        .stroke(isSelected ? Color.blue : Color.clear, lineWidth: 3)
+                        .stroke(isSelected ? themeManager.accentColor : Color.clear, lineWidth: 3)
                 )
 
             Text(icon.displayName)
                 .font(.caption)
-                .foregroundColor(isSelected ? .blue : .secondary)
+                .foregroundColor(isSelected ? themeManager.accentColor : themeManager.secondaryTextColor)
         }
     }
 

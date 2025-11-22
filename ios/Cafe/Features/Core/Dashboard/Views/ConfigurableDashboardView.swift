@@ -233,19 +233,20 @@ struct CardWrapperView<Content: View>: View {
     let onDropExited: () -> Void
     @ViewBuilder let content: () -> Content
     
+    @Environment(ThemeManager.self) var themeManager
     @State private var dragOffset: CGSize = .zero
     @State private var isHighlighted = false
 
     var body: some View {
         ZStack {
-            // Placeholder
+            // Enhanced placeholder with better visual feedback
             if showPlaceholder {
                 RoundedRectangle(cornerRadius: 16)
                     .fill(
                         LinearGradient(
                             colors: [
-                                Color.blue.opacity(0.15),
-                                Color.purple.opacity(0.15)
+                                themeManager.accentColor.opacity(0.2),
+                                themeManager.accentColor.opacity(0.1)
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
@@ -255,16 +256,34 @@ struct CardWrapperView<Content: View>: View {
                         RoundedRectangle(cornerRadius: 16)
                             .stroke(
                                 LinearGradient(
-                                    colors: [.blue, .purple],
+                                    colors: [
+                                        themeManager.accentColor,
+                                        themeManager.accentColor.opacity(0.6)
+                                    ],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
                                 ),
-                                lineWidth: 2
+                                lineWidth: 3
                             )
-                            .strokeBorder(style: StrokeStyle(lineWidth: 2, dash: [8, 4]))
+                            .strokeBorder(style: StrokeStyle(lineWidth: 3, dash: [10, 6]))
                     )
-                    .frame(height: 100)
-                    .transition(.opacity.combined(with: .scale))
+                    .overlay(
+                        VStack(spacing: 8) {
+                            Image(systemName: "arrow.down.circle.fill")
+                                .font(.title2)
+                                .foregroundColor(themeManager.accentColor)
+                            Text("Drop here")
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                                .foregroundColor(themeManager.accentColor)
+                        }
+                    )
+                    .frame(height: 120)
+                    .transition(.asymmetric(
+                        insertion: .scale(scale: 0.8).combined(with: .opacity),
+                        removal: .scale(scale: 1.1).combined(with: .opacity)
+                    ))
+                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: showPlaceholder)
             }
             
             // Actual card
@@ -278,14 +297,16 @@ struct CardWrapperView<Content: View>: View {
             ) {
                 content()
             }
-            .opacity(isDragging ? 0.5 : 1.0)
-            .scaleEffect(isDragging ? 0.95 : (isHighlighted ? 1.02 : 1.0))
+            .opacity(isDragging ? 0.6 : 1.0)
+            .scaleEffect(isDragging ? 0.92 : (isHighlighted ? 1.03 : 1.0))
             .offset(isDragging ? dragOffset : .zero)
             .shadow(
-                color: isDragging ? Color.black.opacity(0.3) : Color.clear,
-                radius: isDragging ? 10 : 0,
-                y: isDragging ? 5 : 0
+                color: isDragging ? themeManager.accentColor.opacity(0.4) : Color.clear,
+                radius: isDragging ? 16 : 0,
+                x: isDragging ? 0 : 0,
+                y: isDragging ? 8 : 0
             )
+            .rotationEffect(.degrees(isDragging ? 2 : 0))
             .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isDragging)
             .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isHighlighted)
             .animation(.spring(response: 0.3, dampingFraction: 0.7), value: showPlaceholder)

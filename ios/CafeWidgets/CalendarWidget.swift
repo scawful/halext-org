@@ -2,7 +2,7 @@
 //  CalendarWidget.swift
 //  CafeWidgets
 //
-//  Calendar widget showing upcoming events
+//  Calendar widget showing upcoming events with refined visual design
 //
 
 import WidgetKit
@@ -31,7 +31,7 @@ struct CalendarProvider: TimelineProvider {
             tasks: [],
             events: [
                 WidgetEvent(id: 1, title: "Team Meeting", startTime: Date(), endTime: Date().addingTimeInterval(3600), location: "Office"),
-                WidgetEvent(id: 2, title: "Lunch", startTime: Date().addingTimeInterval(7200), endTime: Date().addingTimeInterval(10800), location: nil)
+                WidgetEvent(id: 2, title: "Lunch with Alex", startTime: Date().addingTimeInterval(7200), endTime: Date().addingTimeInterval(10800), location: nil)
             ],
             lastUpdate: Date()
         )
@@ -95,60 +95,72 @@ struct SmallCalendarView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 0) {
             // Header
-            HStack {
-                Image(systemName: "calendar")
-                    .foregroundColor(.purple)
-                    .font(.title3)
-                Text("Calendar")
-                    .font(.headline)
-                    .fontWeight(.bold)
-            }
+            WidgetHeader(
+                icon: "calendar",
+                title: "Calendar",
+                iconColor: WidgetColors.eventColor
+            )
 
-            Spacer()
+            Spacer(minLength: 10)
 
             if let event = nextEvent {
-                VStack(alignment: .leading, spacing: 6) {
+                // Next Event Content
+                VStack(alignment: .leading, spacing: 8) {
+                    // Time until event
+                    Text(timeUntilEvent(event.startTime))
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(WidgetColors.eventColor)
+                        .textCase(.uppercase)
+                        .tracking(0.5)
+
+                    // Event title
                     Text(event.title)
-                        .font(.subheadline)
-                        .fontWeight(.medium)
+                        .font(.system(size: 15, weight: .semibold))
                         .lineLimit(2)
+                        .foregroundStyle(.primary)
 
-                    HStack(spacing: 4) {
-                        Image(systemName: "clock")
-                            .font(.caption)
-                        Text(event.startTime, style: .time)
-                            .font(.caption)
-                    }
-                    .foregroundColor(.secondary)
+                    // Event details
+                    VStack(alignment: .leading, spacing: 4) {
+                        TimeBadge(date: event.startTime)
 
-                    if let location = event.location {
-                        HStack(spacing: 4) {
-                            Image(systemName: "location")
-                                .font(.caption)
-                            Text(location)
-                                .font(.caption)
-                                .lineLimit(1)
+                        if let location = event.location {
+                            LocationBadge(location: location)
                         }
-                        .foregroundColor(.secondary)
                     }
                 }
             } else {
-                VStack(spacing: 4) {
-                    Image(systemName: "calendar")
-                        .font(.largeTitle)
-                        .foregroundColor(.purple.opacity(0.5))
-                    Text("No events")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                .frame(maxWidth: .infinity)
+                // Empty State
+                WidgetEmptyState(
+                    icon: "calendar.badge.checkmark",
+                    message: "No Events",
+                    iconColor: WidgetColors.eventColor,
+                    isCompact: true
+                )
             }
 
-            Spacer()
+            Spacer(minLength: 6)
         }
-        .padding()
+        .padding(14)
+    }
+
+    private func timeUntilEvent(_ date: Date) -> String {
+        let now = Date()
+        let interval = date.timeIntervalSince(now)
+
+        if interval < 0 {
+            return "Now"
+        } else if interval < 3600 {
+            let minutes = Int(interval / 60)
+            return "In \(minutes) min"
+        } else if interval < 86400 {
+            let hours = Int(interval / 3600)
+            return "In \(hours) hr"
+        } else {
+            let days = Int(interval / 86400)
+            return "In \(days) day\(days == 1 ? "" : "s")"
+        }
     }
 }
 
@@ -160,83 +172,93 @@ struct MediumCalendarView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             // Header
-            HStack {
-                Image(systemName: "calendar")
-                    .foregroundColor(.purple)
-                Text("Upcoming Events")
-                    .font(.headline)
-                    .fontWeight(.bold)
-                Spacer()
-                Text("\(entry.events.count)")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            }
+            WidgetHeader(
+                icon: "calendar",
+                title: "Upcoming Events",
+                iconColor: WidgetColors.eventColor,
+                count: entry.events.isEmpty ? nil : entry.events.count
+            )
 
             if entry.events.isEmpty {
-                VStack(spacing: 8) {
-                    Image(systemName: "calendar")
-                        .font(.largeTitle)
-                        .foregroundColor(.purple.opacity(0.5))
-                    Text("No upcoming events")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                WidgetEmptyState(
+                    icon: "calendar.badge.checkmark",
+                    message: "No Upcoming Events",
+                    iconColor: WidgetColors.eventColor,
+                    detailMessage: "Enjoy your free time"
+                )
             } else {
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(entry.events.prefix(3)) { event in
-                        EventRowView(event: event)
+                        EnhancedEventRowView(event: event)
                     }
 
                     if entry.events.count > 3 {
-                        Text("+\(entry.events.count - 3) more")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                        HStack {
+                            Spacer()
+                            Text("+\(entry.events.count - 3) more")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                        }
+                        .padding(.top, 2)
                     }
                 }
             }
         }
-        .padding()
+        .padding(14)
     }
 }
 
-struct EventRowView: View {
+// MARK: - Enhanced Event Row
+
+struct EnhancedEventRowView: View {
     let event: WidgetEvent
+
+    var isToday: Bool {
+        Calendar.current.isDateInToday(event.startTime)
+    }
 
     var body: some View {
         HStack(spacing: 10) {
             // Date badge
-            VStack(spacing: 2) {
-                Text(event.startTime, format: .dateTime.month(.abbreviated))
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-                Text(event.startTime, format: .dateTime.day())
-                    .font(.system(size: 16, weight: .bold))
-            }
-            .frame(width: 40)
-            .padding(.vertical, 6)
-            .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(Color.purple.opacity(0.1))
+            WidgetDateBadge(
+                date: event.startTime,
+                accentColor: WidgetColors.eventColor,
+                isCompact: true
             )
 
-            VStack(alignment: .leading, spacing: 2) {
+            // Event details
+            VStack(alignment: .leading, spacing: 3) {
                 Text(event.title)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.primary)
                     .lineLimit(1)
 
-                HStack(spacing: 4) {
-                    Image(systemName: "clock")
-                        .font(.caption2)
-                    Text(event.startTime, style: .time)
-                        .font(.caption)
+                HStack(spacing: 8) {
+                    TimeBadge(date: event.startTime)
+
+                    if let location = event.location {
+                        LocationBadge(location: location)
+                    }
                 }
-                .foregroundColor(.secondary)
             }
 
-            Spacer()
+            Spacer(minLength: 0)
+
+            // Today indicator
+            if isToday {
+                Text("Today")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        Capsule()
+                            .fill(WidgetColors.eventColor.gradient)
+                    )
+            }
         }
+        .padding(.vertical, 2)
     }
 }
 
@@ -249,9 +271,36 @@ struct EventRowView: View {
         date: Date(),
         tasks: [],
         events: [
-            WidgetEvent(id: 1, title: "Team Standup", startTime: Date(), endTime: Date().addingTimeInterval(1800), location: "Zoom"),
+            WidgetEvent(id: 1, title: "Team Standup", startTime: Date().addingTimeInterval(1800), endTime: Date().addingTimeInterval(3600), location: "Zoom"),
             WidgetEvent(id: 2, title: "Lunch Meeting", startTime: Date().addingTimeInterval(7200), endTime: Date().addingTimeInterval(10800), location: "Cafe")
         ],
+        lastUpdate: Date()
+    )
+    WidgetEntry(
+        date: Date(),
+        tasks: [],
+        events: [],
+        lastUpdate: Date()
+    )
+}
+
+#Preview(as: .systemMedium) {
+    CalendarWidget()
+} timeline: {
+    WidgetEntry(
+        date: Date(),
+        tasks: [],
+        events: [
+            WidgetEvent(id: 1, title: "Team Standup", startTime: Date(), endTime: Date().addingTimeInterval(1800), location: "Zoom"),
+            WidgetEvent(id: 2, title: "Design Review", startTime: Date().addingTimeInterval(7200), endTime: Date().addingTimeInterval(10800), location: "Conference Room"),
+            WidgetEvent(id: 3, title: "Client Call", startTime: Date().addingTimeInterval(14400), endTime: Date().addingTimeInterval(18000), location: nil)
+        ],
+        lastUpdate: Date()
+    )
+    WidgetEntry(
+        date: Date(),
+        tasks: [],
+        events: [],
         lastUpdate: Date()
     )
 }

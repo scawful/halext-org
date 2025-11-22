@@ -10,6 +10,29 @@ import SwiftUI
 struct CalendarView: View {
     @Environment(ThemeManager.self) var themeManager
     @State private var viewModel = CalendarViewModel()
+    @State private var searchText = ""
+
+    var filteredSelectedDateEvents: [Event] {
+        if searchText.isEmpty {
+            return viewModel.selectedDateEvents
+        }
+        return viewModel.selectedDateEvents.filter { event in
+            event.title.localizedCaseInsensitiveContains(searchText) ||
+            (event.description?.localizedCaseInsensitiveContains(searchText) ?? false) ||
+            (event.location?.localizedCaseInsensitiveContains(searchText) ?? false)
+        }
+    }
+
+    var filteredUpcomingEvents: [Event] {
+        if searchText.isEmpty {
+            return viewModel.upcomingEvents
+        }
+        return viewModel.upcomingEvents.filter { event in
+            event.title.localizedCaseInsensitiveContains(searchText) ||
+            (event.description?.localizedCaseInsensitiveContains(searchText) ?? false) ||
+            (event.location?.localizedCaseInsensitiveContains(searchText) ?? false)
+        }
+    }
 
     var body: some View {
         NavigationStack {
@@ -25,23 +48,26 @@ struct CalendarView: View {
                     Divider()
 
                     // Events for selected date
-                    if !viewModel.selectedDateEvents.isEmpty {
+                    if !filteredSelectedDateEvents.isEmpty {
                         EventListSection(
                             title: "Events on \(viewModel.selectedDate.formatted(.dateTime.month().day()))",
-                            events: viewModel.selectedDateEvents,
+                            events: filteredSelectedDateEvents,
                             sharedEvents: viewModel.sharedEvents(for: viewModel.selectedDate)
                         )
                         .padding(.horizontal)
-                    } else {
-                        EmptyEventsView(date: viewModel.selectedDate)
-                            .padding()
+                    } else if searchText.isEmpty {
+                        EmptyEventsView(
+                            date: viewModel.selectedDate,
+                            onAddEvent: { viewModel.showingNewEvent = true }
+                        )
+                        .padding()
                     }
 
                     // Upcoming events
-                    if !viewModel.upcomingEvents.isEmpty {
+                    if !filteredUpcomingEvents.isEmpty {
                         EventListSection(
                             title: "Upcoming Events",
-                            events: Array(viewModel.upcomingEvents.prefix(5))
+                            events: Array(filteredUpcomingEvents.prefix(5))
                         )
                         .padding(.horizontal)
                     }
@@ -76,7 +102,10 @@ struct CalendarView: View {
             }
             .sheet(isPresented: $viewModel.showingNewEvent) {
                 NewEventView(viewModel: viewModel)
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
             }
+            .searchable(text: $searchText, prompt: "Search events")
             .refreshable {
                 await viewModel.loadEvents()
             }
@@ -387,57 +416,19 @@ struct EventCard: View {
 // MARK: - Empty Events View
 
 struct EmptyEventsView: View {
-    @Environment(ThemeManager.self) var themeManager
     let date: Date
-    @State private var animateIcon = false
+    let onAddEvent: () -> Void
 
     var body: some View {
-        VStack(spacing: 16) {
-            ZStack {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                themeManager.accentColor.opacity(0.2),
-                                themeManager.accentColor.opacity(0.1)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 80, height: 80)
-                    .scaleEffect(animateIcon ? 1.1 : 1.0)
-                    .opacity(animateIcon ? 0.8 : 1.0)
-                
-                Image(systemName: "calendar.badge.plus")
-                    .font(.system(size: 40))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [themeManager.accentColor, themeManager.accentColor.opacity(0.7)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .scaleEffect(animateIcon ? 1.05 : 1.0)
+        ContentUnavailableView {
+            Label("No Events", systemImage: "calendar.badge.plus")
+        } description: {
+            Text("No events scheduled for \(date.formatted(.dateTime.month().day()))")
+        } actions: {
+            Button(action: onAddEvent) {
+                Text("Add Event")
             }
-
-            VStack(spacing: 6) {
-                Text("No events")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(themeManager.textColor)
-
-                Text("Create an event for \(date.formatted(.dateTime.month().day()))")
-                    .font(.subheadline)
-                    .foregroundColor(themeManager.secondaryTextColor)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 40)
-        .onAppear {
-            withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
-                animateIcon = true
-            }
+            .buttonStyle(.borderedProminent)
         }
     }
 }

@@ -44,34 +44,41 @@ struct MessagesView: View {
                                         )
                                         .frame(width: 60, height: 60)
                                         .clipShape(RoundedRectangle(cornerRadius: 16))
-                                        
+
                                         Image(systemName: "sparkles")
                                             .font(.system(size: 28, weight: .bold))
                                             .foregroundStyle(.white)
+                                            .accessibilityHidden(true)
                                     }
-                                    
+                                    .accessibilityHidden(true)
+
                                     VStack(alignment: .leading, spacing: 6) {
                                         HStack(spacing: 6) {
                                             Text("AI Chat")
                                                 .font(.title3)
                                                 .fontWeight(.bold)
-                                            
+
                                             Image(systemName: "wand.and.stars")
                                                 .foregroundColor(.purple)
                                                 .font(.caption)
+                                                .accessibilityHidden(true)
                                         }
-                                        
+
                                         Text("Start a conversation with AI • Get instant help")
                                             .font(.subheadline)
                                             .foregroundColor(.secondary)
                                             .lineLimit(2)
                                     }
-                                    
+
                                     Spacer()
                                 }
                                 .padding(.vertical, 8)
                             }
                             .buttonStyle(.plain)
+                            .accessibilityElement(children: .combine)
+                            .accessibilityLabel("AI Chat")
+                            .accessibilityHint("Start a new conversation with an AI assistant for instant help")
+                            .accessibilityAddTraits(.isButton)
                             
                             Divider()
                             
@@ -89,6 +96,7 @@ struct MessagesView: View {
                                         .frame(width: 40, height: 40)
                                         .background(Color.purple.opacity(0.8))
                                         .clipShape(Circle())
+                                        .accessibilityHidden(true)
 
                                     VStack(alignment: .leading, spacing: 4) {
                                         Text("Agent Hub")
@@ -103,9 +111,13 @@ struct MessagesView: View {
                                     Image(systemName: "chevron.right")
                                         .foregroundColor(.secondary)
                                         .font(.caption)
+                                        .accessibilityHidden(true)
                                 }
                                 .padding(.vertical, 4)
                             }
+                            .accessibilityElement(children: .combine)
+                            .accessibilityLabel("Agent Hub")
+                            .accessibilityHint("Choose your AI model and customize settings")
                         }
                         .listRowBackground(themeManager.cardBackgroundColor)
 
@@ -135,21 +147,20 @@ struct MessagesView: View {
                     Button(action: { showingNewMessage = true }) {
                         Image(systemName: "square.and.pencil")
                     }
+                    .accessibilityLabel("New message")
+                    .accessibilityHint("Start a new conversation with a user")
                 }
             }
-            .background(
-                NavigationLink(
-                    destination: destinationView(for: activeConversation ?? Conversation(id: -1, title: "AI", mode: "solo", withAI: true, defaultModelId: nil, hiveMindGoal: nil, participants: [], participantUsernames: [], lastMessage: nil, unreadCount: 0, createdAt: nil, updatedAt: nil)),
-                    isActive: Binding(
-                        get: { activeConversation != nil },
-                        set: { newValue in
-                            if !newValue { activeConversation = nil }
-                        }
-                    )
-                ) {
-                    EmptyView()
+            .navigationDestination(isPresented: Binding(
+                get: { activeConversation != nil },
+                set: { newValue in
+                    if !newValue { activeConversation = nil }
                 }
-            )
+            )) {
+                if let conversation = activeConversation {
+                    destinationView(for: conversation)
+                }
+            }
             .sheet(isPresented: $showingNewMessage) {
                 NewMessageView(onConversationCreated: { conversation in
                     viewModel.insertOrUpdate(conversation)
@@ -314,6 +325,7 @@ struct ConversationRowView: View {
                         .fontWeight(.semibold)
                         .foregroundColor(.blue)
                 )
+                .accessibilityHidden(true)
 
             // Content
             VStack(alignment: .leading, spacing: 4) {
@@ -352,6 +364,7 @@ struct ConversationRowView: View {
                                 .padding(.vertical, 2)
                                 .background(Color.blue)
                                 .cornerRadius(10)
+                                .accessibilityHidden(true)
                         }
                     }
                 }
@@ -365,6 +378,7 @@ struct ConversationRowView: View {
                             .background(Color.purple.opacity(0.12))
                             .foregroundColor(.purple)
                             .cornerRadius(8)
+                            .accessibilityHidden(true)
                     }
 
                     if let model = conversation.defaultModelId, !model.isEmpty {
@@ -375,6 +389,7 @@ struct ConversationRowView: View {
                             .background(Color.blue.opacity(0.1))
                             .foregroundColor(.blue)
                             .cornerRadius(8)
+                            .accessibilityHidden(true)
                     }
                 }
 
@@ -387,6 +402,43 @@ struct ConversationRowView: View {
             }
         }
         .padding(.vertical, 4)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(conversationAccessibilityLabel)
+        .accessibilityValue(conversationAccessibilityValue)
+        .accessibilityHint("Double tap to open conversation")
+    }
+
+    private var conversationAccessibilityLabel: String {
+        var label = conversation.displayName
+
+        if let presence = presence {
+            label += presence.isOnline ? ", online" : ", offline"
+        }
+
+        if conversation.isAIEnabled {
+            label += ", AI enabled"
+        }
+
+        return label
+    }
+
+    private var conversationAccessibilityValue: String {
+        var value = ""
+
+        if conversation.unreadCount > 0 {
+            value += "\(conversation.unreadCount) unread message\(conversation.unreadCount == 1 ? "" : "s"). "
+        }
+
+        if let lastMessage = conversation.lastMessage {
+            let formatter = RelativeDateTimeFormatter()
+            formatter.unitsStyle = .abbreviated
+            value += "Last message: \(lastMessage.content.prefix(50))"
+            if lastMessage.content.count > 50 {
+                value += "..."
+            }
+        }
+
+        return value
     }
 }
 
@@ -396,68 +448,21 @@ struct EmptyConversationsView: View {
     let onNewMessage: () -> Void
 
     var body: some View {
-        VStack(spacing: 20) {
-            // Icon
-            ZStack {
-                Circle()
-                    .fill(LinearGradient(
-                        colors: [.blue.opacity(0.3), .purple.opacity(0.3)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ))
-                    .frame(width: 80, height: 80)
-
-                Image(systemName: "bubble.left.and.bubble.right.fill")
-                    .font(.system(size: 36))
-                    .foregroundStyle(LinearGradient(
-                        colors: [.blue, .purple],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ))
+        ContentUnavailableView {
+            Label("No Conversations", systemImage: "bubble.left.and.bubble.right")
+        } description: {
+            Text("Start chatting with AI agents or message other users")
+        } actions: {
+            Button(action: onNewMessage) {
+                Text("New Conversation")
             }
+            .buttonStyle(.borderedProminent)
 
-            VStack(spacing: 8) {
-                Text("No Conversations Yet")
-                    .font(.headline)
-                    .fontWeight(.bold)
-
-                Text("Start chatting with AI agents or message other users")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
+            NavigationLink(destination: AgentHubView(onStartChat: { _ in })) {
+                Text("Browse AI Agents")
             }
-
-            VStack(spacing: 12) {
-                Button(action: onNewMessage) {
-                    Label("New Message", systemImage: "square.and.pencil")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                        .background(LinearGradient(
-                            colors: [.blue, .purple],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        ))
-                        .cornerRadius(10)
-                }
-                .padding(.horizontal, 40)
-
-                NavigationLink(destination: AgentHubView(onStartChat: { _ in })) {
-                    Label("Browse AI Agents", systemImage: "sparkles")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundColor(.blue)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                        .background(Color.blue.opacity(0.1))
-                        .cornerRadius(10)
-                }
-                .padding(.horizontal, 40)
-            }
+            .buttonStyle(.bordered)
         }
-        .padding(.vertical, 40)
-        .frame(maxWidth: .infinity)
     }
 }
 
@@ -470,6 +475,8 @@ struct PresenceDot: View {
         Circle()
             .fill(isOnline ? Color.green : Color.gray.opacity(0.5))
             .frame(width: 10, height: 10)
+            .accessibilityLabel(isOnline ? "Online" : "Offline")
+            .accessibilityAddTraits(.isImage)
     }
 }
 
@@ -499,6 +506,7 @@ struct NewMessageView: View {
                                     .font(.headline)
                                     .foregroundColor(.blue)
                             )
+                            .accessibilityHidden(true)
 
                         VStack(alignment: .leading) {
                             Text(user.fullName ?? user.username)
@@ -514,11 +522,15 @@ struct NewMessageView: View {
                             Image(systemName: "xmark.circle.fill")
                                 .foregroundColor(.secondary)
                         }
+                        .accessibilityLabel("Remove selected user")
+                        .accessibilityHint("Double tap to deselect \(user.fullName ?? user.username)")
                     }
                     .padding()
                     .background(Color(.secondarySystemBackground))
                     .cornerRadius(8)
                     .padding()
+                    .accessibilityElement(children: .contain)
+                    .accessibilityLabel("Selected user: \(user.fullName ?? user.username), @\(user.username)")
 
                     Button(action: createConversation) {
                         Text("Start Conversation")
@@ -529,6 +541,8 @@ struct NewMessageView: View {
                             .cornerRadius(10)
                     }
                     .padding()
+                    .accessibilityLabel("Start Conversation")
+                    .accessibilityHint("Double tap to begin a conversation with \(user.fullName ?? user.username)")
                 } else {
                     // Search for users
                     List {
@@ -550,6 +564,7 @@ struct NewMessageView: View {
                                                     .font(.headline)
                                                     .foregroundColor(.blue)
                                             )
+                                            .accessibilityHidden(true)
 
                                         VStack(alignment: .leading) {
                                             Text(user.fullName ?? user.username)
@@ -565,8 +580,12 @@ struct NewMessageView: View {
                                         Image(systemName: "chevron.right")
                                             .font(.caption)
                                             .foregroundColor(.secondary)
+                                            .accessibilityHidden(true)
                                     }
                                 }
+                                .accessibilityElement(children: .combine)
+                                .accessibilityLabel("\(user.fullName ?? user.username), @\(user.username)")
+                                .accessibilityHint("Double tap to select this user")
                             }
                         }
                     }

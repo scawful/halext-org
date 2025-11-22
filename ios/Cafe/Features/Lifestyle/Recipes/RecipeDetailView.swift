@@ -97,7 +97,7 @@ struct RecipeDetailView: View {
 
                     Button(action: { isSaved.toggle() }) {
                         Image(systemName: isSaved ? "heart.fill" : "heart")
-                            .foregroundColor(isSaved ? .red : .primary)
+                            .foregroundColor(isSaved ? .red : themeManager.textColor)
                     }
                 }
             }
@@ -208,12 +208,12 @@ struct RecipeDetailView: View {
             if let cuisine = recipe.cuisine {
                 Text(cuisine + " Cuisine")
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(themeManager.secondaryTextColor)
             }
 
             Text(recipe.description)
                 .font(.body)
-                .foregroundColor(.secondary)
+                .foregroundColor(themeManager.secondaryTextColor)
         }
     }
 
@@ -379,8 +379,8 @@ struct RecipeDetailView: View {
                         .font(.caption)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
-                        .background(Color.blue.opacity(0.1))
-                        .foregroundColor(.blue)
+                        .background(themeManager.accentColor.opacity(0.1))
+                        .foregroundColor(themeManager.accentColor)
                         .cornerRadius(12)
                 }
             }
@@ -442,6 +442,7 @@ struct InfoPill: View {
 }
 
 struct NutritionBadge: View {
+    @Environment(ThemeManager.self) var themeManager
     let label: String
     let value: String
     let unit: String
@@ -454,20 +455,21 @@ struct NutritionBadge: View {
 
             Text(unit)
                 .font(.caption2)
-                .foregroundColor(.secondary)
+                .foregroundColor(themeManager.secondaryTextColor)
 
             Text(label)
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(themeManager.secondaryTextColor)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 8)
-        .background(Color.gray.opacity(0.1))
+        .background(themeManager.cardBackgroundColor)
         .cornerRadius(8)
     }
 }
 
 struct IngredientRow: View {
+    @Environment(ThemeManager.self) var themeManager
     let ingredient: RecipeIngredient
     let isChecked: Bool
     let onToggle: () -> Void
@@ -481,7 +483,7 @@ struct IngredientRow: View {
 
                 Text(ingredient.displayText)
                     .font(.body)
-                    .foregroundColor(isChecked ? .secondary : .primary)
+                    .foregroundColor(isChecked ? themeManager.secondaryTextColor : themeManager.textColor)
                     .strikethrough(isChecked)
 
                 Spacer()
@@ -494,6 +496,7 @@ struct IngredientRow: View {
 }
 
 struct InstructionStepView: View {
+    @Environment(ThemeManager.self) var themeManager
     let step: CookingStep
     let isCompleted: Bool
     let onToggle: () -> Void
@@ -504,7 +507,7 @@ struct InstructionStepView: View {
                 // Step Number
                 ZStack {
                     Circle()
-                        .fill(isCompleted ? Color.green : Color.blue)
+                        .fill(isCompleted ? themeManager.successColor : themeManager.accentColor)
                         .frame(width: 32, height: 32)
 
                     if isCompleted {
@@ -524,7 +527,7 @@ struct InstructionStepView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(step.instruction)
                         .font(.body)
-                        .foregroundColor(isCompleted ? .secondary : .primary)
+                        .foregroundColor(isCompleted ? themeManager.secondaryTextColor : themeManager.textColor)
                         .strikethrough(isCompleted)
 
                     if let timeMinutes = step.timeMinutes {
@@ -541,7 +544,7 @@ struct InstructionStepView: View {
                 Spacer()
             }
             .padding()
-            .background(isCompleted ? Color.green.opacity(0.05) : Color.gray.opacity(0.05))
+            .background(isCompleted ? themeManager.successColor.opacity(0.05) : themeManager.cardBackgroundColor)
             .cornerRadius(12)
             .contentShape(Rectangle())
         }

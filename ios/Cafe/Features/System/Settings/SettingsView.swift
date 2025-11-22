@@ -17,7 +17,11 @@ struct SettingsView: View {
     @State private var searchText = ""
     @State private var showingAbout = false
     @State private var showingDataExport = false
-    @State private var showingDeleteAccount = false
+    @State private var showingDeleteAccountFirstConfirm = false
+    @State private var showingDeleteAccountFinalConfirm = false
+    @State private var isDeletingAccount = false
+    @State private var deleteAccountError: String?
+    @State private var showingDeleteAccountError = false
 
     var body: some View {
         NavigationStack {
@@ -81,13 +85,52 @@ struct SettingsView: View {
             .sheet(isPresented: $showingDataExport) {
                 DataExportView()
             }
-            .alert("Delete Account", isPresented: $showingDeleteAccount) {
+            // Two-step delete account confirmation
+            // Step 1: Initial warning
+            .alert("Delete Account?", isPresented: $showingDeleteAccountFirstConfirm) {
                 Button("Cancel", role: .cancel) { }
-                Button("Delete", role: .destructive) {
+                Button("Continue", role: .destructive) {
+                    showingDeleteAccountFinalConfirm = true
+                }
+            } message: {
+                Text("This will permanently delete your account and all associated data including tasks, events, and settings. This action cannot be undone.")
+            }
+            // Step 2: Final confirmation
+            .alert("Final Confirmation", isPresented: $showingDeleteAccountFinalConfirm) {
+                Button("Cancel", role: .cancel) { }
+                Button("Delete My Account", role: .destructive) {
                     deleteAccount()
                 }
             } message: {
-                Text("Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently deleted.")
+                Text("Are you absolutely sure? Your account and all data will be permanently deleted. You will be signed out immediately.")
+            }
+            // Error alert
+            .alert("Delete Account Failed", isPresented: $showingDeleteAccountError) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text(deleteAccountError ?? "An unknown error occurred. Please try again.")
+            }
+            // Loading overlay during account deletion
+            .overlay {
+                if isDeletingAccount {
+                    ZStack {
+                        Color.black.opacity(0.4)
+                            .ignoresSafeArea()
+                        VStack(spacing: 16) {
+                            ProgressView()
+                                .scaleEffect(1.5)
+                                .tint(.white)
+                            Text("Deleting account...")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                        }
+                        .padding(32)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(Color(.systemGray6).opacity(0.9))
+                        )
+                    }
+                }
             }
         }
     }
@@ -148,7 +191,7 @@ struct SettingsView: View {
                     Circle()
                         .fill(
                             LinearGradient(
-                                colors: [.blue, .purple],
+                                colors: [themeManager.accentColor, themeManager.accentColor.opacity(0.7)],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
@@ -166,14 +209,14 @@ struct SettingsView: View {
                             .font(.headline)
                         Text(user.email)
                             .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(themeManager.secondaryTextColor)
                     }
 
                     Spacer()
 
                     Image(systemName: "chevron.right")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(themeManager.secondaryTextColor)
                 }
                 .padding(.vertical, 8)
                 .contentShape(Rectangle())
@@ -263,7 +306,7 @@ struct SettingsView: View {
                         .frame(width: 24, height: 24)
                         .overlay(
                             Circle()
-                                .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                                .stroke(themeManager.secondaryTextColor.opacity(0.3), lineWidth: 1)
                         )
                 }
             }
@@ -383,7 +426,7 @@ struct SettingsView: View {
                 )
             }
 
-            Button(action: { showingDeleteAccount = true }) {
+            Button(action: { showingDeleteAccountFirstConfirm = true }) {
                 SettingsItemLabel(
                     icon: "trash.fill",
                     iconColor: .red,
@@ -391,6 +434,7 @@ struct SettingsView: View {
                     subtitle: "Permanently delete"
                 )
             }
+            .disabled(isDeletingAccount)
         } header: {
             Label("Privacy & Security", systemImage: "lock.shield")
         } footer: {
@@ -405,7 +449,7 @@ struct SettingsView: View {
             if notificationManager.isAuthorized {
                 Label {
                     Text("Notifications Enabled")
-                        .foregroundColor(.primary)
+                        .foregroundColor(themeManager.textColor)
                 } icon: {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundColor(.green)
@@ -446,10 +490,10 @@ struct SettingsView: View {
             } else {
                 Label {
                     Text("Notifications Disabled")
-                        .foregroundColor(.primary)
+                        .foregroundColor(themeManager.textColor)
                 } icon: {
                     Image(systemName: "bell.slash.fill")
-                        .foregroundColor(.secondary)
+                        .foregroundColor(themeManager.secondaryTextColor)
                 }
 
                 Button(action: {
@@ -672,11 +716,11 @@ struct SettingsView: View {
             VStack(spacing: 8) {
                 Text("Cafe v\(appVersion) (\(buildNumber))")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(themeManager.secondaryTextColor)
 
                 Text("An experimental productivity app")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(themeManager.secondaryTextColor)
             }
             .frame(maxWidth: .infinity)
             .padding(.top, 8)
@@ -759,9 +803,19 @@ struct SettingsView: View {
 
     private func deleteAccount() {
         _Concurrency.Task {
-            // TODO: Implement delete account functionality
-            // await appState.deleteAccount()
-            print("Delete account requested")
+            isDeletingAccount = true
+
+            do {
+                try await appState.deleteAccount()
+                // Success - user will be automatically navigated to login screen
+                // since isAuthenticated will become false
+            } catch {
+                // Show error to user
+                deleteAccountError = error.localizedDescription
+                showingDeleteAccountError = true
+            }
+
+            isDeletingAccount = false
         }
     }
 
@@ -774,6 +828,8 @@ struct SettingsItemLabel: View {
     let iconColor: Color
     let title: String
     let subtitle: String?
+
+    private var themeManager: ThemeManager { ThemeManager.shared }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -790,12 +846,12 @@ struct SettingsItemLabel: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.body)
-                    .foregroundColor(.primary)
+                    .foregroundColor(themeManager.textColor)
 
                 if let subtitle = subtitle {
                     Text(subtitle)
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(themeManager.secondaryTextColor)
                 }
             }
         }
@@ -847,6 +903,8 @@ enum SettingsSection: String, CaseIterable {
 struct SettingItemRow: View {
     let item: SettingItem
 
+    private var themeManager: ThemeManager { ThemeManager.shared }
+
     var body: some View {
         HStack {
             Image(systemName: item.icon)
@@ -860,7 +918,7 @@ struct SettingItemRow: View {
 
             Text(item.currentValue)
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(themeManager.secondaryTextColor)
         }
     }
 }

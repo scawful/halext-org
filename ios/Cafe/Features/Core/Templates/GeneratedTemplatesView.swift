@@ -102,7 +102,7 @@ struct TemplatePreviewRow: View {
                     Text("Save")
                         .font(.caption)
                 }
-                .themedButton(style: .filled, cornerRadius: 8)
+                .themedButton(style: .primary, cornerRadius: 8)
             }
         }
         .padding(.vertical, 4)

@@ -110,40 +110,42 @@ struct PagesView: View {
 // MARK: - Page Row
 
 struct PageRowView: View {
+    @Environment(ThemeManager.self) private var themeManager
     let page: Page
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(page.displayTitle)
                     .font(.headline)
-                
+                    .foregroundColor(themeManager.textColor)
+
                 Spacer()
-                
+
                 if page.isShared {
                     Image(systemName: "person.2.fill")
                         .font(.caption)
-                        .foregroundColor(.blue)
+                        .foregroundColor(themeManager.accentColor)
                 }
             }
-            
+
             if let content = page.content, !content.isEmpty {
                 Text(content)
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(themeManager.secondaryTextColor)
                     .lineLimit(2)
             }
-            
+
             HStack {
                 Text("Updated \(page.updatedAt, style: .relative)")
                     .font(.caption)
-                    .foregroundColor(.secondary)
-                
+                    .foregroundColor(themeManager.secondaryTextColor)
+
                 Spacer()
-                
+
                 Text("\(page.layout.widgets.count) widgets")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(themeManager.secondaryTextColor)
             }
         }
         .padding(.vertical, 4)
@@ -179,24 +181,27 @@ struct PageDetailView: View {
                         .font(.title)
                         .fontWeight(.bold)
                         .textFieldStyle(.plain)
-                    
+                        .foregroundColor(themeManager.textColor)
+
                     TextEditor(text: $content)
                         .frame(minHeight: 300)
                         .font(.body)
                         .scrollContentBackground(.hidden)
-                        .background(Color(.systemGray6))
+                        .background(themeManager.cardBackgroundColor)
                         .cornerRadius(8)
                 } else {
                     Text(title)
                         .font(.title)
                         .fontWeight(.bold)
-                    
+                        .foregroundColor(themeManager.textColor)
+
                     if !content.isEmpty {
                         Text(content)
                             .font(.body)
+                            .foregroundColor(themeManager.textColor)
                     } else {
                         Text("No content")
-                            .foregroundColor(.secondary)
+                            .foregroundColor(themeManager.secondaryTextColor)
                             .italic()
                     }
                 }
@@ -205,31 +210,42 @@ struct PageDetailView: View {
                 Section {
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
-                            Label("AI Context", systemImage: "sparkles")
+                            Label("AI Writing Assistant", systemImage: "sparkles")
                                 .font(.headline)
-                            
+                                .foregroundColor(themeManager.textColor)
+
                             Spacer()
-                            
+
                             Button(action: { showingAIAssist = true }) {
                                 Image(systemName: "wand.and.stars")
                                     .font(.title3)
+                                    .foregroundColor(themeManager.accentColor)
                             }
                         }
-                        
-                        Text("This page can be used as context for AI conversations")
+
+                        Text("Use AI to summarize, enhance, expand, or ask questions about this page")
                             .font(.caption)
-                            .foregroundColor(.secondary)
-                        
-                        if !content.isEmpty {
-                            Button("Use as AI Context") {
-                                // TODO: Implement AI context usage
-                                showingAIAssist = true
+                            .foregroundColor(themeManager.secondaryTextColor)
+
+                        HStack(spacing: 12) {
+                            Button(action: { showingAIAssist = true }) {
+                                Label("Open AI Assistant", systemImage: "brain")
                             }
-                            .buttonStyle(.bordered)
+                            .buttonStyle(.borderedProminent)
+                            .disabled(content.isEmpty)
+                        }
+
+                        if content.isEmpty {
+                            HStack {
+                                Image(systemName: "info.circle")
+                                Text("Add content to enable AI features")
+                            }
+                            .font(.caption)
+                            .foregroundColor(themeManager.secondaryTextColor)
                         }
                     }
                     .padding()
-                    .background(Color(.systemGray6))
+                    .background(themeManager.cardBackgroundColor)
                     .cornerRadius(12)
                 }
                 
@@ -237,11 +253,11 @@ struct PageDetailView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Created \(page.createdAt, style: .date)")
                         .font(.caption)
-                        .foregroundColor(.secondary)
-                    
+                        .foregroundColor(themeManager.secondaryTextColor)
+
                     Text("Last updated \(page.updatedAt, style: .relative)")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(themeManager.secondaryTextColor)
                 }
                 .padding(.top)
             }
@@ -267,7 +283,11 @@ struct PageDetailView: View {
             }
         }
         .sheet(isPresented: $showingAIAssist) {
-            AIContextSheet(pageContent: content, pageTitle: title)
+            AIContextSheet(pageContent: content, pageTitle: title) { newContent in
+                // Apply AI-generated content to the page
+                content = newContent
+                isEditing = true // Enable editing mode to show changes
+            }
         }
     }
     
@@ -362,78 +382,46 @@ struct NewPageView: View {
 
 struct AIContextSheet: View {
     @Environment(\.dismiss) var dismiss
+    @Environment(ThemeManager.self) private var themeManager
     let pageContent: String
     let pageTitle: String
-    
+    let onApplyContent: ((String) -> Void)?
+
+    @StateObject private var aiAssistant = AIPageAssistant.shared
     @State private var prompt = ""
     @State private var aiResponse = ""
     @State private var isGenerating = false
-    
+    @State private var selectedAction: AIPageAction?
+    @State private var showingActionPicker = false
+    @State private var resultCanReplace = false
+
+    init(pageContent: String, pageTitle: String, onApplyContent: ((String) -> Void)? = nil) {
+        self.pageContent = pageContent
+        self.pageTitle = pageTitle
+        self.onApplyContent = onApplyContent
+    }
+
     var body: some View {
         NavigationStack {
-            VStack(spacing: 16) {
-                // Context Preview
-                VStack(alignment: .leading, spacing: 8) {
-                    Label("Using as Context", systemImage: "doc.text")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    
-                    Text(pageContent.prefix(200) + "...")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .padding()
-                        .background(Color(.systemGray6))
-                        .cornerRadius(8)
-                }
-                
-                // Prompt Input
-                VStack(alignment: .leading, spacing: 8) {
-                    Label("Ask About This Content", systemImage: "questionmark.circle")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    
-                    TextField("What would you like to know?", text: $prompt, axis: .vertical)
-                        .textFieldStyle(.plain)
-                        .padding()
-                        .background(Color(.systemGray6))
-                        .cornerRadius(8)
-                        .lineLimit(3...5)
-                }
-                
-                Button(action: generateResponse) {
-                    if isGenerating {
-                        HStack {
-                            ProgressView()
-                            Text("Generating...")
-                        }
-                    } else {
-                        Label("Ask AI", systemImage: "sparkles")
+            ScrollView {
+                VStack(spacing: 20) {
+                    // Context Preview
+                    contextPreviewSection
+
+                    // Quick Actions Grid
+                    quickActionsSection
+
+                    // Custom Question Section
+                    customQuestionSection
+
+                    // Response Section
+                    if !aiResponse.isEmpty {
+                        responseSection
                     }
                 }
-                .buttonStyle(.borderedProminent)
-                .disabled(isGenerating || prompt.isEmpty)
-                
-                // Response
-                if !aiResponse.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Label("Response", systemImage: "text.bubble")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        
-                        ScrollView {
-                            Text(aiResponse)
-                                .font(.body)
-                                .padding()
-                        }
-                        .background(Color(.systemGray6))
-                        .cornerRadius(8)
-                        .frame(maxHeight: 300)
-                    }
-                }
-                
-                Spacer()
+                .padding()
             }
-            .padding()
+            .background(themeManager.backgroundColor)
             .navigationTitle("AI Assistant")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -443,34 +431,257 @@ struct AIContextSheet: View {
             }
         }
     }
-    
-    private func generateResponse() {
+
+    // MARK: - Context Preview Section
+
+    private var contextPreviewSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Label("Using as Context", systemImage: "doc.text")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(themeManager.textColor)
+
+                Spacer()
+
+                Text("\(pageContent.count) characters")
+                    .font(.caption)
+                    .foregroundColor(themeManager.secondaryTextColor)
+            }
+
+            if !pageContent.isEmpty {
+                Text(pageContent.prefix(200) + (pageContent.count > 200 ? "..." : ""))
+                    .font(.caption)
+                    .foregroundColor(themeManager.secondaryTextColor)
+                    .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(themeManager.cardBackgroundColor)
+                    .cornerRadius(8)
+            } else {
+                HStack {
+                    Image(systemName: "exclamationmark.triangle")
+                    Text("No content to analyze. Add some text to your page first.")
+                }
+                .font(.caption)
+                .foregroundColor(.orange)
+                .padding()
+                .frame(maxWidth: .infinity)
+                .background(themeManager.cardBackgroundColor)
+                .cornerRadius(8)
+            }
+        }
+    }
+
+    // MARK: - Quick Actions Section
+
+    private var quickActionsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Quick Actions", systemImage: "bolt.fill")
+                .font(.subheadline.weight(.semibold))
+                .foregroundColor(themeManager.textColor)
+
+            LazyVGrid(columns: [
+                GridItem(.flexible()),
+                GridItem(.flexible())
+            ], spacing: 12) {
+                ForEach(AIPageAction.allCases.filter { $0 != .askQuestion }) { action in
+                    PageQuickActionButton(
+                        action: action,
+                        isLoading: isGenerating && selectedAction == action,
+                        isDisabled: isGenerating || pageContent.isEmpty
+                    ) {
+                        executeQuickAction(action)
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Custom Question Section
+
+    private var customQuestionSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label("Ask a Question", systemImage: "questionmark.circle")
+                .font(.subheadline.weight(.semibold))
+                .foregroundColor(themeManager.textColor)
+
+            TextField("What would you like to know about this content?", text: $prompt, axis: .vertical)
+                .textFieldStyle(.plain)
+                .padding()
+                .background(themeManager.cardBackgroundColor)
+                .cornerRadius(8)
+                .lineLimit(2...4)
+
+            Button(action: { askQuestion() }) {
+                HStack {
+                    if isGenerating && selectedAction == .askQuestion {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                        Text("Thinking...")
+                    } else {
+                        Image(systemName: "paperplane.fill")
+                        Text("Ask AI")
+                    }
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(isGenerating || prompt.isEmpty || pageContent.isEmpty)
+        }
+    }
+
+    // MARK: - Response Section
+
+    private var responseSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                if let action = selectedAction {
+                    Label(action.displayName + " Result", systemImage: action.icon)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(themeManager.textColor)
+                } else {
+                    Label("Response", systemImage: "text.bubble")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(themeManager.textColor)
+                }
+
+                Spacer()
+
+                Button(action: copyResponse) {
+                    Image(systemName: "doc.on.doc")
+                        .font(.caption)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+
+                if resultCanReplace && onApplyContent != nil {
+                    Button(action: applyToPage) {
+                        Image(systemName: "arrow.uturn.backward")
+                        Text("Apply")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                }
+            }
+
+            ScrollView {
+                Text(aiResponse)
+                    .font(.body)
+                    .foregroundColor(themeManager.textColor)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding()
+            }
+            .background(themeManager.cardBackgroundColor)
+            .cornerRadius(8)
+            .frame(maxHeight: 300)
+
+            if let model = aiAssistant.lastResult?.model {
+                Text("Generated by \(model)")
+                    .font(.caption2)
+                    .foregroundColor(themeManager.secondaryTextColor)
+            }
+        }
+    }
+
+    // MARK: - Actions
+
+    private func executeQuickAction(_ action: AIPageAction) {
+        guard !pageContent.isEmpty else { return }
+
+        selectedAction = action
         isGenerating = true
         aiResponse = ""
-        
+
         _Concurrency.Task {
             do {
-                // Build context-aware prompt
-                let contextPrompt = """
-                Based on the following content from "\(pageTitle)":
-                
-                \(pageContent)
-                
-                Question: \(prompt)
-                """
-                
-                let chatResponse = try await APIClient.shared.sendChatMessage(
-                    prompt: contextPrompt,
-                    history: []
+                let result = try await aiAssistant.executeAction(
+                    action,
+                    content: pageContent,
+                    pageTitle: pageTitle
                 )
-                
-                aiResponse = chatResponse.response
+                aiResponse = result.generatedContent
+                resultCanReplace = result.canReplaceContent
+            } catch {
+                aiResponse = "Error: \(error.localizedDescription)"
+                resultCanReplace = false
+            }
+            isGenerating = false
+        }
+    }
+
+    private func askQuestion() {
+        guard !prompt.isEmpty, !pageContent.isEmpty else { return }
+
+        selectedAction = .askQuestion
+        isGenerating = true
+        aiResponse = ""
+
+        _Concurrency.Task {
+            do {
+                let response = try await aiAssistant.askQuestion(
+                    prompt,
+                    content: pageContent,
+                    pageTitle: pageTitle
+                )
+                aiResponse = response
+                resultCanReplace = false
             } catch {
                 aiResponse = "Error: \(error.localizedDescription)"
             }
-            
             isGenerating = false
+            prompt = ""
         }
+    }
+
+    private func copyResponse() {
+        UIPasteboard.general.string = aiResponse
+    }
+
+    private func applyToPage() {
+        onApplyContent?(aiResponse)
+        dismiss()
+    }
+}
+
+// MARK: - Page Quick Action Button
+
+struct PageQuickActionButton: View {
+    @Environment(ThemeManager.self) private var themeManager
+    let action: AIPageAction
+    let isLoading: Bool
+    let isDisabled: Bool
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            VStack(spacing: 8) {
+                if isLoading {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                } else {
+                    Image(systemName: action.icon)
+                        .font(.title3)
+                        .foregroundColor(themeManager.accentColor)
+                }
+
+                Text(action.displayName)
+                    .font(.caption.weight(.medium))
+                    .foregroundColor(themeManager.textColor)
+
+                Text(action.description)
+                    .font(.caption2)
+                    .foregroundColor(themeManager.secondaryTextColor)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .padding(.horizontal, 8)
+            .background(themeManager.cardBackgroundColor)
+            .cornerRadius(12)
+            .opacity(isDisabled ? 0.6 : 1.0)
+        }
+        .disabled(isDisabled)
     }
 }
 

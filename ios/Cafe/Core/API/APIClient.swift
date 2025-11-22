@@ -128,6 +128,17 @@ class APIClient {
         return try await performRequest(request)
     }
 
+    /// Delete the current user's account
+    /// This is a destructive operation that permanently removes all user data
+    func deleteAccount() async throws {
+        let request = try authorizedRequest(path: "/users/me/", method: "DELETE")
+        let _: EmptyResponse = try await performRequest(request)
+
+        #if DEBUG
+        print("Account deletion request completed successfully")
+        #endif
+    }
+
     // MARK: - Tasks
 
     func getTasks() async throws -> [Task] {

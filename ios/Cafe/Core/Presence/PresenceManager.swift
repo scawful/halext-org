@@ -4,9 +4,16 @@
 //
 //  Manages user online/offline status and presence tracking
 //
+//  CROSS-PLATFORM DOCUMENTATION:
+//  This manager handles real-time presence tracking. Backend and web platforms
+//  should implement equivalent functionality for feature parity.
+//
 
 import SwiftUI
 import Combine
+
+// Typealias to avoid conflict with Task model from Models.swift
+private typealias AsyncTask = _Concurrency.Task
 
 // MARK: - Presence Status
 
@@ -79,42 +86,115 @@ class PresenceManager {
     private var updateTimer: Timer?
     private let updateInterval: TimeInterval = 30 // Update every 30 seconds
 
+    /// Tracks whether the user is authenticated and presence updates should be sent
+    private var isAuthenticated: Bool {
+        KeychainManager.shared.getToken() != nil
+    }
+
+    /// Tracks pending presence update to handle offline scenarios
+    private var pendingPresenceUpdate: PresenceStatus?
+
+    /// Last successful presence update timestamp for rate limiting
+    private var lastPresenceUpdateTime: Date?
+
+    /// Minimum interval between presence updates (rate limiting)
+    private let minimumUpdateInterval: TimeInterval = 5.0
+
     var currentStatus: PresenceStatus = .online {
         didSet {
             if currentStatus != oldValue {
-                _Concurrency.Task {
-                    await updateOwnPresence()
-                }
+                triggerPresenceUpdate()
             }
         }
     }
 
+    /// Triggers an async presence update without using Task directly in didSet
+    /// This avoids the @Observable macro conflict with _Concurrency.Task
+    private func triggerPresenceUpdate() {
+        AsyncTask { @MainActor in
+            await updateOwnPresence()
+        }
+    }
+
+    /// Indicates whether WebSocket is connected for real-time updates
+    var isWebSocketConnected: Bool = false
+
     private init() {
+        setupWebSocketCallbacks()
+        setupAuthenticationObserver()
         startPresenceUpdates()
         observeAppLifecycle()
+    }
+
+    // MARK: - Setup
+
+    private func setupWebSocketCallbacks() {
+        // Handle real-time presence updates from WebSocket
+        PresenceWebSocketManager.shared.onPresenceUpdate = { [weak self] userId, status, lastSeen in
+            AsyncTask { @MainActor in
+                self?.handlePresenceUpdate(userId: userId, status: status, lastSeen: lastSeen)
+            }
+        }
+
+        // Handle typing indicator updates from WebSocket
+        PresenceWebSocketManager.shared.onTypingUpdate = { [weak self] userId, conversationId, isTyping in
+            AsyncTask { @MainActor in
+                self?.handleTypingUpdate(userId: userId, conversationId: conversationId, isTyping: isTyping)
+            }
+        }
+
+        // Track connection state
+        PresenceWebSocketManager.shared.onConnectionStateChanged = { [weak self] connected in
+            AsyncTask { @MainActor in
+                self?.isWebSocketConnected = connected
+                #if DEBUG
+                print("[Presence] WebSocket connection state: \(connected ? "connected" : "disconnected")")
+                #endif
+            }
+        }
+    }
+
+    private func setupAuthenticationObserver() {
+        // Listen for token expiration to stop presence updates
+        NotificationCenter.default.addObserver(
+            forName: .tokenExpired,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.handleLogout()
+        }
     }
 
     // MARK: - Presence Updates
 
     func startPresenceUpdates() {
+        guard isAuthenticated else {
+            #if DEBUG
+            print("[Presence] Not starting updates - user not authenticated")
+            #endif
+            return
+        }
+
         updateTimer?.invalidate()
         updateTimer = Timer.scheduledTimer(withTimeInterval: updateInterval, repeats: true) { [weak self] _ in
-            _Concurrency.Task { @MainActor in
+            AsyncTask { @MainActor in
                 await self?.updateOwnPresence()
                 await self?.fetchPresences()
             }
         }
 
-        // Initial update
-        _Concurrency.Task {
+        // Initial update and WebSocket connection
+        AsyncTask { @MainActor in
             await updateOwnPresence()
             await fetchPresences()
+            connectWebSocket()
         }
     }
 
     func stopPresenceUpdates() {
         updateTimer?.invalidate()
         updateTimer = nil
+        disconnectWebSocket()
     }
 
     private func observeAppLifecycle() {
@@ -133,34 +213,175 @@ class PresenceManager {
             queue: .main
         ) { [weak self] _ in
             self?.currentStatus = .away
-            _Concurrency.Task {
+            AsyncTask { @MainActor in
                 await self?.updateOwnPresence()
             }
             self?.stopPresenceUpdates()
         }
     }
 
-    // MARK: - API Integration
+    // MARK: - WebSocket Management
 
-    /// Update own presence status
-    /// Backend endpoint needed: POST /users/me/presence
-    /// Body: { "status": "online|away|offline" }
-    private func updateOwnPresence() async {
-        // TODO: Implement when backend endpoint is ready
-        // try await APIClient.shared.updatePresence(status: currentStatus)
-        print("🟢 Would update presence to: \(currentStatus.rawValue)")
+    private func connectWebSocket() {
+        guard isAuthenticated else { return }
+        PresenceWebSocketManager.shared.connect()
     }
 
-    /// Fetch presence for all users or specific users
-    /// Backend endpoint needed: GET /users/presence?user_ids=1,2,3
-    /// Response: [{ "user_id": 1, "status": "online", "last_seen": "2024-01-01T12:00:00Z" }]
+    private func disconnectWebSocket() {
+        PresenceWebSocketManager.shared.disconnect()
+    }
+
+    // MARK: - API Integration
+
+    /// Update own presence status via backend API
+    ///
+    /// **Endpoint:** `POST /api/presence/status`
+    ///
+    /// **Offline Handling:**
+    /// - Stores pending update if network unavailable
+    /// - Retries on next successful network operation
+    ///
+    /// **Rate Limiting:**
+    /// - Minimum 5 seconds between updates to prevent server overload
+    private func updateOwnPresence() async {
+        guard isAuthenticated else {
+            #if DEBUG
+            print("[Presence] Skipping update - not authenticated")
+            #endif
+            return
+        }
+
+        // Rate limiting check
+        if let lastUpdate = lastPresenceUpdateTime,
+           Date().timeIntervalSince(lastUpdate) < minimumUpdateInterval {
+            #if DEBUG
+            print("[Presence] Skipping update - rate limited")
+            #endif
+            return
+        }
+
+        do {
+            let response = try await APIClient.shared.updatePresenceStatus(currentStatus)
+            lastPresenceUpdateTime = Date()
+            pendingPresenceUpdate = nil
+
+            #if DEBUG
+            print("[Presence] Updated status to: \(response.status)")
+            #endif
+        } catch let error as APIError {
+            handlePresenceError(error, for: "update")
+        } catch let error as URLError {
+            // Network error - store for retry
+            pendingPresenceUpdate = currentStatus
+            #if DEBUG
+            print("[Presence] Network error during update: \(error.localizedDescription)")
+            #endif
+        } catch {
+            #if DEBUG
+            print("[Presence] Unexpected error during update: \(error.localizedDescription)")
+            #endif
+        }
+    }
+
+    /// Fetch presence for all connected users via backend API
+    ///
+    /// **Endpoint:** `GET /api/presence/users`
+    ///
+    /// **Caching:**
+    /// - Results are cached in memory
+    /// - WebSocket provides real-time updates between fetches
     private func fetchPresences() async {
-        // TODO: Implement when backend endpoint is ready
-        // let presences = try await APIClient.shared.getPresences()
-        // for presence in presences {
-        //     userPresences[presence.id] = presence
-        // }
-        print("📡 Would fetch user presences")
+        guard isAuthenticated else {
+            #if DEBUG
+            print("[Presence] Skipping fetch - not authenticated")
+            #endif
+            return
+        }
+
+        do {
+            let presences = try await APIClient.shared.getPresences()
+            for presence in presences {
+                let status = PresenceStatus(rawValue: presence.status) ?? .offline
+                userPresences[presence.userId] = UserPresence(
+                    id: presence.userId,
+                    status: status,
+                    lastSeen: presence.lastSeen,
+                    isTyping: presence.isTyping ?? false
+                )
+            }
+
+            // Retry pending update if we have network again
+            if let pending = pendingPresenceUpdate {
+                pendingPresenceUpdate = nil
+                currentStatus = pending
+            }
+
+            #if DEBUG
+            print("[Presence] Fetched \(presences.count) user presences")
+            #endif
+        } catch let error as APIError {
+            handlePresenceError(error, for: "fetch")
+        } catch {
+            #if DEBUG
+            print("[Presence] Error fetching presences: \(error.localizedDescription)")
+            #endif
+        }
+    }
+
+    // MARK: - Real-time Update Handlers
+
+    private func handlePresenceUpdate(userId: Int, status: PresenceStatus, lastSeen: Date) {
+        if var presence = userPresences[userId] {
+            presence.status = status
+            presence.lastSeen = lastSeen
+            userPresences[userId] = presence
+        } else {
+            userPresences[userId] = UserPresence(
+                id: userId,
+                status: status,
+                lastSeen: lastSeen,
+                isTyping: false
+            )
+        }
+
+        #if DEBUG
+        print("[Presence] Real-time update - User \(userId): \(status.rawValue)")
+        #endif
+    }
+
+    private func handleTypingUpdate(userId: Int, conversationId: Int, isTyping: Bool) {
+        if var presence = userPresences[userId] {
+            presence.isTyping = isTyping
+            userPresences[userId] = presence
+        }
+
+        #if DEBUG
+        print("[Presence] Typing update - User \(userId) in conversation \(conversationId): \(isTyping)")
+        #endif
+    }
+
+    // MARK: - Error Handling
+
+    private func handlePresenceError(_ error: APIError, for operation: String) {
+        switch error {
+        case .unauthorized, .notAuthenticated:
+            // Token expired - stop updates
+            #if DEBUG
+            print("[Presence] Auth error during \(operation) - stopping updates")
+            #endif
+            stopPresenceUpdates()
+
+        case .httpError(let code) where (500...599).contains(code):
+            // Server error - will retry on next interval
+            #if DEBUG
+            print("[Presence] Server error (\(code)) during \(operation) - will retry")
+            #endif
+
+        default:
+            #if DEBUG
+            print("[Presence] API error during \(operation): \(error.localizedDescription ?? "Unknown error")")
+            #endif
+        }
     }
 
     // MARK: - Public API
@@ -173,27 +394,80 @@ class PresenceManager {
         userPresences[userId]?.isOnline ?? false
     }
 
+    /// Sends typing indicator for a conversation
+    ///
+    /// **Endpoint:** `POST /api/conversations/{conversation_id}/typing`
+    ///
+    /// **Debouncing:**
+    /// - Call with `isTyping: true` on first keystroke
+    /// - Call with `isTyping: false` after 3 seconds of inactivity
+    /// - The backend should auto-expire typing status after timeout
     func setTyping(_ isTyping: Bool, for conversationId: Int) {
-        // Backend endpoint needed: POST /conversations/{id}/typing
-        // Body: { "is_typing": true }
-        _Concurrency.Task {
-            // try await APIClient.shared.sendTypingIndicator(conversationId: conversationId, isTyping: isTyping)
-            print("⌨️  Would send typing indicator: \(isTyping) for conversation: \(conversationId)")
+        guard isAuthenticated else { return }
+
+        let _ = _Concurrency.Task { @MainActor in
+            do {
+                try await APIClient.shared.sendTypingIndicator(
+                    conversationId: conversationId,
+                    isTyping: isTyping
+                )
+                #if DEBUG
+                print("[Presence] Sent typing indicator: \(isTyping) for conversation: \(conversationId)")
+                #endif
+            } catch {
+                // Typing indicators are non-critical - just log errors
+                #if DEBUG
+                print("[Presence] Failed to send typing indicator: \(error.localizedDescription)")
+                #endif
+            }
         }
     }
 
-    /// Manually refresh presence for specific user
+    /// Manually refresh presence for a specific user
+    ///
+    /// **Endpoint:** `GET /api/presence/users/{user_id}`
     func refreshPresence(for userId: Int) async {
-        // Backend endpoint needed: GET /users/{userId}/presence
-        // try await fetchPresence(userId: userId)
+        guard isAuthenticated else { return }
 
-        // Mock data for now - replace when backend is ready
-        userPresences[userId] = UserPresence(
-            id: userId,
-            status: .online,
-            lastSeen: Date(),
-            isTyping: false
-        )
+        do {
+            let response = try await APIClient.shared.getPresence(for: userId)
+            let status = PresenceStatus(rawValue: response.status) ?? .offline
+            userPresences[userId] = UserPresence(
+                id: response.userId,
+                status: status,
+                lastSeen: response.lastSeen,
+                isTyping: response.isTyping ?? false
+            )
+            #if DEBUG
+            print("[Presence] Refreshed presence for user \(userId): \(status.rawValue)")
+            #endif
+        } catch {
+            #if DEBUG
+            print("[Presence] Failed to refresh presence for user \(userId): \(error.localizedDescription)")
+            #endif
+        }
+    }
+
+    /// Called when user logs out to clean up presence state
+    func handleLogout() {
+        stopPresenceUpdates()
+        userPresences.removeAll()
+        pendingPresenceUpdate = nil
+        lastPresenceUpdateTime = nil
+
+        #if DEBUG
+        print("[Presence] Cleaned up after logout")
+        #endif
+    }
+
+    /// Called when user logs in to start presence tracking
+    func handleLogin() {
+        currentStatus = .online
+        startPresenceUpdates()
+
+        #if DEBUG
+        print("[Presence] Started tracking after login")
+        #endif
     }
 }
 

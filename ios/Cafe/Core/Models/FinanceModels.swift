@@ -275,6 +275,59 @@ struct FinancialSummary: Codable {
 
 // MARK: - Budget Progress
 
+/// API response model for budget progress
+struct BudgetProgressResponse: Codable, Identifiable {
+    let budgetId: Int
+    let budgetName: String
+    let category: TransactionCategory
+    let period: BudgetPeriod
+    let budgetAmount: Decimal
+    let spent: Decimal
+    let remaining: Decimal
+    let percentUsed: Double
+    let isOverBudget: Bool
+    let periodStart: Date
+    let periodEnd: Date
+    let transactionCount: Int
+
+    var id: Int { budgetId }
+
+    enum CodingKeys: String, CodingKey {
+        case budgetId = "budget_id"
+        case budgetName = "budget_name"
+        case category, period
+        case budgetAmount = "budget_amount"
+        case spent, remaining
+        case percentUsed = "percent_used"
+        case isOverBudget = "is_over_budget"
+        case periodStart = "period_start"
+        case periodEnd = "period_end"
+        case transactionCount = "transaction_count"
+    }
+}
+
+/// API response model for aggregated budget progress summary
+struct BudgetProgressSummary: Codable {
+    let totalBudgeted: Decimal
+    let totalSpent: Decimal
+    let totalRemaining: Decimal
+    let overallPercentUsed: Double
+    let budgetsOverLimit: Int
+    let budgetsOnTrack: Int
+    let budgetProgress: [BudgetProgressResponse]
+
+    enum CodingKeys: String, CodingKey {
+        case totalBudgeted = "total_budgeted"
+        case totalSpent = "total_spent"
+        case totalRemaining = "total_remaining"
+        case overallPercentUsed = "overall_percent_used"
+        case budgetsOverLimit = "budgets_over_limit"
+        case budgetsOnTrack = "budgets_on_track"
+        case budgetProgress = "budget_progress"
+    }
+}
+
+/// Local view model for budget progress (can be created from API response)
 struct BudgetProgress: Identifiable {
     let id: Int
     let budget: Budget
@@ -284,5 +337,23 @@ struct BudgetProgress: Identifiable {
 
     var isOverBudget: Bool {
         spent > budget.amount
+    }
+
+    /// Initialize from API response and matching budget
+    init(from response: BudgetProgressResponse, budget: Budget) {
+        self.id = response.budgetId
+        self.budget = budget
+        self.spent = response.spent
+        self.remaining = response.remaining
+        self.percentUsed = response.percentUsed
+    }
+
+    /// Initialize with explicit values (for local calculation fallback)
+    init(id: Int, budget: Budget, spent: Decimal, remaining: Decimal, percentUsed: Double) {
+        self.id = id
+        self.budget = budget
+        self.spent = spent
+        self.remaining = remaining
+        self.percentUsed = percentUsed
     }
 }

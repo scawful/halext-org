@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct RecipeCardView: View {
+    @Environment(ThemeManager.self) var themeManager
     let recipe: Recipe
     let onTap: () -> Void
 
@@ -27,7 +28,7 @@ struct RecipeCardView: View {
                     Text(recipe.name)
                         .font(.headline)
                         .lineLimit(2)
-                        .foregroundColor(.primary)
+                        .foregroundColor(themeManager.textColor)
 
                     // Match Score Badge (if available)
                     if let matchScore = recipe.matchScore {
@@ -38,7 +39,7 @@ struct RecipeCardView: View {
                     HStack(spacing: 12) {
                         Label("\(recipe.totalTimeMinutes) min", systemImage: "clock")
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(themeManager.secondaryTextColor)
 
                         Label(recipe.difficulty.displayName, systemImage: recipe.difficulty.icon)
                             .font(.caption)
@@ -69,9 +70,9 @@ struct RecipeCardView: View {
                 }
                 .padding(12)
             }
-            .background(Color(.systemBackground))
+            .background(themeManager.cardBackgroundColor)
             .cornerRadius(12)
-            .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+            .shadow(color: themeManager.textColor.opacity(0.1), radius: 4, x: 0, y: 2)
         }
         .buttonStyle(PlainButtonStyle())
     }
@@ -150,6 +151,7 @@ struct RecipeCardView: View {
 // MARK: - Grid Card Variant
 
 struct RecipeGridCardView: View {
+    @Environment(ThemeManager.self) var themeManager
     let recipe: Recipe
     let onTap: () -> Void
 
@@ -166,7 +168,7 @@ struct RecipeGridCardView: View {
                         .font(.subheadline)
                         .fontWeight(.semibold)
                         .lineLimit(2)
-                        .foregroundColor(.primary)
+                        .foregroundColor(themeManager.textColor)
 
                     HStack(spacing: 8) {
                         Image(systemName: "clock")
@@ -174,14 +176,14 @@ struct RecipeGridCardView: View {
                         Text("\(recipe.totalTimeMinutes)m")
                             .font(.caption)
                     }
-                    .foregroundColor(.secondary)
+                    .foregroundColor(themeManager.secondaryTextColor)
                 }
                 .padding(.horizontal, 8)
                 .padding(.bottom, 8)
             }
-            .background(Color(.systemBackground))
+            .background(themeManager.cardBackgroundColor)
             .cornerRadius(12)
-            .shadow(color: Color.black.opacity(0.08), radius: 3, x: 0, y: 1)
+            .shadow(color: themeManager.textColor.opacity(0.08), radius: 3, x: 0, y: 1)
         }
         .buttonStyle(PlainButtonStyle())
     }

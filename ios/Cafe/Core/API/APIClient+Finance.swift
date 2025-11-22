@@ -96,6 +96,30 @@ extension APIClient {
         let _: EmptyResponse = try await performRequest(request)
     }
 
+    // MARK: - Budget Progress
+
+    /// Get budget progress for all active budgets
+    /// - Returns: Array of budget progress for each active budget
+    func getBudgetProgress() async throws -> [BudgetProgressResponse] {
+        let request = try authorizedRequest(path: "/finance/budgets/progress", method: "GET")
+        return try await performRequest(request)
+    }
+
+    /// Get progress for a specific budget
+    /// - Parameter budgetId: The ID of the budget to get progress for
+    /// - Returns: Budget progress for the specified budget
+    func getBudgetProgress(budgetId: Int) async throws -> BudgetProgressResponse {
+        let request = try authorizedRequest(path: "/finance/budgets/\(budgetId)/progress", method: "GET")
+        return try await performRequest(request)
+    }
+
+    /// Get aggregated budget progress summary
+    /// - Returns: Summary with total budgeted, spent, remaining across all budgets
+    func getBudgetProgressSummary() async throws -> BudgetProgressSummary {
+        let request = try authorizedRequest(path: "/finance/budgets/progress/summary", method: "GET")
+        return try await performRequest(request)
+    }
+
     // MARK: - Analytics
 
     func getFinancialSummary(startDate: Date? = nil, endDate: Date? = nil) async throws -> FinancialSummary {

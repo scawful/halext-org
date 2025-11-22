@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct GroupConversationView: View {
+    @Environment(ThemeManager.self) var themeManager
     @StateObject private var store: ConversationStore
     @State private var messageText = ""
     @State private var showingParticipants = false
@@ -63,7 +64,7 @@ struct GroupConversationView: View {
                 Button(action: { showingAddParticipant = true }) {
                     Image(systemName: "person.badge.plus")
                         .font(.title3)
-                        .foregroundColor(.blue)
+                        .foregroundColor(themeManager.accentColor)
                 }
 
                 TextField("Message", text: $messageText, axis: .vertical)
@@ -77,13 +78,13 @@ struct GroupConversationView: View {
                     } else {
                         Image(systemName: "arrow.up.circle.fill")
                             .font(.system(size: 28))
-                            .foregroundColor(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? .gray : .blue)
+                            .foregroundColor(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? themeManager.secondaryTextColor : themeManager.accentColor)
                     }
                 }
                 .disabled(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || store.isSending)
             }
             .padding()
-            .background(Color(.systemBackground))
+            .background(themeManager.backgroundColor)
         }
         .navigationTitle(conversationTitle)
         .navigationBarTitleDisplayMode(.inline)
@@ -145,23 +146,24 @@ struct GroupConversationView: View {
 // MARK: - Participant Avatars
 
 struct ParticipantAvatarsView: View {
+    @Environment(ThemeManager.self) var themeManager
     let participants: [User]
 
     var body: some View {
         HStack(spacing: -8) {
             ForEach(participants) { user in
                 Circle()
-                    .fill(Color.blue.opacity(0.2))
+                    .fill(themeManager.accentColor.opacity(0.2))
                     .frame(width: 24, height: 24)
                     .overlay(
                         Text(user.username.prefix(1).uppercased())
                             .font(.caption2)
                             .fontWeight(.semibold)
-                            .foregroundColor(.blue)
+                            .foregroundColor(themeManager.accentColor)
                     )
                     .overlay(
                         Circle()
-                            .stroke(Color(.systemBackground), lineWidth: 2)
+                            .stroke(themeManager.backgroundColor, lineWidth: 2)
                     )
             }
         }
@@ -171,13 +173,14 @@ struct ParticipantAvatarsView: View {
 // MARK: - Typing Indicator
 
 struct TypingIndicatorView: View {
+    @Environment(ThemeManager.self) var themeManager
     @State private var animationAmount = 0.0
 
     var body: some View {
         HStack(spacing: 4) {
             ForEach(0..<3) { index in
                 Circle()
-                    .fill(Color.secondary)
+                    .fill(themeManager.secondaryTextColor)
                     .frame(width: 8, height: 8)
                     .scaleEffect(animationAmount == Double(index) ? 1.2 : 1.0)
                     .animation(
@@ -190,7 +193,7 @@ struct TypingIndicatorView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(Color(.secondarySystemBackground))
+        .background(themeManager.cardBackgroundColor)
         .cornerRadius(16)
         .onAppear {
             animationAmount = 2.0
@@ -201,6 +204,7 @@ struct TypingIndicatorView: View {
 // MARK: - Participants List
 
 struct ParticipantsListView: View {
+    @Environment(ThemeManager.self) var themeManager
     let conversation: Conversation
     @Environment(\.dismiss) var dismiss
 
@@ -211,20 +215,21 @@ struct ParticipantsListView: View {
                     ForEach(conversation.participants) { user in
                         HStack {
                             Circle()
-                                .fill(Color.blue.opacity(0.2))
+                                .fill(themeManager.accentColor.opacity(0.2))
                                 .frame(width: 40, height: 40)
                                 .overlay(
                                     Text(user.username.prefix(1).uppercased())
                                         .font(.headline)
-                                        .foregroundColor(.blue)
+                                        .foregroundColor(themeManager.accentColor)
                                 )
 
                             VStack(alignment: .leading) {
                                 Text(user.fullName ?? user.username)
                                     .font(.body)
+                                    .foregroundColor(themeManager.textColor)
                                 Text("@\(user.username)")
                                     .font(.caption)
-                                    .foregroundColor(.secondary)
+                                    .foregroundColor(themeManager.secondaryTextColor)
                             }
                         }
                     }
@@ -244,6 +249,7 @@ struct ParticipantsListView: View {
 // MARK: - Add Participant View
 
 struct AddParticipantView: View {
+    @Environment(ThemeManager.self) var themeManager
     let conversation: Conversation
     @Environment(\.dismiss) var dismiss
 
@@ -256,27 +262,27 @@ struct AddParticipantView: View {
                 Button(action: { addParticipant(user) }) {
                     HStack {
                         Circle()
-                            .fill(Color.blue.opacity(0.2))
+                            .fill(themeManager.accentColor.opacity(0.2))
                             .frame(width: 40, height: 40)
                             .overlay(
                                 Text(user.username.prefix(1).uppercased())
                                     .font(.headline)
-                                    .foregroundColor(.blue)
+                                    .foregroundColor(themeManager.accentColor)
                             )
 
                         VStack(alignment: .leading) {
                             Text(user.fullName ?? user.username)
                                 .font(.body)
-                                .foregroundColor(.primary)
+                                .foregroundColor(themeManager.textColor)
                             Text("@\(user.username)")
                                 .font(.caption)
-                                .foregroundColor(.secondary)
+                                .foregroundColor(themeManager.secondaryTextColor)
                         }
 
                         Spacer()
 
                         Image(systemName: "plus.circle.fill")
-                            .foregroundColor(.green)
+                            .foregroundColor(themeManager.successColor)
                     }
                 }
             }
@@ -299,6 +305,7 @@ struct AddParticipantView: View {
 // MARK: - Add AI Agent View
 
 struct AddAIAgentView: View {
+    @Environment(ThemeManager.self) var themeManager
     let conversation: Conversation
     @Environment(\.dismiss) var dismiss
 
@@ -322,11 +329,11 @@ struct AddAIAgentView: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(agent.name)
                                     .font(.headline)
-                                    .foregroundColor(.primary)
+                                    .foregroundColor(themeManager.textColor)
 
                                 Text(agent.description)
                                     .font(.caption)
-                                    .foregroundColor(.secondary)
+                                    .foregroundColor(themeManager.secondaryTextColor)
 
                                 HStack(spacing: 4) {
                                     ForEach(agent.capabilities.prefix(3), id: \.self) { capability in
@@ -334,7 +341,7 @@ struct AddAIAgentView: View {
                                             .font(.caption2)
                                             .padding(.horizontal, 4)
                                             .padding(.vertical, 2)
-                                            .background(Color.secondary.opacity(0.2))
+                                            .background(themeManager.secondaryTextColor.opacity(0.2))
                                             .cornerRadius(4)
                                     }
                                 }
@@ -343,7 +350,7 @@ struct AddAIAgentView: View {
                             Spacer()
 
                             Image(systemName: "plus.circle.fill")
-                                .foregroundColor(.green)
+                                .foregroundColor(themeManager.successColor)
                         }
                         .padding(.vertical, 4)
                     }

@@ -16,6 +16,10 @@ struct TaskListView: View {
     @State private var showingRecipeGenerator = false
     @State private var selectedTaskForRecipes: Task?
 
+    // iPad Inspector support
+    @State private var showInspector = false
+    @State private var inspectorTask: Task?
+
     // Offline support
     @State private var syncManager = SyncManager.shared
     @State private var networkMonitor = NetworkMonitor.shared
@@ -33,126 +37,221 @@ struct TaskListView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                if isLoading && tasks.isEmpty {
-                    ProgressView("Loading tasks...")
-                } else if tasks.isEmpty {
-                    ContentUnavailableView {
-                        SwiftUI.Label("No Tasks", systemImage: "checkmark.circle")
-                    } description: {
-                        Text("Create your first task to get started")
-                    } actions: {
-                        Button(action: {
-                            showingNewTask = true
-                        }) {
-                            Text("New Task")
-                        }
-                        .buttonStyle(.borderedProminent)
-                    }
-                } else {
-                    List {
-                        if completedCount > 0 && !filterCompleted {
-                            Section {
-                                HStack {
-                                    Text("\(completedCount) completed")
-                                        .foregroundColor(.secondary)
-                                    Spacer()
-                                    Button(action: {
-                                        withAnimation {
-                                            filterCompleted = true
-                                        }
-                                    }) {
-                                        Text("Hide Completed")
-                                    }
-                                    .font(.caption)
-                                }
-                            }
-                        }
-
-                        ForEach(filteredTasks) { task in
-                            TaskRowView(task: task) {
-                                await toggleTask(task)
-                            } onDelete: {
-                                await deleteTask(task)
-                            } onGenerateRecipe: {
-                                selectedTaskForRecipes = task
-                                showingRecipeGenerator = true
-                            }
-                        }
-                    }
-                    .refreshable {
-                        await loadTasks()
-                    }
+            mainContent
+                .navigationTitle("Tasks")
+                .toolbar { toolbarContent }
+                .sheet(isPresented: $showingNewTask) {
+                    newTaskSheet
                 }
-            }
-            .navigationTitle("Tasks")
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
+                .sheet(isPresented: $showingRecipeGenerator) {
+                    recipeGeneratorSheet
+                }
+                .task {
+                    await loadTasks()
+                }
+                .alert("Error", isPresented: .constant(errorMessage != nil)) {
                     Button(action: {
-                        showingNewTask = true
+                        errorMessage = nil
                     }) {
-                        Image(systemName: "plus")
+                        Text("OK")
+                    }
+                } message: {
+                    if let error = errorMessage {
+                        Text(error)
                     }
                 }
-
-                // Offline indicator
-                ToolbarItem(placement: .status) {
-                    HStack(spacing: 4) {
-                        if !networkMonitor.isConnected {
-                            Image(systemName: "wifi.slash")
-                                .foregroundColor(.orange)
-                            Text("Offline")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        } else if syncManager.isSyncing {
-                            ProgressView()
-                                .scaleEffect(0.8)
-                            Text("Syncing...")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        } else if let lastSync = syncManager.lastSyncDate {
-                            Text("Synced \(lastSync, style: .relative)")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
+                .inspector(isPresented: $showInspector) {
+                    inspectorContent
                 }
+                .inspectorColumnWidth(min: 280, ideal: 320, max: 400)
+                .onChange(of: inspectorTask?.id) { _, newValue in
+                    showInspector = newValue != nil
+                }
+        }
+    }
 
-                if filterCompleted {
-                    ToolbarItem(placement: .secondaryAction) {
+    // MARK: - View Components
+
+    @ViewBuilder
+    private var mainContent: some View {
+        ZStack {
+            if isLoading && tasks.isEmpty {
+                ProgressView("Loading tasks...")
+            } else if tasks.isEmpty {
+                emptyStateView
+            } else {
+                taskListView
+            }
+        }
+    }
+
+    private var emptyStateView: some View {
+        ContentUnavailableView {
+            SwiftUI.Label("No Tasks", systemImage: "checkmark.circle")
+        } description: {
+            Text("Create your first task to get started")
+        } actions: {
+            Button(action: {
+                showingNewTask = true
+            }) {
+                Text("New Task")
+            }
+            .buttonStyle(.borderedProminent)
+        }
+    }
+
+    private var taskListView: some View {
+        List {
+            if completedCount > 0 && !filterCompleted {
+                Section {
+                    HStack {
+                        Text("\(completedCount) completed")
+                            .foregroundColor(.secondary)
+                        Spacer()
                         Button(action: {
                             withAnimation {
-                                filterCompleted = false
+                                filterCompleted = true
                             }
                         }) {
-                            Text("Show All")
+                            Text("Hide Completed")
                         }
+                        .font(.caption)
                     }
                 }
             }
-            .sheet(isPresented: $showingNewTask) {
-                NewTaskView { newTask in
-                    await createTask(newTask)
-                }
-            }
-            .sheet(isPresented: $showingRecipeGenerator) {
-                RecipeGeneratorFromTaskView(task: selectedTaskForRecipes)
-            }
-            .task {
-                await loadTasks()
-            }
-            .alert("Error", isPresented: .constant(errorMessage != nil)) {
-                Button(action: {
-                    errorMessage = nil
-                }) {
-                    Text("OK")
-                }
-            } message: {
-                if let error = errorMessage {
-                    Text(error)
+
+            ForEach(filteredTasks) { task in
+                TaskRowView(task: task, isSelected: inspectorTask?.id == task.id) {
+                    await toggleTask(task)
+                } onDelete: {
+                    await deleteTask(task)
+                } onGenerateRecipe: {
+                    selectedTaskForRecipes = task
+                    showingRecipeGenerator = true
+                } onSelect: {
+                    inspectorTask = task
                 }
             }
         }
+        .refreshable {
+            await loadTasks()
+        }
+    }
+
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .primaryAction) {
+            Button(action: {
+                showingNewTask = true
+            }) {
+                Image(systemName: "plus")
+            }
+            .accessibilityLabel("Add new task")
+            .accessibilityHint("Opens a form to create a new task")
+        }
+
+        ToolbarItem(placement: .status) {
+            offlineIndicator
+        }
+
+        if filterCompleted {
+            ToolbarItem(placement: .secondaryAction) {
+                Button(action: {
+                    withAnimation {
+                        filterCompleted = false
+                    }
+                }) {
+                    Text("Show All")
+                }
+                .accessibilityLabel("Show all tasks")
+                .accessibilityHint("Shows completed and pending tasks")
+            }
+        }
+
+        ToolbarItem(placement: .secondaryAction) {
+            Button(action: {
+                withAnimation {
+                    showInspector.toggle()
+                }
+            }) {
+                SwiftUI.Label(
+                    showInspector ? "Hide Inspector" : "Show Inspector",
+                    systemImage: "sidebar.trailing"
+                )
+            }
+            .accessibilityLabel(showInspector ? "Hide task inspector" : "Show task inspector")
+            .accessibilityHint("Toggles the task details panel on iPad")
+        }
+    }
+
+    private var offlineIndicator: some View {
+        HStack(spacing: 4) {
+            if !networkMonitor.isConnected {
+                Image(systemName: "wifi.slash")
+                    .foregroundColor(.orange)
+                    .accessibilityHidden(true)
+                Text("Offline")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            } else if syncManager.isSyncing {
+                ProgressView()
+                    .scaleEffect(0.8)
+                    .accessibilityHidden(true)
+                Text("Syncing...")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            } else if let lastSync = syncManager.lastSyncDate {
+                Text("Synced \(lastSync, style: .relative)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(offlineStatusAccessibilityLabel)
+    }
+
+    private var offlineStatusAccessibilityLabel: String {
+        if !networkMonitor.isConnected {
+            return "Offline mode. Changes will sync when connected."
+        } else if syncManager.isSyncing {
+            return "Syncing data with server"
+        } else if let lastSync = syncManager.lastSyncDate {
+            let formatter = RelativeDateTimeFormatter()
+            formatter.unitsStyle = .full
+            return "Last synced \(formatter.localizedString(for: lastSync, relativeTo: Date()))"
+        }
+        return "Sync status unknown"
+    }
+
+    private var newTaskSheet: some View {
+        NewTaskView { newTask in
+            await createTask(newTask)
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+    }
+
+    private var recipeGeneratorSheet: some View {
+        RecipeGeneratorFromTaskView(task: selectedTaskForRecipes)
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+    }
+
+    private var inspectorContent: some View {
+        TaskInspectorContent(
+            task: inspectorTask,
+            onToggle: { task in
+                _Concurrency.Task {
+                    await toggleTask(task)
+                }
+            },
+            onDelete: { task in
+                _Concurrency.Task {
+                    await deleteTask(task)
+                    inspectorTask = nil
+                }
+            }
+        )
     }
 
     // MARK: - Data Loading (Offline-First)
@@ -265,9 +364,11 @@ struct TaskListView: View {
 
 struct TaskRowView: View {
     let task: Task
+    var isSelected: Bool = false
     let onToggle: () async -> Void
     let onDelete: () async -> Void
     let onGenerateRecipe: () -> Void
+    var onSelect: (() -> Void)?
 
     @State private var isToggling = false
 
@@ -305,6 +406,9 @@ struct TaskRowView: View {
             }
             .buttonStyle(.plain)
             .disabled(isToggling)
+            .accessibilityLabel(task.completed ? "Mark as incomplete" : "Mark as complete")
+            .accessibilityHint(task.completed ? "Double tap to mark this task as not done" : "Double tap to mark this task as done")
+            .accessibilityAddTraits(.isButton)
 
             // Task content
             VStack(alignment: .leading, spacing: 4) {
@@ -329,6 +433,8 @@ struct TaskRowView: View {
                             }
                         }
                     }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("Labels: \(task.labels.map { $0.name }.joined(separator: ", "))")
                 }
 
                 // Due date
@@ -336,22 +442,58 @@ struct TaskRowView: View {
                     HStack(spacing: 4) {
                         Image(systemName: "calendar")
                             .font(.caption)
+                            .accessibilityHidden(true)
                         Text(dueDate, style: .date)
                             .font(.caption)
                     }
                     .foregroundColor(dueDate < Date() && !task.completed ? .red : .secondary)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel(dueDateAccessibilityLabel(dueDate))
                 }
             }
 
             Spacer()
         }
         .padding(.vertical, 4)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(isSelected ? Color.accentColor.opacity(0.1) : Color.clear)
+        )
+        .contentShape(Rectangle())
+        .onTapGesture {
+            onSelect?()
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(taskRowAccessibilityLabel)
+        .accessibilityHint("Double tap to view details. Swipe right for recipe options, swipe left to delete.")
+        .accessibilityValue(task.completed ? "Completed" : "Pending")
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            if !task.completed {
+                Button(action: {
+                    HapticManager.success()
+                    performToggle()
+                }) {
+                    SwiftUI.Label("Complete", systemImage: "checkmark.circle.fill")
+                }
+                .tint(.green)
+            }
+            
             Button(role: .destructive, action: performDelete) {
                 SwiftUI.Label("Delete", systemImage: "trash")
             }
         }
         .swipeActions(edge: .leading, allowsFullSwipe: false) {
+            if !task.completed {
+                Button(action: {
+                    HapticManager.selection()
+                    // Schedule action - could open date picker
+                    // For now, just provide haptic feedback
+                }) {
+                    SwiftUI.Label("Schedule", systemImage: "calendar.badge.clock")
+                }
+                .tint(.blue)
+            }
+            
             Button(action: onGenerateRecipe) {
                 SwiftUI.Label("Recipe", systemImage: "fork.knife")
             }
@@ -366,6 +508,22 @@ struct TaskRowView: View {
                 SwiftUI.Label("Delete", systemImage: "trash")
             }
         }
+    }
+
+    private var taskRowAccessibilityLabel: String {
+        var label = task.title
+        if let description = task.description {
+            label += ". \(description)"
+        }
+        return label
+    }
+
+    private func dueDateAccessibilityLabel(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .long
+        let isOverdue = date < Date() && !task.completed
+        let dateString = formatter.string(from: date)
+        return isOverdue ? "Overdue. Due \(dateString)" : "Due \(dateString)"
     }
 }
 
@@ -382,6 +540,7 @@ struct LabelBadge: View {
                     .fill(Color(hex: label.color ?? "#6B7280").opacity(0.2))
             )
             .foregroundColor(Color(hex: label.color ?? "#6B7280"))
+            .accessibilityLabel("Label: \(label.name)")
     }
 }
 
@@ -514,6 +673,194 @@ struct RecipeGeneratorFromTaskView: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Task Inspector Content (iPad)
+
+struct TaskInspectorContent: View {
+    let task: Task?
+    let onToggle: (Task) -> Void
+    let onDelete: (Task) -> Void
+
+    var body: some View {
+        if let task = task {
+            TaskInspectorView(task: task, onToggle: onToggle, onDelete: onDelete)
+        } else {
+            ContentUnavailableView {
+                SwiftUI.Label("No Task Selected", systemImage: "checkmark.circle")
+            } description: {
+                Text("Select a task to view details")
+            }
+        }
+    }
+}
+
+struct TaskInspectorView: View {
+    let task: Task
+    let onToggle: (Task) -> Void
+    let onDelete: (Task) -> Void
+
+    @State private var isToggling = false
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                // Header
+                taskHeader
+
+                Divider()
+
+                // Description
+                if let description = task.description, !description.isEmpty {
+                    descriptionSection(description)
+                    Divider()
+                }
+
+                // Due Date
+                if let dueDate = task.dueDate {
+                    dueDateSection(dueDate)
+                    Divider()
+                }
+
+                // Labels
+                if !task.labels.isEmpty {
+                    labelsSection
+                    Divider()
+                }
+
+                // Created At
+                createdAtSection
+
+                Divider()
+
+                // Actions
+                actionsSection
+
+                Spacer()
+            }
+            .padding()
+        }
+        .navigationTitle("Task Details")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    // MARK: - Subviews
+
+    private var taskHeader: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Button(action: {
+                    HapticManager.lightImpact()
+                    isToggling = true
+                    onToggle(task)
+                    isToggling = false
+                }) {
+                    Image(systemName: task.completed ? "checkmark.circle.fill" : "circle")
+                        .font(.title2)
+                        .foregroundColor(task.completed ? .green : .gray)
+                }
+                .buttonStyle(.plain)
+                .disabled(isToggling)
+                .accessibilityLabel(task.completed ? "Mark as incomplete" : "Mark as complete")
+                .accessibilityHint(task.completed ? "Double tap to mark this task as not done" : "Double tap to mark this task as done")
+
+                Text(task.title)
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                    .strikethrough(task.completed)
+                    .foregroundColor(task.completed ? .secondary : .primary)
+            }
+            .accessibilityElement(children: .contain)
+
+            if task.completed {
+                SwiftUI.Label("Completed", systemImage: "checkmark.seal.fill")
+                    .font(.subheadline)
+                    .foregroundColor(.green)
+                    .accessibilityLabel("Task status: Completed")
+            }
+        }
+    }
+
+    private func descriptionSection(_ description: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Description")
+                .font(.headline)
+                .foregroundColor(.secondary)
+
+            Text(description)
+                .font(.body)
+        }
+    }
+
+    private func dueDateSection(_ dueDate: Date) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Due Date")
+                .font(.headline)
+                .foregroundColor(.secondary)
+
+            HStack {
+                Image(systemName: "calendar")
+                Text(dueDate, style: .date)
+                Text("at")
+                    .foregroundColor(.secondary)
+                Text(dueDate, style: .time)
+            }
+            .foregroundColor(dueDate < Date() && !task.completed ? .red : .primary)
+        }
+    }
+
+    private var labelsSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Labels")
+                .font(.headline)
+                .foregroundColor(.secondary)
+
+            FlowLayout(spacing: 8) {
+                ForEach(task.labels) { label in
+                    LabelBadge(label: label)
+                }
+            }
+        }
+    }
+
+    private var createdAtSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Created")
+                .font(.headline)
+                .foregroundColor(.secondary)
+
+            HStack {
+                Image(systemName: "clock")
+                Text(task.createdAt, style: .date)
+                Text("at")
+                    .foregroundColor(.secondary)
+                Text(task.createdAt, style: .time)
+            }
+            .font(.subheadline)
+            .foregroundColor(.secondary)
+        }
+    }
+
+    private var actionsSection: some View {
+        VStack(spacing: 12) {
+            Button(action: {
+                HapticManager.mediumImpact()
+                onDelete(task)
+            }) {
+                SwiftUI.Label("Delete Task", systemImage: "trash")
+                    .font(.headline)
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color.red)
+                    .cornerRadius(10)
+            }
+            .accessibilityLabel("Delete task")
+            .accessibilityHint("Double tap to permanently delete this task")
+            .accessibilityAddTraits(.isButton)
+        }
+        .padding(.top, 8)
     }
 }
 

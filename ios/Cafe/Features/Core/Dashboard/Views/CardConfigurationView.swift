@@ -9,6 +9,7 @@ import SwiftUI
 
 struct CardConfigurationView: View {
     @Environment(\.dismiss) var dismiss
+    @Environment(ThemeManager.self) var themeManager
     @Binding var card: DashboardCard
 
     var body: some View {
@@ -17,11 +18,66 @@ struct CardConfigurationView: View {
                 Section("Card Settings") {
                     Toggle("Show Card", isOn: $card.isVisible)
 
-                    Picker("Size", selection: $card.size) {
-                        ForEach([CardSize.small, .medium, .large], id: \.self) { size in
-                            Text(size.displayName).tag(size)
+                    // Enhanced size picker with visual previews
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Size")
+                            .font(.headline)
+                        
+                        HStack(spacing: 12) {
+                            ForEach([CardSize.small, .medium, .large], id: \.self) { size in
+                                Button(action: {
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                        card.size = size
+                                    }
+                                    HapticManager.selection()
+                                }) {
+                                    VStack(spacing: 8) {
+                                        // Visual preview
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .fill(
+                                                card.size == size
+                                                    ? themeManager.accentColor.opacity(0.2)
+                                                    : themeManager.cardBackgroundColor
+                                            )
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 8)
+                                                    .stroke(
+                                                        card.size == size
+                                                            ? themeManager.accentColor
+                                                            : themeManager.secondaryTextColor.opacity(0.3),
+                                                        lineWidth: card.size == size ? 2 : 1
+                                                    )
+                                            )
+                                            .frame(
+                                                width: size == .small ? 60 : (size == .medium ? 80 : 100),
+                                                height: size == .small ? 40 : (size == .medium ? 60 : 80)
+                                            )
+                                        
+                                        Text(size.displayName)
+                                            .font(.caption)
+                                            .fontWeight(card.size == size ? .semibold : .regular)
+                                            .foregroundColor(
+                                                card.size == size
+                                                    ? themeManager.accentColor
+                                                    : themeManager.textColor
+                                            )
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 8)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .fill(
+                                                card.size == size
+                                                    ? themeManager.accentColor.opacity(0.1)
+                                                    : Color.clear
+                                            )
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                            }
                         }
                     }
+                    .padding(.vertical, 4)
 
                     Toggle("Show Header", isOn: $card.configuration.showHeader)
 
@@ -125,7 +181,7 @@ struct CardConfigurationView: View {
 
             Text("Configure list items in the main app")
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(themeManager.secondaryTextColor)
         }
     }
 }

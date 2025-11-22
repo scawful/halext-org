@@ -12,8 +12,21 @@ struct FinanceView: View {
     @State private var summary: FinancialSummary?
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var showRetry = false
     @State private var showingAddAccount = false
     @State private var selectedTab: FinanceTab = .overview
+    @State private var searchText = ""
+
+    var filteredAccounts: [BankAccount] {
+        if searchText.isEmpty {
+            return accounts
+        }
+        return accounts.filter { account in
+            account.accountName.localizedCaseInsensitiveContains(searchText) ||
+            account.institutionName.localizedCaseInsensitiveContains(searchText) ||
+            account.accountType.rawValue.localizedCaseInsensitiveContains(searchText)
+        }
+    }
 
     enum FinanceTab: String, CaseIterable {
         case overview = "Overview"
@@ -46,10 +59,10 @@ struct FinanceView: View {
 
                 // Content
                 TabView(selection: $selectedTab) {
-                    FinanceOverviewView(summary: summary, accounts: accounts)
+                    FinanceOverviewView(summary: summary, accounts: filteredAccounts)
                         .tag(FinanceTab.overview)
 
-                    AccountsListView(accounts: accounts, onRefresh: loadAccounts)
+                    AccountsListView(accounts: filteredAccounts, onRefresh: loadAccounts)
                         .tag(FinanceTab.accounts)
 
                     TransactionsListView()
@@ -80,8 +93,28 @@ struct FinanceView: View {
             .sheet(isPresented: $showingAddAccount) {
                 AddBankAccountView(onAccountAdded: loadAccounts)
             }
+            .searchable(text: $searchText, prompt: "Search accounts")
             .task {
                 await loadData()
+            }
+            .alert("Error", isPresented: Binding(get: { errorMessage != nil }, set: { _ in errorMessage = nil })) {
+                Button("OK", role: .cancel) {
+                    errorMessage = nil
+                    showRetry = false
+                }
+                if showRetry {
+                    Button("Retry") {
+                        errorMessage = nil
+                        showRetry = false
+                        _Concurrency.Task {
+                            await loadData()
+                        }
+                    }
+                }
+            } message: {
+                if let error = errorMessage {
+                    Text(error)
+                }
             }
         }
     }
@@ -98,7 +131,9 @@ struct FinanceView: View {
         do {
             accounts = try await APIClient.shared.getBankAccounts()
         } catch {
-            errorMessage = error.localizedDescription
+            let categorized = ErrorCategorizer.categorize(error: error, defaultMessage: "Failed to load accounts")
+            errorMessage = categorized.message
+            showRetry = categorized.shouldShowRetry
         }
     }
 
@@ -106,20 +141,31 @@ struct FinanceView: View {
         do {
             summary = try await APIClient.shared.getFinancialSummary()
         } catch {
-            errorMessage = error.localizedDescription
+            let categorized = ErrorCategorizer.categorize(error: error, defaultMessage: "Failed to load financial summary")
+            errorMessage = categorized.message
+            showRetry = categorized.shouldShowRetry
         }
     }
 
     private func syncAllAccounts() {
         _Concurrency.Task {
+            var syncErrors: [String] = []
             for account in accounts {
                 do {
                     _ = try await APIClient.shared.syncBankAccount(id: account.id)
                 } catch {
-                    print("Failed to sync account \(account.id): \(error)")
+                    syncErrors.append(account.accountName)
                 }
             }
             await loadData()
+            if !syncErrors.isEmpty {
+                let categorized = ErrorCategorizer.categorize(
+                    error: NSError(domain: "", code: 0, userInfo: [NSLocalizedDescriptionKey: "Failed to sync: \(syncErrors.joined(separator: ", "))"]),
+                    defaultMessage: "Failed to sync some accounts"
+                )
+                errorMessage = categorized.message
+                showRetry = categorized.shouldShowRetry
+            }
         }
     }
 }
@@ -368,6 +414,7 @@ struct TransactionsListView: View {
     @State private var transactions: [Transaction] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var showRetry = false
     @State private var selectedAccountId: Int?
     @State private var showingAddTransaction = false
     @State private var accounts: [BankAccount] = []
@@ -422,13 +469,34 @@ struct TransactionsListView: View {
             await loadAccounts()
             await loadTransactions()
         }
+        .alert("Error", isPresented: Binding(get: { errorMessage != nil }, set: { _ in errorMessage = nil })) {
+            Button("OK", role: .cancel) {
+                errorMessage = nil
+                showRetry = false
+            }
+            if showRetry {
+                Button("Retry") {
+                    errorMessage = nil
+                    showRetry = false
+                    _Concurrency.Task {
+                        await loadTransactions()
+                    }
+                }
+            }
+        } message: {
+            if let error = errorMessage {
+                Text(error)
+            }
+        }
     }
 
     private func loadAccounts() async {
         do {
             accounts = try await APIClient.shared.getBankAccounts()
         } catch {
-            print("Failed to load accounts: \(error)")
+            let categorized = ErrorCategorizer.categorize(error: error, defaultMessage: "Failed to load accounts")
+            errorMessage = categorized.message
+            showRetry = categorized.shouldShowRetry
         }
     }
 
@@ -439,7 +507,9 @@ struct TransactionsListView: View {
         do {
             transactions = try await APIClient.shared.getTransactions(accountId: selectedAccountId, limit: 100)
         } catch {
-            errorMessage = error.localizedDescription
+            let categorized = ErrorCategorizer.categorize(error: error, defaultMessage: "Failed to load transactions")
+            errorMessage = categorized.message
+            showRetry = categorized.shouldShowRetry
         }
     }
 }
@@ -537,6 +607,7 @@ struct AddTransactionView: View {
     @State private var notes = ""
     @State private var transactionDate = Date()
     @State private var isSubmitting = false
+    @State private var errorMessage: String?
 
     var body: some View {
         NavigationStack {
@@ -594,6 +665,13 @@ struct AddTransactionView: View {
                     Button("Cancel") { dismiss() }
                 }
             }
+            .alert("Error", isPresented: Binding(get: { errorMessage != nil }, set: { _ in errorMessage = nil })) {
+                Button("OK", role: .cancel) { errorMessage = nil }
+            } message: {
+                if let error = errorMessage {
+                    Text(error)
+                }
+            }
         }
     }
 
@@ -630,7 +708,7 @@ struct AddTransactionView: View {
                 onTransactionAdded()
                 dismiss()
             } catch {
-                print("Failed to create transaction: \(error)")
+                errorMessage = ErrorCategorizer.userFriendlyMessage(for: error, defaultMessage: "Failed to create transaction")
             }
 
             isSubmitting = false
@@ -641,13 +719,16 @@ struct AddTransactionView: View {
 struct BudgetsListView: View {
     @State private var budgets: [Budget] = []
     @State private var isLoading = false
+    @State private var isLoadingProgress = false
     @State private var errorMessage: String?
+    @State private var showRetry = false
     @State private var showingAddBudget = false
-    @State private var budgetProgress: [Int: BudgetProgress] = [:]
-    
+    @State private var budgetProgressMap: [Int: BudgetProgressResponse] = [:]
+    @State private var progressSummary: BudgetProgressSummary?
+
     private func budgetAddedCallback() {
         _Concurrency.Task {
-            await loadBudgets()
+            await loadBudgetsAndProgress()
         }
     }
 
@@ -672,15 +753,27 @@ struct BudgetsListView: View {
                 .frame(maxWidth: .infinity)
                 .padding()
             } else {
+                // Budget Progress Summary Card
+                if let summary = progressSummary {
+                    BudgetSummaryCard(summary: summary)
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
+                }
+
                 ForEach(budgets) { budget in
-                    BudgetRowView(budget: budget, progress: budgetProgress[budget.id])
+                    BudgetRowView(
+                        budget: budget,
+                        progress: budgetProgressMap[budget.id].map { response in
+                            BudgetProgress(from: response, budget: budget)
+                        }
+                    )
                 }
                 .onDelete(perform: deleteBudgets)
             }
         }
         .listStyle(.plain)
         .refreshable {
-            await loadBudgets()
+            await loadBudgetsAndProgress()
         }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -693,20 +786,68 @@ struct BudgetsListView: View {
             AddBudgetView(onBudgetAdded: { budgetAddedCallback() })
         }
         .task {
-            await loadBudgets()
+            await loadBudgetsAndProgress()
+        }
+        .alert("Error", isPresented: Binding(get: { errorMessage != nil }, set: { _ in errorMessage = nil })) {
+            Button("OK", role: .cancel) {
+                errorMessage = nil
+                showRetry = false
+            }
+            if showRetry {
+                Button("Retry") {
+                    errorMessage = nil
+                    showRetry = false
+                    _Concurrency.Task {
+                        await loadBudgetsAndProgress()
+                    }
+                }
+            }
+        } message: {
+            if let error = errorMessage {
+                Text(error)
+            }
         }
     }
 
-    private func loadBudgets() async {
+    private func loadBudgetsAndProgress() async {
         isLoading = true
         defer { isLoading = false }
 
         do {
+            // Load budgets first
             budgets = try await APIClient.shared.getBudgets()
-            // TODO: Load budget progress from API
-            // For now, we'll calculate it client-side if we have transactions
+
+            // Then load budget progress from API
+            await loadBudgetProgress()
         } catch {
-            errorMessage = error.localizedDescription
+            let categorized = ErrorCategorizer.categorize(error: error, defaultMessage: "Failed to load budgets")
+            errorMessage = categorized.message
+            showRetry = categorized.shouldShowRetry
+        }
+    }
+
+    private func loadBudgetProgress() async {
+        isLoadingProgress = true
+        defer { isLoadingProgress = false }
+
+        do {
+            // Load the budget progress summary which includes all individual progress
+            let summary = try await APIClient.shared.getBudgetProgressSummary()
+            progressSummary = summary
+
+            // Build a map for quick lookup by budget ID
+            budgetProgressMap = Dictionary(
+                uniqueKeysWithValues: summary.budgetProgress.map { ($0.budgetId, $0) }
+            )
+        } catch {
+            // Log the error but don't show to user - budgets still work without progress
+            #if DEBUG
+            print("Failed to load budget progress: \(error.localizedDescription)")
+            #endif
+
+            // Clear progress data on error
+            budgetProgressMap = [:]
+            progressSummary = nil
         }
     }
 
@@ -716,12 +857,101 @@ struct BudgetsListView: View {
             _Concurrency.Task {
                 do {
                     try await APIClient.shared.deleteBudget(id: budget.id)
-                    await loadBudgets()
+                    await loadBudgetsAndProgress()
                 } catch {
-                    print("Failed to delete budget: \(error)")
+                    errorMessage = ErrorCategorizer.userFriendlyMessage(for: error, defaultMessage: "Failed to delete budget")
                 }
             }
         }
+    }
+}
+
+// MARK: - Budget Summary Card
+
+struct BudgetSummaryCard: View {
+    let summary: BudgetProgressSummary
+
+    var body: some View {
+        VStack(spacing: 16) {
+            // Header
+            HStack {
+                Text("Budget Overview")
+                    .font(.headline)
+                Spacer()
+                Text("\(summary.budgetsOnTrack) on track")
+                    .font(.caption)
+                    .foregroundColor(.green)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.green.opacity(0.1))
+                    .cornerRadius(8)
+
+                if summary.budgetsOverLimit > 0 {
+                    Text("\(summary.budgetsOverLimit) over")
+                        .font(.caption)
+                        .foregroundColor(.red)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.red.opacity(0.1))
+                        .cornerRadius(8)
+                }
+            }
+
+            // Progress Bar
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("$\(formattedAmount(summary.totalSpent)) spent")
+                        .font(.subheadline)
+                        .foregroundColor(summary.totalSpent > summary.totalBudgeted ? .red : .primary)
+
+                    Spacer()
+
+                    Text("of $\(formattedAmount(summary.totalBudgeted))")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+
+                GeometryReader { geometry in
+                    ZStack(alignment: .leading) {
+                        Rectangle()
+                            .fill(Color.gray.opacity(0.2))
+                            .frame(height: 10)
+                            .cornerRadius(5)
+
+                        Rectangle()
+                            .fill(summary.overallPercentUsed > 100 ? Color.red : Color.blue)
+                            .frame(width: geometry.size.width * min(summary.overallPercentUsed / 100, 1.0), height: 10)
+                            .cornerRadius(5)
+                    }
+                }
+                .frame(height: 10)
+
+                HStack {
+                    Text("\(Int(summary.overallPercentUsed))% used")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    Spacer()
+
+                    Text("$\(formattedAmount(summary.totalRemaining)) remaining")
+                        .font(.caption)
+                        .foregroundColor(summary.totalRemaining < 0 ? .red : .green)
+                }
+            }
+        }
+        .padding()
+        .background(Color(.secondarySystemBackground))
+        .cornerRadius(12)
+        .padding(.horizontal)
+        .padding(.vertical, 8)
+    }
+
+    private func formattedAmount(_ amount: Decimal) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.minimumFractionDigits = 2
+        formatter.maximumFractionDigits = 2
+        return formatter.string(from: amount as NSDecimalNumber) ?? "0.00"
     }
 }
 
@@ -844,6 +1074,7 @@ struct AddBudgetView: View {
     @State private var startDate = Date()
     @State private var endDate: Date?
     @State private var isSubmitting = false
+    @State private var errorMessage: String?
 
     var body: some View {
         NavigationStack {
@@ -889,6 +1120,13 @@ struct AddBudgetView: View {
                     Button("Cancel") { dismiss() }
                 }
             }
+            .alert("Error", isPresented: Binding(get: { errorMessage != nil }, set: { _ in errorMessage = nil })) {
+                Button("OK", role: .cancel) { errorMessage = nil }
+            } message: {
+                if let error = errorMessage {
+                    Text(error)
+                }
+            }
         }
     }
 
@@ -920,7 +1158,7 @@ struct AddBudgetView: View {
                 onBudgetAdded()
                 dismiss()
             } catch {
-                print("Failed to create budget: \(error)")
+                errorMessage = ErrorCategorizer.userFriendlyMessage(for: error, defaultMessage: "Failed to create budget")
             }
 
             isSubmitting = false
@@ -940,6 +1178,7 @@ struct AddBankAccountView: View {
     @State private var accountNumber = ""
     @State private var balance = ""
     @State private var isSubmitting = false
+    @State private var errorMessage: String?
 
     var body: some View {
         NavigationStack {
@@ -982,6 +1221,13 @@ struct AddBankAccountView: View {
                     Button("Cancel") { dismiss() }
                 }
             }
+            .alert("Error", isPresented: Binding(get: { errorMessage != nil }, set: { _ in errorMessage = nil })) {
+                Button("OK", role: .cancel) { errorMessage = nil }
+            } message: {
+                if let error = errorMessage {
+                    Text(error)
+                }
+            }
         }
     }
 
@@ -1009,7 +1255,7 @@ struct AddBankAccountView: View {
                 await onAccountAdded()
                 dismiss()
             } catch {
-                print("Failed to create account: \(error)")
+                errorMessage = ErrorCategorizer.userFriendlyMessage(for: error, defaultMessage: "Failed to create account")
             }
 
             isSubmitting = false

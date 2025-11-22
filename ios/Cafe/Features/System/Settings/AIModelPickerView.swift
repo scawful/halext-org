@@ -13,6 +13,9 @@ struct AIModelPickerView: View {
     @Environment(\.dismiss) var dismiss
 
     @State private var searchText = ""
+    @State private var selectedProvider: String? = nil
+    @State private var collapsedSections: Set<String> = []
+    @State private var showCompactView = true
 
     var body: some View {
         NavigationStack {
@@ -53,56 +56,119 @@ struct AIModelPickerView: View {
     }
 
     private func modelsList(modelsResponse: AIModelsResponse) -> some View {
-        List {
+        let grouped = groupedModels(modelsResponse.models)
+        let providers = Set(grouped.map { $0.key }).sorted()
+        
+        return List {
+            // Quick filter chips
+            if !searchText.isEmpty || selectedProvider == nil {
+                Section {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            FilterChip(
+                                title: "All",
+                                isSelected: selectedProvider == nil,
+                                count: modelsResponse.models.count
+                            ) {
+                                selectedProvider = nil
+                            }
+                            
+                            ForEach(providers.prefix(8), id: \.self) { provider in
+                                FilterChip(
+                                    title: provider,
+                                    isSelected: selectedProvider == provider,
+                                    count: grouped.first(where: { $0.key == provider })?.value.count ?? 0
+                                ) {
+                                    selectedProvider = selectedProvider == provider ? nil : provider
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 4)
+                    }
+                } header: {
+                    Text("Quick Filters")
+                }
+            }
+            
             // Default model section
-            if let defaultModelId = modelsResponse.defaultModelId {
+            if let defaultModelId = modelsResponse.defaultModelId,
+               (selectedProvider == nil || defaultModelId.contains(selectedProvider ?? "")) {
                 Section {
                     Button(action: {
                         selectedModelId = nil
                         dismiss()
                     }) {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Default Model")
-                                    .font(.headline)
-                                    .foregroundColor(.primary)
-
-                                Text(defaultModelId)
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-
-                            Spacer()
-
-                            if selectedModelId == nil {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundColor(.blue)
-                            }
-                        }
+                        CompactModelRow(
+                            modelName: "Default Model",
+                            provider: defaultModelId,
+                            isSelected: selectedModelId == nil,
+                            showDetails: false
+                        )
                     }
                 } header: {
                     Text("Recommended")
                 }
             }
 
-            // Group models by provider/source
-            ForEach(groupedModels(modelsResponse.models), id: \.key) { group in
-                Section {
-                    ForEach(group.value) { model in
-                        modelRow(model: model)
-                    }
-                } header: {
-                    HStack {
-                        Text(group.key)
-                        if let firstModel = group.value.first, let latency = firstModel.latencyMs {
-                            Text("\(latency)ms")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+            // Group models by provider/source with collapsible sections
+            ForEach(grouped, id: \.key) { group in
+                if selectedProvider == nil || group.key == selectedProvider {
+                    let isCollapsed = collapsedSections.contains(group.key)
+                    
+                    Section {
+                        if !isCollapsed {
+                            ForEach(group.value) { model in
+                                modelRow(model: model, compact: showCompactView)
+                            }
+                        } else {
+                            Button(action: {
+                                collapsedSections.remove(group.key)
+                            }) {
+                                HStack {
+                                    Text("\(group.value.count) models")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                    Spacer()
+                                    Image(systemName: "chevron.down")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                        }
+                    } header: {
+                        HStack {
+                            Button(action: {
+                                if isCollapsed {
+                                    collapsedSections.remove(group.key)
+                                } else {
+                                    collapsedSections.insert(group.key)
+                                }
+                            }) {
+                                HStack(spacing: 4) {
+                                    Text(group.key)
+                                    Text("(\(group.value.count))")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    Image(systemName: isCollapsed ? "chevron.right" : "chevron.down")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            .buttonStyle(.plain)
+                            
+                            Spacer()
+                            
+                            if let firstModel = group.value.first, let latency = firstModel.latencyMs {
+                                Text("\(latency)ms")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
                         }
                     }
                 }
             }
         }
+        .listStyle(.insetGrouped)
     }
 
     @MainActor
@@ -125,103 +191,27 @@ struct AIModelPickerView: View {
         }
     }
 
-    private func modelRow(model: AIModel) -> some View {
+    private func modelRow(model: AIModel, compact: Bool) -> some View {
         Button(action: {
             selectedModelId = model.id
             dismiss()
         }) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 6) {
-                    // Model name and tier badge
-                    HStack(spacing: 8) {
-                        Text(model.name)
-                            .font(.headline)
-                            .foregroundColor(.primary)
-
-                        if !model.tierLabel.isEmpty {
-                            Text(model.tierLabel)
-                                .font(.caption2)
-                                .fontWeight(.medium)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(tierColor(for: model.tierLabel))
-                                .foregroundColor(.white)
-                                .cornerRadius(4)
-                        }
-                    }
-
-                    // Description
-                    if let description = model.description {
-                        Text(description)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .lineLimit(2)
-                    }
-
-                    // Capabilities and metadata
-                    VStack(alignment: .leading, spacing: 4) {
-                        // Context window
-                        if let contextWindow = model.contextWindowFormatted {
-                            Label(contextWindow, systemImage: "doc.text")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                        }
-
-                        // Cost
-                        if let cost = model.costDescription {
-                            Label(cost, systemImage: "dollarsign.circle")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                        }
-
-                        // Capabilities
-                        HStack(spacing: 8) {
-                            if model.supportsVision == true {
-                                Label("Vision", systemImage: "eye.fill")
-                                    .font(.caption2)
-                                    .foregroundColor(.purple)
-                            }
-
-                            if model.supportsFunctionCalling == true {
-                                Label("Functions", systemImage: "function")
-                                    .font(.caption2)
-                                    .foregroundColor(.green)
-                            }
-                        }
-
-                        // Node/latency info for distributed models
-                        HStack(spacing: 8) {
-                            if let nodeName = model.nodeName {
-                                Label(nodeName, systemImage: "server.rack")
-                                    .font(.caption2)
-                                    .foregroundColor(.secondary)
-                            }
-
-                            if let latency = model.latencyMs {
-                                Label("\(latency)ms", systemImage: "speedometer")
-                                    .font(.caption2)
-                                    .foregroundColor(.secondary)
-                            }
-
-                            if let size = model.size {
-                                Label(size, systemImage: "externaldrive")
-                                    .font(.caption2)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                    }
-                }
-
-                Spacer()
-
-                if selectedModelId == model.id {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.blue)
-                        .padding(.top, 4)
-                }
+            if compact {
+                CompactModelRow(
+                    modelName: model.name,
+                    provider: model.provider,
+                    isSelected: selectedModelId == model.id,
+                    showDetails: false,
+                    tierLabel: model.tierLabel.isEmpty ? nil : model.tierLabel,
+                    supportsVision: model.supportsVision == true,
+                    supportsFunctions: model.supportsFunctionCalling == true,
+                    latency: model.latencyMs
+                )
+            } else {
+                DetailedModelRow(model: model, isSelected: selectedModelId == model.id)
             }
-            .padding(.vertical, 4)
         }
+        .buttonStyle(.plain)
     }
 
     private func tierColor(for tier: String) -> Color {
@@ -279,19 +269,245 @@ struct AIModelPickerView: View {
             }
         }
 
-        // Sort by group name
-        return grouped.sorted { $0.key < $1.key }
+        // Sort by group name, but prioritize common providers
+        let priorityProviders = ["Openai", "Gemini", "Ollama", "Openwebui"]
+        return grouped.sorted { lhs, rhs in
+            let lhsPriority = priorityProviders.firstIndex(of: lhs.key) ?? Int.max
+            let rhsPriority = priorityProviders.firstIndex(of: rhs.key) ?? Int.max
+            if lhsPriority != rhsPriority {
+                return lhsPriority < rhsPriority
+            }
+            return lhs.key < rhs.key
+        }
     }
 
     private func filteredModels(_ models: [AIModel]) -> [AIModel] {
-        if searchText.isEmpty {
-            return models
+        var filtered = models
+        
+        // Apply provider filter
+        if let provider = selectedProvider {
+            filtered = filtered.filter { model in
+                model.provider.capitalized == provider ||
+                model.source?.capitalized == provider ||
+                model.nodeName == provider
+            }
         }
+        
+        // Apply search filter
+        if !searchText.isEmpty {
+            filtered = filtered.filter { model in
+                model.name.localizedCaseInsensitiveContains(searchText) ||
+                model.provider.localizedCaseInsensitiveContains(searchText) ||
+                (model.nodeName?.localizedCaseInsensitiveContains(searchText) ?? false) ||
+                (model.description?.localizedCaseInsensitiveContains(searchText) ?? false)
+            }
+        }
+        
+        return filtered
+    }
+}
 
-        return models.filter { model in
-            model.name.localizedCaseInsensitiveContains(searchText) ||
-            model.provider.localizedCaseInsensitiveContains(searchText) ||
-            (model.nodeName?.localizedCaseInsensitiveContains(searchText) ?? false)
+// MARK: - Compact Model Row
+
+struct CompactModelRow: View {
+    let modelName: String
+    let provider: String
+    let isSelected: Bool
+    let showDetails: Bool
+    var tierLabel: String? = nil
+    var supportsVision: Bool = false
+    var supportsFunctions: Bool = false
+    var latency: Int? = nil
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            // Selection indicator
+            ZStack {
+                Circle()
+                    .fill(isSelected ? Color.blue : Color.clear)
+                    .frame(width: 24, height: 24)
+                
+                if isSelected {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(.white)
+                } else {
+                    Circle()
+                        .stroke(Color.secondary.opacity(0.3), lineWidth: 2)
+                        .frame(width: 24, height: 24)
+                }
+            }
+            
+            // Model info
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Text(modelName)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.primary)
+                    
+                    if let tier = tierLabel {
+                        Text(tier)
+                            .font(.caption2)
+                            .fontWeight(.medium)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 2)
+                            .background(tierColor(for: tier))
+                            .foregroundColor(.white)
+                            .cornerRadius(3)
+                    }
+                }
+                
+                HStack(spacing: 8) {
+                    Text(provider.uppercased())
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                    
+                    if supportsVision {
+                        Image(systemName: "eye.fill")
+                            .font(.caption2)
+                            .foregroundColor(.purple)
+                    }
+                    
+                    if supportsFunctions {
+                        Image(systemName: "function")
+                            .font(.caption2)
+                            .foregroundColor(.green)
+                    }
+                    
+                    if let latency = latency {
+                        Text("\(latency)ms")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+            
+            Spacer()
+        }
+        .padding(.vertical, 6)
+        .contentShape(Rectangle())
+    }
+    
+    private func tierColor(for tier: String) -> Color {
+        switch tier {
+        case "Lightweight":
+            return .green
+        case "Standard":
+            return .blue
+        case "Premium":
+            return .purple
+        default:
+            return .gray
+        }
+    }
+}
+
+// MARK: - Detailed Model Row (for future use)
+
+struct DetailedModelRow: View {
+    let model: AIModel
+    let isSelected: Bool
+    
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
+                    Text(model.name)
+                        .font(.headline)
+                        .foregroundColor(.primary)
+
+                    if !model.tierLabel.isEmpty {
+                        Text(model.tierLabel)
+                            .font(.caption2)
+                            .fontWeight(.medium)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(tierColor(for: model.tierLabel))
+                            .foregroundColor(.white)
+                            .cornerRadius(4)
+                    }
+                }
+
+                if let description = model.description {
+                    Text(description)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .lineLimit(2)
+                }
+
+                HStack(spacing: 8) {
+                    if model.supportsVision == true {
+                        Label("Vision", systemImage: "eye.fill")
+                            .font(.caption2)
+                            .foregroundColor(.purple)
+                    }
+
+                    if model.supportsFunctionCalling == true {
+                        Label("Functions", systemImage: "function")
+                            .font(.caption2)
+                            .foregroundColor(.green)
+                    }
+                    
+                    if let latency = model.latencyMs {
+                        Label("\(latency)ms", systemImage: "speedometer")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+
+            Spacer()
+
+            if isSelected {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundColor(.blue)
+                    .padding(.top, 4)
+            }
+        }
+        .padding(.vertical, 4)
+    }
+    
+    private func tierColor(for tier: String) -> Color {
+        switch tier {
+        case "Lightweight":
+            return .green
+        case "Standard":
+            return .blue
+        case "Premium":
+            return .purple
+        default:
+            return .gray
+        }
+    }
+}
+
+// MARK: - Filter Chip
+
+struct FilterChip: View {
+    let title: String
+    let isSelected: Bool
+    let count: Int
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 4) {
+                Text(title)
+                    .font(.caption)
+                    .fontWeight(isSelected ? .semibold : .regular)
+                
+                Text("(\(count))")
+                    .font(.caption2)
+                    .opacity(0.7)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(isSelected ? Color.blue : Color(.systemGray5))
+            )
+            .foregroundColor(isSelected ? .white : .primary)
         }
     }
 }

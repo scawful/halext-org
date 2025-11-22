@@ -253,12 +253,14 @@ extension Theme {
         isDark: true
     )
 
-    // All available themes
-    static let allThemes: [Theme] = [
-        .light, .ocean, .forest, .sunset, .pastel,
-        .cherryBlossom, .sakura, .lavender, .mint, .coral, .autumn, .monochromeLight, .sunrise,
-        .dark, .midnight, .amoled, .neon, .aurora
-    ]
+    // All available themes (includes vibrant themes from ColorThemes.swift)
+    static var allThemes: [Theme] {
+        [
+            .light, .ocean, .forest, .sunset, .pastel,
+            .cherryBlossom, .sakura, .lavender, .mint, .coral, .autumn, .monochromeLight, .sunrise,
+            .dark, .midnight, .amoled, .neon, .aurora
+        ] + Theme.vibrantThemes
+    }
 
     static let lightThemes: [Theme] = [
         .light, .ocean, .forest, .sunset, .pastel,

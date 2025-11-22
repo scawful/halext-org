@@ -198,6 +198,7 @@ struct AIGeneratorCardContent: View {
 struct TodayTasksCardContent: View {
     let tasks: [Task]
     let config: CardConfiguration
+    @State private var showNewTask = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -212,16 +213,26 @@ struct TodayTasksCardContent: View {
 
             if filteredTasks.isEmpty && !config.autoHideWhenEmpty {
                 EmptyCardState(
-                    icon: "checkmark.circle",
-                    message: "No tasks for today"
+                    icon: "sun.max.fill",
+                    message: "No tasks for today",
+                    suggestion: "Plan ahead to stay productive",
+                    actionTitle: "Add Task",
+                    action: { showNewTask = true },
+                    accentColor: .blue
                 )
             } else {
                 VStack(spacing: 8) {
-                    ForEach(filteredTasks.prefix(config.maxTasksToShow)) { task in
+                    ForEach(Array(filteredTasks.prefix(config.maxTasksToShow).enumerated()), id: \.element.id) { index, task in
                         CompactTaskRow(task: task)
+                            .staggeredEntrance(index: index, baseDelay: 0, staggerDelay: 0.03)
                     }
                 }
             }
+        }
+        .sheet(isPresented: $showNewTask) {
+            NewTaskView { _ in }
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
         }
     }
 
@@ -254,13 +265,16 @@ struct UpcomingTasksCardContent: View {
 
             if tasks.isEmpty && !config.autoHideWhenEmpty {
                 EmptyCardState(
-                    icon: "calendar",
-                    message: "No upcoming tasks"
+                    icon: "calendar.badge.clock",
+                    message: "No upcoming tasks",
+                    suggestion: "Schedule tasks for later this week",
+                    accentColor: .cyan
                 )
             } else {
                 VStack(spacing: 8) {
-                    ForEach(tasks.prefix(config.maxTasksToShow)) { task in
+                    ForEach(Array(tasks.prefix(config.maxTasksToShow).enumerated()), id: \.element.id) { index, task in
                         CompactTaskRow(task: task)
+                            .staggeredEntrance(index: index, baseDelay: 0, staggerDelay: 0.03)
                     }
                 }
             }
@@ -287,13 +301,16 @@ struct OverdueTasksCardContent: View {
 
             if tasks.isEmpty && !config.autoHideWhenEmpty {
                 EmptyCardState(
-                    icon: "checkmark.circle",
-                    message: "All caught up!"
+                    icon: "checkmark.seal.fill",
+                    message: "All caught up!",
+                    suggestion: "Great job staying on top of things",
+                    accentColor: .green
                 )
             } else {
                 VStack(spacing: 8) {
-                    ForEach(tasks.prefix(config.maxTasksToShow)) { task in
+                    ForEach(Array(tasks.prefix(config.maxTasksToShow).enumerated()), id: \.element.id) { index, task in
                         CompactTaskRow(task: task)
+                            .staggeredEntrance(index: index, baseDelay: 0, staggerDelay: 0.03)
                     }
                 }
             }
@@ -396,6 +413,7 @@ struct CalendarCardContent: View {
 struct UpcomingEventsCardContent: View {
     let events: [Event]
     let config: CardConfiguration
+    @State private var showNewEvent = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -410,15 +428,25 @@ struct UpcomingEventsCardContent: View {
             if events.isEmpty && !config.autoHideWhenEmpty {
                 EmptyCardState(
                     icon: "calendar.badge.plus",
-                    message: "No upcoming events"
+                    message: "No upcoming events",
+                    suggestion: "Schedule something fun or important",
+                    actionTitle: "Add Event",
+                    action: { showNewEvent = true },
+                    accentColor: .purple
                 )
             } else {
                 VStack(spacing: 12) {
-                    ForEach(events.prefix(config.maxEventsToShow)) { event in
+                    ForEach(Array(events.prefix(config.maxEventsToShow).enumerated()), id: \.element.id) { index, event in
                         EventRow(event: event)
+                            .staggeredEntrance(index: index, baseDelay: 0, staggerDelay: 0.03)
                     }
                 }
             }
+        }
+        .sheet(isPresented: $showNewEvent) {
+            NewEventView(viewModel: CalendarViewModel())
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
         }
     }
 }

@@ -44,6 +44,8 @@ struct AgentHubView: View {
                 } label: {
                     Image(systemName: "arrow.clockwise")
                 }
+                .accessibilityLabel("Refresh models")
+                .accessibilityHint("Reload available AI models from the server")
             }
         })
         .overlay {
@@ -85,34 +87,48 @@ struct AgentHubView: View {
         }
     }
 
+    private func animationDelay(for index: Int) -> TimeInterval {
+        TimeInterval(index) * 0.05
+    }
+
+    @ViewBuilder
     private var modelsListSection: some View {
         Section("Models") {
-            if let models = modelsResponse?.models, !models.isEmpty {
-                ForEach(Array(models.enumerated()), id: \.element.id) { index, model in
-                    modelRow(model: model)
-                        .opacity(animatedModelIds.contains(model.id) ? 1 : 0)
-                        .offset(y: animatedModelIds.contains(model.id) ? 0 : 20)
-                        .animation(
-                            .spring(response: 0.4, dampingFraction: 0.8)
-                                .delay(Double(index) * 0.05),
-                            value: animatedModelIds.contains(model.id)
-                        )
-                        .onAppear {
-                            DispatchQueue.main.asyncAfter(deadline: .now() + Double(index) * 0.05) {
-                                withAnimation {
-                                    animatedModelIds.insert(model.id)
-                                }
-                            }
-                        }
-                }
-            } else if isLoading {
-                ProgressView()
-            } else {
-                Text("No models available. Add provider credentials or start the backend.")
-                    .font(.footnote)
-                    .foregroundColor(.secondary)
-            }
+            modelsContent
         }
+    }
+
+    @ViewBuilder
+    private var modelsContent: some View {
+        if let models = modelsResponse?.models, !models.isEmpty {
+            ForEach(Array(models.enumerated()), id: \.element.id) { index, model in
+                animatedModelRow(model: model, index: index)
+            }
+        } else if isLoading {
+            ProgressView()
+        } else {
+            Text("No models available. Add provider credentials or start the backend.")
+                .font(.footnote)
+                .foregroundColor(themeManager.secondaryTextColor)
+        }
+    }
+
+    private func animatedModelRow(model: AIModel, index: Int) -> some View {
+        modelRow(model: model)
+            .opacity(animatedModelIds.contains(model.id) ? 1 : 0)
+            .offset(y: animatedModelIds.contains(model.id) ? 0 : 20)
+            .animation(
+                .spring(response: 0.4, dampingFraction: 0.8)
+                    .delay(animationDelay(for: index)),
+                value: animatedModelIds.contains(model.id)
+            )
+            .onAppear {
+                DispatchQueue.main.asyncAfter(deadline: .now() + animationDelay(for: index)) {
+                    withAnimation {
+                        _ = animatedModelIds.insert(model.id)
+                    }
+                }
+            }
     }
 
     private var providerSection: some View {
@@ -126,6 +142,8 @@ struct AgentHubView: View {
                     }
                 }
                 .font(.subheadline)
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(backendStatusAccessibilityLabel(response))
 
                 if let creds = response.credentials, !creds.isEmpty {
                     ForEach(creds, id: \.self) { cred in
@@ -136,33 +154,57 @@ struct AgentHubView: View {
                                 if let model = cred.model {
                                     Text("Model: \(model)")
                                         .font(.caption)
-                                        .foregroundColor(.secondary)
+                                        .foregroundColor(themeManager.secondaryTextColor)
                                 }
                                 if let name = cred.keyName {
                                     Text("Key: \(name)")
                                         .font(.caption)
-                                        .foregroundColor(.secondary)
+                                        .foregroundColor(themeManager.secondaryTextColor)
                                 }
                             }
                             Spacer()
                             Image(systemName: cred.hasKey ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
                                 .foregroundColor(cred.hasKey ? .green : .orange)
+                                .accessibilityHidden(true)
                         }
                         .padding(.vertical, 4)
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel(credentialAccessibilityLabel(cred))
                     }
                 } else {
                     Text("No provider credentials detected for this user.")
                         .font(.footnote)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(themeManager.secondaryTextColor)
                 }
             } else if isLoading {
                 ProgressView()
+                    .accessibilityLabel("Loading backend status")
             } else {
                 Text("Load models to see backend status.")
                     .font(.footnote)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(themeManager.secondaryTextColor)
             }
         }
+    }
+
+    private func backendStatusAccessibilityLabel(_ response: AIModelsResponse) -> String {
+        var label = "Backend status: Provider \(response.provider), current model \(response.currentModel)"
+        if let defaultId = response.defaultModelId {
+            label += ", default \(defaultId)"
+        }
+        return label
+    }
+
+    private func credentialAccessibilityLabel(_ cred: ProviderCredentialStatus) -> String {
+        var label = "\(cred.provider.capitalized) provider"
+        if let model = cred.model {
+            label += ", model \(model)"
+        }
+        if let name = cred.keyName {
+            label += ", key \(name)"
+        }
+        label += cred.hasKey ? ", configured" : ", not configured"
+        return label
     }
 
     private func modelRow(model: AIModel) -> some View {
@@ -189,6 +231,7 @@ struct AgentHubView: View {
             }
             .animation(.spring(response: 0.3, dampingFraction: 0.7), value: selectedModelId)
             .animation(.spring(response: 0.2, dampingFraction: 0.7), value: pressedModelId)
+            .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(model.name)
@@ -212,6 +255,7 @@ struct AgentHubView: View {
                     .foregroundColor(themeManager.accentColor)
                     .font(.title3)
                     .transition(.scale.combined(with: .opacity))
+                    .accessibilityHidden(true)
             }
         }
         .padding(.vertical, 4)
@@ -240,6 +284,19 @@ struct AgentHubView: View {
                 selectedModelId = model.id
             }
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(modelAccessibilityLabel(model))
+        .accessibilityValue(selectedModelId == model.id ? "Selected" : "Not selected")
+        .accessibilityHint("Double tap to select this model")
+        .accessibilityAddTraits(selectedModelId == model.id ? [.isButton, .isSelected] : .isButton)
+    }
+
+    private func modelAccessibilityLabel(_ model: AIModel) -> String {
+        var label = "\(model.name), provider: \(model.provider)"
+        if let endpoint = model.endpoint {
+            label += ", endpoint: \(endpoint)"
+        }
+        return label
     }
 
     // MARK: - AI Settings Section
@@ -254,18 +311,18 @@ struct AgentHubView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Default AI Model")
                             .font(.headline)
-                            .foregroundColor(.primary)
+                            .foregroundColor(themeManager.textColor)
 
                         Text(currentModelDisplay)
                             .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(themeManager.secondaryTextColor)
                     }
 
                     Spacer()
 
                     Image(systemName: "chevron.right")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(themeManager.secondaryTextColor)
                 }
             }
 
@@ -393,6 +450,7 @@ struct AgentHubView: View {
                                 .font(.title3)
                                 .foregroundColor(colorFromString(agent.color))
                                 .frame(width: 32)
+                                .accessibilityHidden(true)
 
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(agent.name)
@@ -412,6 +470,8 @@ struct AgentHubView: View {
                                             .cornerRadius(4)
                                     }
                                 }
+                                .accessibilityElement(children: .combine)
+                                .accessibilityLabel("Capabilities: \(agent.capabilities.prefix(3).map { $0.rawValue }.joined(separator: ", "))")
                             }
 
                             Spacer()
@@ -421,8 +481,11 @@ struct AgentHubView: View {
                                 set: { _ in chatSettings.toggleAgent(agent.id) }
                             ))
                             .labelsHidden()
+                            .accessibilityLabel("\(agent.name) agent")
+                            .accessibilityHint("Double tap to \(chatSettings.isAgentActive(agent.id) ? "disable" : "enable") this agent")
                         }
                         .padding(.vertical, 4)
+                        .accessibilityElement(children: .contain)
                     }
                 } header: {
                     Text("Available AI Agents")
@@ -457,6 +520,7 @@ struct AgentHubView: View {
                     Image(systemName: "sparkles")
                         .font(.headline)
                         .symbolEffect(.bounce, value: selectedModelId)
+                        .accessibilityHidden(true)
                     Text("Start AI Thread")
                         .fontWeight(.semibold)
                     Spacer()
@@ -464,6 +528,7 @@ struct AgentHubView: View {
                         Image(systemName: "arrow.right.circle.fill")
                             .foregroundColor(themeManager.accentColor)
                             .transition(.scale.combined(with: .opacity))
+                            .accessibilityHidden(true)
                     }
                 }
                 .foregroundColor(themeManager.textColor)
@@ -479,18 +544,24 @@ struct AgentHubView: View {
             )
             .themedButton(style: .gradient, cornerRadius: 12)
             .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+            .accessibilityLabel("Start AI Thread")
+            .accessibilityHint(selectedModelId != nil ? "Double tap to start a conversation with \(selectedModelId!)" : "Select a model first, then double tap to start a conversation")
+            .accessibilityAddTraits(.isButton)
 
             if let modelId = selectedModelId, !modelId.isEmpty {
                 HStack {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundColor(themeManager.accentColor)
                         .symbolEffect(.pulse.wholeSymbol, options: .repeat(1))
+                        .accessibilityHidden(true)
                     Text("Selected: \(modelId)")
                         .font(.footnote)
                         .foregroundColor(themeManager.secondaryTextColor)
                 }
                 .padding(.vertical, 4)
                 .transition(.opacity.combined(with: .move(edge: .top)))
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("Currently selected model: \(modelId)")
             }
         } header: {
             Text("Actions")

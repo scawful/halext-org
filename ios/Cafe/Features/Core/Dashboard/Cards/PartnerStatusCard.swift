@@ -19,7 +19,7 @@ struct PartnerStatusCard: View {
     @State private var isPressed = false
     @State private var isCalendarPressed = false
     @State private var isMessageIconPressed = false
-    @State private var pulseAnimation = false
+    @State private var isPulsing = false
     
     private var preferredContactUsername: String {
         settingsManager.preferredContactUsername
@@ -52,44 +52,44 @@ struct PartnerStatusCard: View {
                     
                     if let presence = chrisPresence {
                         HStack(spacing: 6) {
-                            ZStack {
-                                // Outer pulse ring (only when online)
-                                if presence.isOnline {
+                            Circle()
+                                .fill(presence.isOnline ? Color.green : Color.gray)
+                                .frame(width: 8, height: 8)
+                                .overlay(
                                     Circle()
-                                        .stroke(Color.green.opacity(0.4), lineWidth: 2)
-                                        .frame(width: 16, height: 16)
-                                        .scaleEffect(pulseAnimation ? 1.5 : 1.0)
-                                        .opacity(pulseAnimation ? 0 : 0.8)
-                                        .animation(
-                                            .easeOut(duration: 1.5)
-                                                .repeatForever(autoreverses: false),
-                                            value: pulseAnimation
-                                        )
+                                        .stroke(presence.isOnline ? Color.green.opacity(0.5) : Color.clear, lineWidth: 2)
+                                        .scaleEffect(isPulsing ? 2.5 : 1.0)
+                                        .opacity(isPulsing ? 0 : 0.6)
+                                )
+                                .onAppear {
+                                    if presence.isOnline {
+                                        withAnimation(.easeOut(duration: 1.5).repeatForever(autoreverses: false)) {
+                                            isPulsing = true
+                                        }
+                                    }
                                 }
-                                // Main status dot
-                                Circle()
-                                    .fill(presence.isOnline ? Color.green : Color.gray)
-                                    .frame(width: 8, height: 8)
-                                    .shadow(color: presence.isOnline ? Color.green.opacity(0.5) : .clear, radius: 4)
-                            }
-                            .frame(width: 16, height: 16)
+                                .accessibilityHidden(true)
 
                             Text(presence.isOnline ? "Online" : "Offline")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
-                        .onAppear {
-                            if presence.isOnline {
-                                pulseAnimation = true
-                            }
-                        }
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("Chris is \(presence.isOnline ? "online" : "offline")")
                         .onChange(of: presence.isOnline) { _, isOnline in
-                            pulseAnimation = isOnline
+                            if isOnline {
+                                withAnimation(.easeOut(duration: 1.5).repeatForever(autoreverses: false)) {
+                                    isPulsing = true
+                                }
+                            } else {
+                                isPulsing = false
+                            }
                         }
                     } else {
                         Text("Loading...")
                             .font(.caption)
                             .foregroundColor(.secondary)
+                            .accessibilityLabel("Loading partner status")
                     }
                 }
                 
@@ -115,6 +115,9 @@ struct PartnerStatusCard: View {
                 }
                 .disabled(isLoadingMessage)
                 .buttonStyle(.plain)
+                .accessibilityLabel(isLoadingMessage ? "Loading conversation" : "Quick message Chris")
+                .accessibilityHint("Opens a direct message conversation with Chris")
+                .accessibilityAddTraits(.isButton)
                 .simultaneousGesture(
                     DragGesture(minimumDistance: 0)
                         .onChanged { _ in isMessageIconPressed = true }
@@ -178,12 +181,14 @@ struct PartnerStatusCard: View {
                 }
                 .disabled(isLoadingMessage)
                 .buttonStyle(.plain)
+                .accessibilityLabel(isLoadingMessage ? "Loading message" : "Message Chris")
+                .accessibilityHint("Opens a conversation to send a message to Chris")
                 .simultaneousGesture(
                     DragGesture(minimumDistance: 0)
                         .onChanged { _ in isPressed = true }
                         .onEnded { _ in isPressed = false }
                 )
-                
+
                 NavigationLink {
                     SharedCalendarView()
                 } label: {
@@ -196,11 +201,24 @@ struct PartnerStatusCard: View {
                     .padding(.vertical, 10)
                     .background(
                         RoundedRectangle(cornerRadius: 10)
-                            .fill(Color.pink.opacity(0.2))
+                            .fill(Color.pink.opacity(isCalendarPressed ? 0.35 : 0.2))
+                            .shadow(color: Color.pink.opacity(0.2), radius: isCalendarPressed ? 2 : 4, y: isCalendarPressed ? 1 : 2)
                     )
                     .foregroundColor(.pink)
+                    .scaleEffect(isCalendarPressed ? 0.97 : 1.0)
+                    .animation(.spring(response: 0.2, dampingFraction: 0.7), value: isCalendarPressed)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Shared calendar with Chris")
+                .accessibilityHint("Opens the shared calendar to view events with Chris")
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { _ in
+                            isCalendarPressed = true
+                            HapticManager.lightImpact()
+                        }
+                        .onEnded { _ in isCalendarPressed = false }
+                )
             }
         }
         .padding()

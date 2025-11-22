@@ -8,21 +8,33 @@
 import SwiftUI
 
 struct GoalsView: View {
+    @Environment(ThemeManager.self) var themeManager
     @State private var viewModel = GoalsViewModel()
     @State private var showingNewGoal = false
-    
+    @State private var searchText = ""
+
+    var filteredGoals: [Goal] {
+        if searchText.isEmpty {
+            return viewModel.goals
+        }
+        return viewModel.goals.filter { goal in
+            goal.title.localizedCaseInsensitiveContains(searchText) ||
+            (goal.description?.localizedCaseInsensitiveContains(searchText) ?? false)
+        }
+    }
+
     var body: some View {
         NavigationStack {
             Group {
                 if viewModel.isLoading {
                     ProgressView()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if viewModel.goals.isEmpty {
+                } else if filteredGoals.isEmpty && searchText.isEmpty {
                     EmptyGoalsView(onCreateGoal: { showingNewGoal = true })
                 } else {
                     ScrollView {
                         LazyVStack(spacing: 16) {
-                            ForEach(viewModel.goals) { goal in
+                            ForEach(filteredGoals) { goal in
                                 NavigationLink {
                                     GoalProgressView(goal: goal, viewModel: viewModel)
                                 } label: {
@@ -48,6 +60,7 @@ struct GoalsView: View {
             .sheet(isPresented: $showingNewGoal) {
                 NewGoalView(viewModel: viewModel)
             }
+            .searchable(text: $searchText, prompt: "Search goals")
             .task {
                 await viewModel.loadGoals()
             }
@@ -61,8 +74,9 @@ struct GoalsView: View {
 // MARK: - Goal Card
 
 struct GoalCard: View {
+    @Environment(ThemeManager.self) var themeManager
     let goal: Goal
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             // Header
@@ -74,7 +88,7 @@ struct GoalCard: View {
                     if let description = goal.description {
                         Text(description)
                             .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(themeManager.secondaryTextColor)
                             .lineLimit(2)
                     }
                 }
@@ -83,7 +97,7 @@ struct GoalCard: View {
                 
                 Image(systemName: "person.2.fill")
                     .font(.caption)
-                    .foregroundColor(.pink)
+                    .foregroundColor(themeManager.accentColor)
             }
             
             // Progress bar
@@ -97,7 +111,7 @@ struct GoalCard: View {
                     
                     Text("\(goal.milestones.filter { $0.completed }.count)/\(goal.milestones.count) milestones")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(themeManager.secondaryTextColor)
                 }
                 
                 GeometryReader { geometry in
@@ -125,7 +139,7 @@ struct GoalCard: View {
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(ThemeManager.shared.cardBackgroundColor)
+                .fill(themeManager.cardBackgroundColor)
                 .shadow(color: .black.opacity(0.05), radius: 8, y: 2)
         )
     }
@@ -135,31 +149,18 @@ struct GoalCard: View {
 
 struct EmptyGoalsView: View {
     let onCreateGoal: () -> Void
-    
+
     var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "target")
-                .font(.system(size: 60))
-                .foregroundColor(.secondary)
-            
-            Text("No Goals Yet")
-                .font(.title2)
-                .fontWeight(.semibold)
-            
+        ContentUnavailableView {
+            Label("No Goals", systemImage: "target")
+        } description: {
             Text("Create your first shared goal together")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-            
+        } actions: {
             Button(action: onCreateGoal) {
-                Label("Create Goal", systemImage: "plus.circle.fill")
-                    .padding()
-                    .background(Color.blue)
-                    .foregroundColor(.white)
-                    .cornerRadius(10)
+                Text("Create Goal")
             }
+            .buttonStyle(.borderedProminent)
         }
-        .padding()
     }
 }
 

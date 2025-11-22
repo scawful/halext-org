@@ -200,6 +200,27 @@ struct Message: Codable, Identifiable {
         try container.encodeIfPresent(updatedAt, forKey: .updatedAt)
         try container.encodeIfPresent(modelUsed, forKey: .modelUsed)
     }
+    
+    // Convenience initializer for testing/previews
+    init(
+        id: Int,
+        conversationId: Int,
+        senderId: Int? = nil,
+        authorType: String? = nil,
+        content: String,
+        createdAt: Date,
+        updatedAt: Date? = nil,
+        modelUsed: String? = nil
+    ) {
+        self.id = id
+        self.conversationId = conversationId
+        self.senderId = senderId
+        self.authorType = authorType
+        self.content = content
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+        self.modelUsed = modelUsed
+    }
 }
 
 // MARK: - Create Models

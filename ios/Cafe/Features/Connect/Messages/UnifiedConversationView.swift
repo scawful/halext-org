@@ -37,13 +37,29 @@ struct UnifiedConversationView: View {
                             emptyState
                         } else {
                             ForEach(messages) { message in
-                                MessageBubbleView(message: message)
+                                if message.isFromAI {
+                                    AIMessageBubble(
+                                        message: message,
+                                        onCopy: {
+                                            UIPasteboard.general.string = message.content
+                                            HapticManager.success()
+                                        },
+                                        onRegenerate: {
+                                            _Concurrency.Task {
+                                                await regenerateLastResponse()
+                                            }
+                                        }
+                                    )
                                     .id(message.id)
+                                } else {
+                                    MessageBubbleView(message: message)
+                                        .id(message.id)
+                                }
                             }
                             
                             // Streaming message (if AI is responding)
-                            if isStreaming && !streamingText.isEmpty {
-                                StreamingMessageBubble(text: streamingText)
+                            if isStreaming {
+                                StreamingAIMessageBubble(text: streamingText)
                                     .id("streaming")
                             }
                         }
@@ -535,12 +551,18 @@ struct MessageBubbleView: View {
     }
 }
 
-// MARK: - Streaming Message Bubble
+// MARK: - Streaming AI Message Bubble
 
-struct StreamingMessageBubble: View {
+struct StreamingAIMessageBubble: View {
     let text: String
     @State private var animating = false
+    @State private var displayedText: String = ""
+    @State private var wordIndex: Int = 0
     @Environment(ThemeManager.self) private var themeManager
+    
+    private var words: [String] {
+        text.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }
+    }
 
     private var accessibilityLabel: String {
         if text.isEmpty {
@@ -552,39 +574,65 @@ struct StreamingMessageBubble: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
+            // AI Avatar
             Circle()
-                .fill(LinearGradient(
-                    colors: [.blue, .purple],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                ))
-                .frame(width: 36, height: 36)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            themeManager.accentColor.opacity(0.8),
+                            themeManager.accentColor.opacity(0.6)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: 40, height: 40)
                 .overlay {
                     Image(systemName: "sparkles")
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.system(size: 18, weight: .semibold))
                         .foregroundStyle(.white)
                         .rotationEffect(.degrees(animating ? 360 : 0))
                         .animation(.linear(duration: 2).repeatForever(autoreverses: false), value: animating)
                 }
+                .shadow(color: themeManager.accentColor.opacity(0.3), radius: 4, x: 0, y: 2)
                 .accessibilityHidden(true)
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 8) {
                 if !text.isEmpty {
-                    Text(text)
-                        .font(.body)
-                        .foregroundColor(themeManager.textColor)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 12)
-                        .background(
-                            RoundedRectangle(cornerRadius: 20)
-                                .fill(themeManager.secondaryBackgroundColor)
-                        )
+                    // Streaming text with word-by-word animation
+                    VStack(alignment: .leading, spacing: 0) {
+                        MarkdownRenderer(text: displayedText)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                    }
+                    .background(
+                        RoundedRectangle(cornerRadius: 20)
+                            .fill(themeManager.cardBackgroundColor)
+                            .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 2)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 20)
+                            .stroke(
+                                LinearGradient(
+                                    colors: [
+                                        themeManager.accentColor.opacity(0.2),
+                                        themeManager.accentColor.opacity(0.05)
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 1
+                            )
+                    )
+                    .onChange(of: text) { oldValue, newValue in
+                        animateText(newValue)
+                    }
                 } else {
                     // Typing indicator
                     HStack(spacing: 4) {
                         ForEach(0..<3) { index in
                             Circle()
-                                .fill(Color.secondary.opacity(0.6))
+                                .fill(themeManager.accentColor.opacity(0.6))
                                 .frame(width: 8, height: 8)
                                 .scaleEffect(animating ? 1.0 : 0.5)
                                 .animation(
@@ -599,24 +647,62 @@ struct StreamingMessageBubble: View {
                     .padding(.vertical, 12)
                     .background(
                         RoundedRectangle(cornerRadius: 20)
-                            .fill(themeManager.secondaryBackgroundColor)
+                            .fill(themeManager.cardBackgroundColor)
+                            .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 2)
                     )
                 }
 
-                Label("Generating...", systemImage: "ellipsis")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-                    .accessibilityHidden(true)
+                HStack(spacing: 16) {
+                    Label("Generating...", systemImage: "ellipsis")
+                        .font(.caption2)
+                        .foregroundColor(themeManager.secondaryTextColor.opacity(0.7))
+                    
+                    Spacer()
+                }
+                .padding(.horizontal, 4)
             }
 
             Spacer()
         }
+        .padding(.horizontal, 4)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel)
         .accessibilityAddTraits(.updatesFrequently)
         .onAppear {
             animating = true
+            if !text.isEmpty {
+                animateText(text)
+            }
         }
+    }
+    
+    private func animateText(_ newText: String) {
+        let newWords = newText.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }
+        let currentWords = displayedText.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }
+        
+        // If text is shorter, just update immediately
+        if newWords.count <= currentWords.count {
+            displayedText = newText
+            return
+        }
+        
+        // Animate word by word
+        let wordsToAdd = Array(newWords[currentWords.count...])
+        var currentIndex = 0
+        
+        func addNextWord() {
+            guard currentIndex < wordsToAdd.count else { return }
+            let word = wordsToAdd[currentIndex]
+            displayedText = (currentWords + Array(wordsToAdd[0...currentIndex])).joined(separator: " ")
+            currentIndex += 1
+            
+            // Add next word after a short delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                addNextWord()
+            }
+        }
+        
+        addNextWord()
     }
 }
 
