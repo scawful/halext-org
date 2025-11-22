@@ -62,7 +62,14 @@
       "WebFetch(domain:faq.altstore.io)",
       "Bash(plutil:*)",
       "Bash(xcrun simctl list:*)",
-      "Bash(paste:*)"
+      "Bash(paste:*)",
+      "Bash(sqlite3:*)",
+      "Bash(source backend/env/bin/activate:*)",
+      "Bash(swift build:*)",
+      "Bash(swift -parse:*)",
+      "Bash(source:*)",
+      "Bash(bash -n:*)",
+      "Bash(/Users/scawful/Code/halext-org/scripts/ios-version-bump.sh:*)"
     ],
     "deny": [],
     "ask": []
