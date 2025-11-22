@@ -305,6 +305,26 @@ struct AIModelsResponse: Codable {
         case defaultModelId = "default_model_id"
         case credentials
     }
+    
+    // Custom decoder to provide default if current_model is missing
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        models = try container.decode([AIModel].self, forKey: .models)
+        provider = try container.decode(String.self, forKey: .provider)
+        defaultModelId = try container.decodeIfPresent(String.self, forKey: .defaultModelId)
+        credentials = try container.decodeIfPresent([ProviderCredentialStatus].self, forKey: .credentials)
+        
+        // Try to decode current_model, fallback to default_model_id or first model name
+        if let current = try? container.decodeIfPresent(String.self, forKey: .currentModel), !current.isEmpty {
+            currentModel = current
+        } else if let defaultId = defaultModelId, let modelName = defaultId.split(separator: ":").last {
+            currentModel = String(modelName)
+        } else if let firstModel = models.first {
+            currentModel = firstModel.name
+        } else {
+            currentModel = "unknown"
+        }
+    }
 }
 
 struct ProviderCredentialStatus: Codable, Hashable {

@@ -153,6 +153,14 @@ class UserSummary(BaseModel):
         from_attributes = True
 
 
+class PartnerPresence(BaseModel):
+    username: str
+    is_online: bool
+    current_activity: Optional[str] = None
+    status_message: Optional[str] = None
+    last_seen: Optional[datetime] = None
+
+
 class ConversationSummary(Conversation):
     participants: List[str] = Field(default_factory=list)
     participant_details: List[UserSummary] = Field(default_factory=list)

@@ -3,7 +3,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
 from typing import List
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 from app import crud, models, schemas, auth
 from app.dependencies import get_db, verify_access_code
@@ -83,3 +83,29 @@ def search_users(
         )
     results = query.order_by(models.User.username.asc()).limit(limit).all()
     return [schemas.UserSummary.from_orm(user) for user in results]
+
+
+@router.get("/users/{username}/presence", response_model=schemas.PartnerPresence)
+def get_user_presence(
+    username: str,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get presence status for a user.
+    TODO: Implement actual presence tracking with last_seen timestamps.
+    For now, returns mock data (always online).
+    """
+    user = crud.get_user_by_username(db, username)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # TODO: Implement actual presence tracking
+    # For now, return mock data (always online, no activity)
+    return schemas.PartnerPresence(
+        username=user.username,
+        is_online=True,
+        current_activity=None,
+        status_message=None,
+        last_seen=datetime.utcnow()
+    )
