@@ -16,9 +16,17 @@ enum FeatureDestination: Hashable {
     case calendar
     case pages
     case admin
+    case agentHub
+    case recipes
+    case goals
+    case memories
+    case sharedFiles
+    case themes
+    case advancedFeatures
+    case help
     case chat // Legacy - redirects to messages
     case settings
-    case social
+    case social // Deprecated
 }
 
 struct MoreView: View {
@@ -27,21 +35,35 @@ struct MoreView: View {
     @State private var showSettings = false
 
     private let aiAndComms: [MoreLink] = [
-        MoreLink(title: "AI Chat", subtitle: "Ask anything with your selected model", icon: "sparkles", color: .purple, destination: .chat),
-        MoreLink(title: "Messages", subtitle: "Chat with contacts and AI agents", icon: "bubble.left.and.bubble.right.fill", color: .blue, destination: .messages),
-        MoreLink(title: "Social Circles", subtitle: "See presence and updates", icon: "person.3.sequence.fill", color: .orange, destination: .social)
+        MoreLink(title: "Messages", subtitle: "Chat with AI and contacts", icon: "message.fill", color: .purple, destination: .messages),
+        MoreLink(title: "Agent Hub", subtitle: "Browse and configure AI models", icon: "cpu.fill", color: .blue, destination: .agentHub),
+        MoreLink(title: "Pages", subtitle: "Notes and AI context", icon: "doc.on.doc.fill", color: .pink, destination: .pages)
     ]
 
     private let productivity: [MoreLink] = [
         MoreLink(title: "Tasks", subtitle: "Manage your to-dos", icon: "checkmark.circle", color: .green, destination: .tasks),
         MoreLink(title: "Calendar", subtitle: "Plan events and deadlines", icon: "calendar", color: .red, destination: .calendar),
         MoreLink(title: "Smart Lists", subtitle: "Custom filtered views", icon: "list.bullet.rectangle", color: .orange, destination: .smartLists),
-        MoreLink(title: "Templates", subtitle: "Reusable task templates", icon: "doc.text", color: .purple, destination: .templates)
+        MoreLink(title: "Templates", subtitle: "Reusable task templates", icon: "doc.text", color: .purple, destination: .templates),
+        MoreLink(title: "Recipes", subtitle: "Generate recipes from ingredients", icon: "fork.knife", color: .brown, destination: .recipes)
+    ]
+    
+    private let toolsAndApps: [MoreLink] = [
+        MoreLink(title: "Finance", subtitle: "Budgets and spending", icon: "dollarsign.circle", color: .mint, destination: .finance),
+        MoreLink(title: "Goals", subtitle: "Track long-term objectives", icon: "flag.fill", color: .yellow, destination: .goals),
+        MoreLink(title: "Memories", subtitle: "Journal and photos", icon: "photo.on.rectangle", color: .pink, destination: .memories),
+        MoreLink(title: "Shared Files", subtitle: "Collaborative documents", icon: "folder.fill", color: .blue, destination: .sharedFiles)
     ]
 
+    private let customization: [MoreLink] = [
+        MoreLink(title: "Themes", subtitle: "Customize colors and styles", icon: "paintpalette.fill", color: .purple, destination: .themes),
+        MoreLink(title: "Advanced Features", subtitle: "Power user settings", icon: "slider.horizontal.3", color: .orange, destination: .advancedFeatures)
+    ]
+    
     private let systemLinks: [MoreLink] = [
-        MoreLink(title: "Finance", subtitle: "Budgets and spending", icon: "dollarsign.circle", color: .teal, destination: .finance),
-        MoreLink(title: "Settings", subtitle: "App preferences", icon: "gearshape.fill", color: .gray, destination: .settings)
+        MoreLink(title: "Admin Panel", subtitle: "Server and user management", icon: "shield.fill", color: .red, destination: .admin),
+        MoreLink(title: "Settings", subtitle: "App preferences", icon: "gearshape.fill", color: .gray, destination: .settings),
+        MoreLink(title: "Help & Support", subtitle: "Get assistance", icon: "questionmark.circle.fill", color: .blue, destination: .help)
     ]
 
     var body: some View {
@@ -105,8 +127,28 @@ struct MoreView: View {
                         }
                     }
                 }
+                
+                Section("Apps & Tools") {
+                    ForEach(toolsAndApps) { item in
+                        NavigationLink {
+                            destinationView(for: item.destination)
+                        } label: {
+                            MoreRow(item: item)
+                        }
+                    }
+                }
+                
+                Section("Customization") {
+                    ForEach(customization) { item in
+                        NavigationLink {
+                            destinationView(for: item.destination)
+                        } label: {
+                            MoreRow(item: item)
+                        }
+                    }
+                }
 
-                Section("Tools & System") {
+                Section("System") {
                     ForEach(systemLinks) { item in
                         NavigationLink {
                             destinationView(for: item.destination)
@@ -140,7 +182,7 @@ struct MoreView: View {
         case .smartLists:
             SmartListsView()
         case .messages:
-            MessagesView() // Unified: AI + Human conversations
+            MessagesView()
         case .finance:
             FinanceView()
         case .calendar:
@@ -149,12 +191,29 @@ struct MoreView: View {
             PagesView()
         case .admin:
             AdminView()
+        case .agentHub:
+            AgentHubView(onStartChat: { _ in })
+        case .recipes:
+            RecipeGeneratorView()
+        case .goals:
+            GoalsView()
+        case .memories:
+            MemoriesView()
+        case .sharedFiles:
+            SharedFilesView()
+        case .themes:
+            ThemeSettingsView()
+        case .advancedFeatures:
+            AdvancedFeaturesView()
+        case .help:
+            HelpView()
         case .chat:
-            MessagesView() // Redirect to unified messages
+            MessagesView() // Legacy redirect
         case .settings:
             SettingsView()
         case .social:
-            SocialCirclesView()
+            Text("Social Circles feature coming soon")
+                .foregroundColor(.secondary)
         }
     }
 }

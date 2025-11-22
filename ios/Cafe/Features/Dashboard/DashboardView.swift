@@ -16,8 +16,8 @@ struct DashboardView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                LazyVStack(spacing: 20) {
+            ScrollView(.vertical, showsIndicators: true) {
+                VStack(spacing: 20) {
                     // Welcome header
                     WelcomeHeader()
                         .padding(.horizontal)
@@ -80,7 +80,9 @@ struct DashboardView: View {
                         .padding(.horizontal)
                 }
                 .padding(.vertical)
+                .padding(.bottom, 100) // Extra padding to prevent getting stuck at bottom
             }
+            .background(themeManager.backgroundColor)
             .navigationTitle("Dashboard")
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {

@@ -28,8 +28,53 @@ struct MessagesView: View {
                     EmptyConversationsView(onNewMessage: { showingNewMessage = true })
                 } else {
                     List {
-                        // Unified AI + people quick actions
+                        // Featured: AI Chat (prominent entry)
                         Section {
+                            Button {
+                                _Concurrency.Task {
+                                    await startAIConversation(modelId: nil)
+                                }
+                            } label: {
+                                HStack(spacing: 16) {
+                                    ZStack {
+                                        LinearGradient(
+                                            colors: [.blue, .purple, .pink],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                        .frame(width: 60, height: 60)
+                                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                                        
+                                        Image(systemName: "sparkles")
+                                            .font(.system(size: 28, weight: .bold))
+                                            .foregroundStyle(.white)
+                                    }
+                                    
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        HStack(spacing: 6) {
+                                            Text("AI Chat")
+                                                .font(.title3)
+                                                .fontWeight(.bold)
+                                            
+                                            Image(systemName: "wand.and.stars")
+                                                .foregroundColor(.purple)
+                                                .font(.caption)
+                                        }
+                                        
+                                        Text("Start a conversation with AI • Get instant help")
+                                            .font(.subheadline)
+                                            .foregroundColor(.secondary)
+                                            .lineLimit(2)
+                                    }
+                                    
+                                    Spacer()
+                                }
+                                .padding(.vertical, 8)
+                            }
+                            .buttonStyle(.plain)
+                            
+                            Divider()
+                            
                             NavigationLink {
                                 AgentHubView(onStartChat: { modelId in
                                     _Concurrency.Task {
@@ -38,23 +83,17 @@ struct MessagesView: View {
                                 })
                             } label: {
                                 HStack {
-                                    Image(systemName: "atom")
+                                    Image(systemName: "cpu.fill")
                                         .font(.title3)
                                         .foregroundStyle(.white)
-                                        .frame(width: 32, height: 32)
-                                        .background(
-                                            LinearGradient(
-                                                colors: [.blue, .purple],
-                                                startPoint: .topLeading,
-                                                endPoint: .bottomTrailing
-                                            )
-                                        )
+                                        .frame(width: 40, height: 40)
+                                        .background(Color.purple.opacity(0.8))
                                         .clipShape(Circle())
 
                                     VStack(alignment: .leading, spacing: 4) {
-                                        Text("Agents & LLMs")
+                                        Text("Agent Hub")
                                             .font(.headline)
-                                        Text("Manage models and start AI threads")
+                                        Text("Choose your AI model and customize")
                                             .font(.caption)
                                             .foregroundColor(.secondary)
                                     }
@@ -63,68 +102,10 @@ struct MessagesView: View {
 
                                     Image(systemName: "chevron.right")
                                         .foregroundColor(.secondary)
+                                        .font(.caption)
                                 }
                                 .padding(.vertical, 4)
                             }
-
-                            // Enhanced Chris quick access button
-                            Button {
-                                _Concurrency.Task {
-                                    await openOrCreateChrisConversation()
-                                }
-                            } label: {
-                                HStack {
-                                    ZStack {
-                                        Circle()
-                                            .fill(
-                                                LinearGradient(
-                                                    colors: [.pink, .purple],
-                                                    startPoint: .topLeading,
-                                                    endPoint: .bottomTrailing
-                                                )
-                                            )
-                                            .frame(width: 40, height: 40)
-                                        
-                                        Image(systemName: "sparkles")
-                                            .font(.title3)
-                                            .foregroundStyle(.white)
-                                    }
-                                    
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        HStack(spacing: 6) {
-                                            Text("Message Chris")
-                                                .font(.headline)
-                                            
-                                            if let presence = chrisPresence {
-                                                PresenceDot(isOnline: presence.isOnline)
-                                            }
-                                            
-                                            if isLoadingChris {
-                                                ProgressView()
-                                                    .scaleEffect(0.7)
-                                            }
-                                        }
-                                        
-                                        if let presence = chrisPresence, let activity = presence.currentActivity {
-                                            Text(activity)
-                                                .font(.caption)
-                                                .foregroundColor(.secondary)
-                                                .lineLimit(1)
-                                        } else {
-                                            Text("Start a conversation")
-                                                .font(.caption)
-                                                .foregroundColor(.secondary)
-                                        }
-                                    }
-                                    
-                                    Spacer()
-                                    
-                                    Image(systemName: "chevron.right")
-                                        .foregroundColor(.secondary)
-                                }
-                                .padding(.vertical, 4)
-                            }
-                            .disabled(isLoadingChris)
                         }
                         .listRowBackground(themeManager.cardBackgroundColor)
 
@@ -217,15 +198,24 @@ struct MessagesView: View {
     // MARK: - Chris Conversation Helpers
     
     private func openOrCreateChrisConversation() async {
-        isLoadingChris = true
-        defer { isLoadingChris = false }
+        await MainActor.run {
+            isLoadingChris = true
+        }
+        
+        defer {
+            _Concurrency.Task { @MainActor in
+                isLoadingChris = false
+            }
+        }
         
         // First, try to find existing conversation with Chris
         if let existing = viewModel.conversations.first(where: { conv in
-            conv.participantUsernames.contains(preferredContactUsername) && !conv.isAIEnabled
+            conv.participantUsernames.contains(where: { $0.lowercased() == preferredContactUsername.lowercased() })
         }) {
-            chrisConversation = existing
-            activeConversation = existing
+            await MainActor.run {
+                chrisConversation = existing
+                activeConversation = existing
+            }
             return
         }
         
@@ -238,14 +228,20 @@ struct MessagesView: View {
                     participantUsernames: [chrisUser.username],
                     withAI: false
                 )
-                viewModel.insertOrUpdate(convo)
-                chrisConversation = convo
-                activeConversation = convo
+                await MainActor.run {
+                    viewModel.insertOrUpdate(convo)
+                    chrisConversation = convo
+                    activeConversation = convo
+                }
             } else {
-                viewModel.error = "Could not find user '\(preferredContactUsername)'"
+                await MainActor.run {
+                    viewModel.error = "Could not find user '\(preferredContactUsername)'"
+                }
             }
         } catch {
-            viewModel.error = "Failed to start conversation: \(error.localizedDescription)"
+            await MainActor.run {
+                viewModel.error = "Failed to start conversation: \(error.localizedDescription)"
+            }
         }
     }
     
@@ -373,29 +369,71 @@ struct EmptyConversationsView: View {
     let onNewMessage: () -> Void
 
     var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "bubble.left.and.bubble.right.fill")
-                .font(.system(size: 60))
-                .foregroundColor(.secondary)
-
-            Text("No Conversations Yet")
-                .font(.title2)
-                .fontWeight(.semibold)
-
-            Text("Start a conversation or chat with AI agents")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-
-            Button(action: onNewMessage) {
-                Label("New Message", systemImage: "square.and.pencil")
-                    .padding()
-                    .background(Color.blue)
-                    .foregroundColor(.white)
-                    .cornerRadius(10)
+        VStack(spacing: 24) {
+            Spacer()
+            
+            // Icon
+            ZStack {
+                Circle()
+                    .fill(LinearGradient(
+                        colors: [.blue.opacity(0.3), .purple.opacity(0.3)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ))
+                    .frame(width: 100, height: 100)
+                
+                Image(systemName: "bubble.left.and.bubble.right.fill")
+                    .font(.system(size: 48))
+                    .foregroundStyle(LinearGradient(
+                        colors: [.blue, .purple],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ))
             }
+
+            VStack(spacing: 12) {
+                Text("No Conversations Yet")
+                    .font(.title2)
+                    .fontWeight(.bold)
+
+                Text("Start chatting with AI agents or message other users")
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+            }
+            
+            VStack(spacing: 12) {
+                Button(action: onNewMessage) {
+                    Label("New Message", systemImage: "square.and.pencil")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(LinearGradient(
+                            colors: [.blue, .purple],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        ))
+                        .cornerRadius(12)
+                }
+                .padding(.horizontal, 32)
+                
+                NavigationLink(destination: AgentHubView(onStartChat: { _ in })) {
+                    Label("Browse AI Agents", systemImage: "sparkles")
+                        .font(.headline)
+                        .foregroundColor(.blue)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.blue.opacity(0.1))
+                        .cornerRadius(12)
+                }
+                .padding(.horizontal, 32)
+            }
+
+            Spacer()
         }
-        .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
