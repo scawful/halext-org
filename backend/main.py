@@ -4,6 +4,10 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 import platform
 from datetime import datetime
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 from app import models, crud
 from app.database import engine, SessionLocal
