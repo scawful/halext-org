@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
@@ -18,6 +18,7 @@ def _build_partner_presence(user: models.User, presence: Optional[models.UserPre
         return schemas.PartnerPresence(
             username=user.username,
             is_online=presence.is_online,
+            status=presence.status if hasattr(presence, 'status') else "online",
             current_activity=presence.current_activity,
             status_message=presence.status_message,
             last_seen=presence.last_seen or datetime.utcnow(),
@@ -25,6 +26,7 @@ def _build_partner_presence(user: models.User, presence: Optional[models.UserPre
     return schemas.PartnerPresence(
         username=user.username,
         is_online=True,
+        status="online",
         current_activity=None,
         status_message=None,
         last_seen=datetime.utcnow(),
@@ -123,12 +125,79 @@ def get_user_presence(
 ):
     """
     Get presence status for a user.
-    TODO: Implement actual presence tracking with last_seen timestamps.
-    For now, returns mock data (always online).
     """
     user = crud.get_user_by_username(db, username)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    
+
     presence = crud.get_user_presence(db, user.id)
     return _build_partner_presence(user, presence)
+
+
+@router.post("/presence/status", response_model=schemas.PartnerPresence)
+def update_presence_status(
+    payload: schemas.PresenceUpdate,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Update user's presence status (for iOS compatibility).
+    Endpoint: POST /api/presence/status
+    """
+    presence = crud.upsert_user_presence(db, current_user.id, payload)
+    return _build_partner_presence(current_user, presence)
+
+
+@router.get("/users/presence", response_model=List[schemas.UserPresenceResponse])
+def get_multiple_presences(
+    user_ids: str = Query(None, description="Comma-separated user IDs"),
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Get presence information for multiple users.
+    Endpoint: GET /api/users/presence?user_ids=1,2,3
+    """
+    if not user_ids:
+        # If no IDs specified, return presence for all users (limit to avoid performance issues)
+        all_users = db.query(models.User).limit(100).all()
+        user_id_list = [u.id for u in all_users]
+    else:
+        user_id_list = [int(uid.strip()) for uid in user_ids.split(",")]
+
+    presences = crud.get_multiple_user_presences(db, user_id_list)
+    presence_map = {p.user_id: p for p in presences}
+
+    result = []
+    for user_id in user_id_list:
+        if user_id in presence_map:
+            p = presence_map[user_id]
+            result.append(schemas.UserPresenceResponse(
+                user_id=user_id,
+                status=p.status if hasattr(p, 'status') else "offline",
+                last_seen=p.last_seen,
+                is_typing=False
+            ))
+        else:
+            # User has no presence record, assume offline
+            result.append(schemas.UserPresenceResponse(
+                user_id=user_id,
+                status="offline",
+                last_seen=datetime.utcnow(),
+                is_typing=False
+            ))
+
+    return result
+
+
+@router.delete("/users/me/", status_code=status.HTTP_204_NO_CONTENT)
+def delete_current_user(
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Delete the currently authenticated user's account.
+    This is a destructive operation that removes the user and all associated data.
+    Endpoint: DELETE /api/users/me/
+    """
+    crud.delete_user_account(db, current_user.id)

@@ -1298,3 +1298,102 @@ def get_user_presence(db: Session, user_id: int) -> Optional[models.UserPresence
 def get_multiple_user_presences(db: Session, user_ids: List[int]) -> List[models.UserPresence]:
     """Get presence information for multiple users."""
     return db.query(models.UserPresence).filter(models.UserPresence.user_id.in_(user_ids)).all()
+
+
+def delete_user_account(db: Session, user_id: int) -> None:
+    """
+    Delete a user account and all associated data.
+    This is a cascading delete that removes:
+    - User presence
+    - Tasks
+    - Events
+    - Pages and page shares
+    - Conversations and messages
+    - Finance accounts, transactions, budgets
+    - Social circle memberships
+    - AI provider configs and API keys
+    - And the user record itself
+    """
+    # Delete user presence
+    db.query(models.UserPresence).filter(models.UserPresence.user_id == user_id).delete()
+
+    # Delete tasks and their label associations
+    tasks = db.query(models.Task).filter(models.Task.owner_id == user_id).all()
+    for task in tasks:
+        task.labels = []  # Clear many-to-many relationship
+    db.query(models.Task).filter(models.Task.owner_id == user_id).delete()
+
+    # Delete events and shares
+    db.query(models.EventShare).filter(models.EventShare.user_id == user_id).delete()
+    events = db.query(models.Event).filter(models.Event.owner_id == user_id).all()
+    for event in events:
+        db.query(models.EventShare).filter(models.EventShare.event_id == event.id).delete()
+    db.query(models.Event).filter(models.Event.owner_id == user_id).delete()
+
+    # Delete page shares
+    db.query(models.PageShare).filter(models.PageShare.user_id == user_id).delete()
+    pages = db.query(models.Page).filter(models.Page.owner_id == user_id).all()
+    for page in pages:
+        db.query(models.PageShare).filter(models.PageShare.page_id == page.id).delete()
+    db.query(models.Page).filter(models.Page.owner_id == user_id).delete()
+
+    # Delete conversations and messages
+    conversations = db.query(models.Conversation).filter(models.Conversation.owner_id == user_id).all()
+    for conv in conversations:
+        db.query(models.ChatMessage).filter(models.ChatMessage.conversation_id == conv.id).delete()
+        db.query(models.ConversationParticipant).filter(models.ConversationParticipant.conversation_id == conv.id).delete()
+    db.query(models.Conversation).filter(models.Conversation.owner_id == user_id).delete()
+    db.query(models.ConversationParticipant).filter(models.ConversationParticipant.user_id == user_id).delete()
+
+    # Delete finance data
+    db.query(models.FinanceTransaction).filter(models.FinanceTransaction.owner_id == user_id).delete()
+    db.query(models.FinanceAccount).filter(models.FinanceAccount.owner_id == user_id).delete()
+    db.query(models.FinanceBudget).filter(models.FinanceBudget.owner_id == user_id).delete()
+
+    # Delete social circle memberships
+    db.query(models.SocialCircleMember).filter(models.SocialCircleMember.user_id == user_id).delete()
+    circles = db.query(models.SocialCircle).filter(models.SocialCircle.owner_id == user_id).all()
+    for circle in circles:
+        db.query(models.SocialPulse).filter(models.SocialPulse.circle_id == circle.id).delete()
+        db.query(models.SocialCircleMember).filter(models.SocialCircleMember.circle_id == circle.id).delete()
+    db.query(models.SocialCircle).filter(models.SocialCircle.owner_id == user_id).delete()
+
+    # Delete memories and shares
+    db.query(models.MemoryShare).filter(models.MemoryShare.user_id == user_id).delete()
+    memories = db.query(models.Memory).filter(models.Memory.owner_id == user_id).all()
+    for memory in memories:
+        db.query(models.MemoryShare).filter(models.MemoryShare.memory_id == memory.id).delete()
+    db.query(models.Memory).filter(models.Memory.owner_id == user_id).delete()
+
+    # Delete goals and shares
+    db.query(models.GoalShare).filter(models.GoalShare.user_id == user_id).delete()
+    goals = db.query(models.Goal).filter(models.Goal.owner_id == user_id).all()
+    for goal in goals:
+        db.query(models.Milestone).filter(models.Milestone.goal_id == goal.id).delete()
+        db.query(models.GoalShare).filter(models.GoalShare.goal_id == goal.id).delete()
+    db.query(models.Goal).filter(models.Goal.owner_id == user_id).delete()
+
+    # Delete labels
+    db.query(models.Label).filter(models.Label.owner_id == user_id).delete()
+
+    # Delete embeddings
+    db.query(models.Embedding).filter(models.Embedding.owner_id == user_id).delete()
+
+    # Delete AI provider configs and API keys
+    configs = db.query(models.AIProviderConfig).filter(models.AIProviderConfig.owner_id == user_id).all()
+    for config in configs:
+        if config.api_key_id:
+            db.query(models.APIKey).filter(models.APIKey.id == config.api_key_id).delete()
+    db.query(models.AIProviderConfig).filter(models.AIProviderConfig.owner_id == user_id).delete()
+    db.query(models.APIKey).filter(models.APIKey.owner_id == user_id).delete()
+
+    # Delete AI client nodes
+    db.query(models.AIClientNode).filter(models.AIClientNode.owner_id == user_id).delete()
+
+    # Delete layout presets owned by the user
+    db.query(models.LayoutPreset).filter(models.LayoutPreset.owner_id == user_id).delete()
+
+    # Finally, delete the user
+    db.query(models.User).filter(models.User.id == user_id).delete()
+
+    db.commit()

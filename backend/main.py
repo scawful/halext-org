@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 import platform
+import json
 from datetime import datetime
 from dotenv import load_dotenv
 
@@ -13,6 +14,8 @@ from app import models, crud
 from app.database import engine, SessionLocal
 from app.dependencies import get_db, ai_gateway, ENV_CHECK
 from app.websockets import manager
+from app.presence_websocket import presence_manager
+from app import auth
 
 # Import original routers (to be refactored later)
 from app.admin_routes import router as admin_router
@@ -97,6 +100,67 @@ async def websocket_endpoint(websocket: WebSocket, conversation_id: str):
         manager.disconnect(websocket, conversation_id)
         await manager.broadcast(f"Client left the chat", conversation_id)
 
+@app.websocket("/ws/presence/{user_id}")
+async def presence_websocket_endpoint(websocket: WebSocket, user_id: int, db: Session = Depends(get_db)):
+    """
+    WebSocket endpoint for real-time presence updates.
+    Connect: ws://localhost:8000/ws/presence/{user_id}
+
+    Message format:
+    - Client to Server:
+      {"type": "update_status", "status": "online|away|busy|offline"}
+      {"type": "typing", "conversation_id": 1, "is_typing": true}
+      {"type": "heartbeat"}
+
+    - Server to Client:
+      {"type": "presence_update", "data": {"user_id": 1, "status": "online", "last_seen": "..."}}
+      {"type": "typing_indicator", "data": {"user_id": 1, "conversation_id": 1, "is_typing": true}}
+      {"type": "initial_presences", "data": [{"user_id": 1, "status": "online", ...}, ...]}
+    """
+    # Verify user exists
+    user = crud.get_user(db, user_id)
+    if not user:
+        await websocket.close(code=4004, reason="User not found")
+        return
+
+    await presence_manager.connect(websocket, user_id)
+
+    # Update database presence
+    from app import schemas
+    presence_update = schemas.PresenceUpdate(status="online", is_online=True)
+    crud.upsert_user_presence(db, user_id, presence_update)
+
+    try:
+        while True:
+            data = await websocket.receive_text()
+            try:
+                message = json.loads(data)
+                await presence_manager.handle_presence_message(websocket, message)
+
+                # Update database based on message type
+                if message.get("type") == "update_status":
+                    status = message.get("status", "online")
+                    presence_update = schemas.PresenceUpdate(
+                        status=status,
+                        is_online=(status != "offline")
+                    )
+                    crud.upsert_user_presence(db, user_id, presence_update)
+
+            except json.JSONDecodeError:
+                await websocket.send_text(json.dumps({
+                    "type": "error",
+                    "message": "Invalid JSON format"
+                }))
+
+    except WebSocketDisconnect:
+        presence_manager.disconnect(websocket)
+
+        # Update database presence to offline
+        from app import schemas
+        presence_update = schemas.PresenceUpdate(status="offline", is_online=False)
+        crud.upsert_user_presence(db, user_id, presence_update)
+
+
 @app.get("/ws/health")
 def websocket_health():
     """
@@ -105,6 +169,8 @@ def websocket_health():
     return {
         "active_conversations": len(manager.active_connections),
         "connections": {cid: len(conns) for cid, conns in manager.active_connections.items()},
+        "presence_connections": len(presence_manager.active_connections),
+        "online_users": presence_manager.get_online_users(),
     }
 
 # Health and Info Endpoints
