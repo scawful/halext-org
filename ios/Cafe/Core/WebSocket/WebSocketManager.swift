@@ -34,6 +34,9 @@ class WebSocketManager {
     var onDisconnect: ((Error?) -> Void)?
     var onError: ((Error) -> Void)?
     
+    // WebSocket close code handler - called when connection closes with specific code
+    var onClose: ((Int, String?) -> Void)? // (closeCode, reason)
+    
     // Connection state
     var connectionState: ConnectionState = .disconnected {
         didSet {
@@ -257,9 +260,10 @@ class WebSocketManager {
     }
     
     func handleClose(closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?) {
-        #if DEBUG
         let reasonString = reason.flatMap { String(data: $0, encoding: .utf8) } ?? "No reason"
         let closeCodeValue = closeCode.rawValue
+        
+        #if DEBUG
         print("[WebSocket] Closed with code: \(closeCodeValue) (\(closeCode)), reason: \(reasonString)")
         
         // Helpful error interpretation
@@ -277,7 +281,7 @@ class WebSocketManager {
         case 1009:
             print("[WebSocket] Interpretation: Message too large")
         case 1011:
-            print("[WebSocket] Interpretation: Server error")
+            print("[WebSocket] Interpretation: Server error (likely nginx routing or backend issue)")
         case 4001:
             print("[WebSocket] Interpretation: Unauthorized - Invalid or missing token")
         case 4003:
@@ -290,6 +294,9 @@ class WebSocketManager {
             }
         }
         #endif
+        
+        // Notify listeners of close code for UI handling
+        onClose?(closeCodeValue, reasonString)
         
         handleDisconnection(error: nil)
     }

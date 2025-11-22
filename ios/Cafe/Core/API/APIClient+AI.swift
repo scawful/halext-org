@@ -160,7 +160,24 @@ extension APIClient {
         }
 
         guard (200...299).contains(httpResponse.statusCode) else {
-            throw APIError.httpError(httpResponse.statusCode)
+            #if DEBUG
+            if let responseBody = String(data: data, encoding: .utf8) {
+                print("[API] Recipe generation error (\(httpResponse.statusCode)): \(responseBody)")
+            }
+            #endif
+            
+            switch httpResponse.statusCode {
+            case 401:
+                throw APIError.unauthorized
+            case 422:
+                throw APIError.httpError(422) // Validation error
+            case 500...599:
+                throw APIError.serverError("Server error while generating recipes. Please try again.")
+            case 503:
+                throw APIError.serverError("AI service temporarily unavailable. Please try again in a moment.")
+            default:
+                throw APIError.httpError(httpResponse.statusCode)
+            }
         }
 
         return try decoder.decode(RecipeGenerationResponse.self, from: data)
@@ -183,7 +200,24 @@ extension APIClient {
         }
 
         guard (200...299).contains(httpResponse.statusCode) else {
-            throw APIError.httpError(httpResponse.statusCode)
+            #if DEBUG
+            if let responseBody = String(data: data, encoding: .utf8) {
+                print("[API] Meal plan generation error (\(httpResponse.statusCode)): \(responseBody)")
+            }
+            #endif
+            
+            switch httpResponse.statusCode {
+            case 401:
+                throw APIError.unauthorized
+            case 422:
+                throw APIError.httpError(422) // Validation error
+            case 500...599:
+                throw APIError.serverError("Server error while generating meal plan. Please try again.")
+            case 503:
+                throw APIError.serverError("AI service temporarily unavailable. Please try again in a moment.")
+            default:
+                throw APIError.httpError(httpResponse.statusCode)
+            }
         }
 
         return try decoder.decode(MealPlanResponse.self, from: data)
@@ -272,10 +306,24 @@ extension APIClient {
         }
 
         guard (200...299).contains(httpResponse.statusCode) else {
-            if httpResponse.statusCode == 401 {
-                throw APIError.unauthorized
+            #if DEBUG
+            if let responseBody = String(data: data, encoding: .utf8) {
+                print("[API] Smart generation error (\(httpResponse.statusCode)): \(responseBody)")
             }
-            throw APIError.httpError(httpResponse.statusCode)
+            #endif
+            
+            switch httpResponse.statusCode {
+            case 401:
+                throw APIError.unauthorized
+            case 422:
+                throw APIError.httpError(422) // Validation error
+            case 500...599:
+                throw APIError.serverError("Server error while generating items. Please try again.")
+            case 503:
+                throw APIError.serverError("AI service temporarily unavailable. Please try again in a moment.")
+            default:
+                throw APIError.httpError(httpResponse.statusCode)
+            }
         }
 
         return try decoder.decode(SmartGenerationResponse.self, from: data)

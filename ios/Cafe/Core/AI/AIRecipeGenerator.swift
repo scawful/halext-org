@@ -37,20 +37,44 @@ class AIRecipeGenerator: ObservableObject {
         lastError = nil
         defer { isGenerating = false }
 
-        let request = RecipeGenerationRequest(
-            ingredients: ingredients,
-            dietaryRestrictions: dietaryRestrictions,
-            cuisinePreferences: cuisinePreferences,
-            difficultyLevel: difficultyLevel,
-            timeLimitMinutes: timeLimitMinutes,
-            servings: servings,
-            mealType: mealType
-        )
+        do {
+            let request = RecipeGenerationRequest(
+                ingredients: ingredients,
+                dietaryRestrictions: dietaryRestrictions,
+                cuisinePreferences: cuisinePreferences,
+                difficultyLevel: difficultyLevel,
+                timeLimitMinutes: timeLimitMinutes,
+                servings: servings,
+                mealType: mealType
+            )
 
-        let response: RecipeGenerationResponse = try await apiClient.generateRecipes(request: request)
-        generatedRecipes = response.recipes
+            let response: RecipeGenerationResponse = try await apiClient.generateRecipes(request: request)
+            generatedRecipes = response.recipes
 
-        return response.recipes
+            return response.recipes
+        } catch let error as APIError {
+            let userMessage = error.errorDescription ?? "Failed to generate recipes. Please try again."
+            lastError = userMessage
+            throw error
+        } catch let urlError as URLError {
+            let userMessage: String
+            switch urlError.code {
+            case .timedOut:
+                userMessage = "Request timed out. The AI service may be busy. Please try again."
+            case .notConnectedToInternet:
+                userMessage = "No internet connection. Please check your network and try again."
+            case .cannotConnectToHost:
+                userMessage = "Cannot connect to server. Please check your connection and try again."
+            default:
+                userMessage = "Network error: \(urlError.localizedDescription). Please try again."
+            }
+            lastError = userMessage
+            throw urlError
+        } catch {
+            let userMessage = "Failed to generate recipes: \(error.localizedDescription). Please try again."
+            lastError = userMessage
+            throw error
+        }
     }
 
     /// Generate a meal plan for multiple days
@@ -65,18 +89,42 @@ class AIRecipeGenerator: ObservableObject {
         lastError = nil
         defer { isGenerating = false }
 
-        let request = MealPlanRequest(
-            ingredients: ingredients,
-            days: days,
-            dietaryRestrictions: dietaryRestrictions,
-            budget: budget,
-            mealsPerDay: mealsPerDay
-        )
+        do {
+            let request = MealPlanRequest(
+                ingredients: ingredients,
+                days: days,
+                dietaryRestrictions: dietaryRestrictions,
+                budget: budget,
+                mealsPerDay: mealsPerDay
+            )
 
-        let response: MealPlanResponse = try await apiClient.generateMealPlan(request: request)
-        currentMealPlan = response.mealPlan
+            let response: MealPlanResponse = try await apiClient.generateMealPlan(request: request)
+            currentMealPlan = response.mealPlan
 
-        return response
+            return response
+        } catch let error as APIError {
+            let userMessage = error.errorDescription ?? "Failed to generate meal plan. Please try again."
+            lastError = userMessage
+            throw error
+        } catch let urlError as URLError {
+            let userMessage: String
+            switch urlError.code {
+            case .timedOut:
+                userMessage = "Request timed out. The AI service may be busy. Please try again."
+            case .notConnectedToInternet:
+                userMessage = "No internet connection. Please check your network and try again."
+            case .cannotConnectToHost:
+                userMessage = "Cannot connect to server. Please check your connection and try again."
+            default:
+                userMessage = "Network error: \(urlError.localizedDescription). Please try again."
+            }
+            lastError = userMessage
+            throw urlError
+        } catch {
+            let userMessage = "Failed to generate meal plan: \(error.localizedDescription). Please try again."
+            lastError = userMessage
+            throw error
+        }
     }
 
     /// Get recipe suggestions based on what's missing

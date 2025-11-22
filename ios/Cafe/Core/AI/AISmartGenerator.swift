@@ -67,11 +67,36 @@ class AISmartGenerator: ObservableObject {
             return result
 
         } catch let error as APIError {
+            let userMessage = error.errorDescription ?? "Failed to generate items. Please try again."
             lastError = .apiError(error)
+            #if DEBUG
+            print("[SmartGenerator] API error: \(error)")
+            #endif
             throw AIGeneratorError.apiError(error)
+        } catch let urlError as URLError {
+            let userMessage: String
+            switch urlError.code {
+            case .timedOut:
+                userMessage = "Request timed out. The AI service may be busy. Please try again."
+            case .notConnectedToInternet:
+                userMessage = "No internet connection. Please check your network and try again."
+            case .cannotConnectToHost:
+                userMessage = "Cannot connect to server. Please check your connection and try again."
+            default:
+                userMessage = "Network error: \(urlError.localizedDescription). Please try again."
+            }
+            lastError = .unknownError(userMessage)
+            #if DEBUG
+            print("[SmartGenerator] Network error: \(urlError)")
+            #endif
+            throw AIGeneratorError.unknownError(userMessage)
         } catch {
-            lastError = .unknownError(error.localizedDescription)
-            throw AIGeneratorError.unknownError(error.localizedDescription)
+            let userMessage = "Failed to generate items: \(error.localizedDescription). Please try again."
+            lastError = .unknownError(userMessage)
+            #if DEBUG
+            print("[SmartGenerator] Unknown error: \(error)")
+            #endif
+            throw AIGeneratorError.unknownError(userMessage)
         }
     }
 

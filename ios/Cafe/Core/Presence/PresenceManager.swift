@@ -118,6 +118,13 @@ class PresenceManager {
 
     /// Indicates whether WebSocket is connected for real-time updates
     var isWebSocketConnected: Bool = false
+    
+    /// User-facing WebSocket error message (nil when no error)
+    var websocketError: String? = nil
+    
+    /// Last WebSocket close code for debugging
+    var lastCloseCode: Int? = nil
+    var lastCloseReason: String? = nil
 
     private init() {
         setupWebSocketCallbacks()
@@ -253,9 +260,15 @@ class PresenceManager {
             }
             manager.onConnect = { [weak self] in
                 self?.isWebSocketConnected = true
+                self?.websocketError = nil // Clear error on successful connection
             }
-            manager.onDisconnect = { [weak self] _ in
+            manager.onDisconnect = { [weak self] error in
                 self?.isWebSocketConnected = false
+            }
+            manager.onClose = { [weak self] closeCode, reason in
+                self?.lastCloseCode = closeCode
+                self?.lastCloseReason = reason
+                self?.handleWebSocketClose(closeCode: closeCode, reason: reason)
             }
             
             await manager.connect(url: url, authToken: token)
@@ -266,6 +279,57 @@ class PresenceManager {
         _Concurrency.Task { @MainActor in
             await WebSocketManager.shared.disconnect()
             isWebSocketConnected = false
+        }
+    }
+    
+    private func handleWebSocketClose(closeCode: Int, reason: String?) {
+        // Handle specific close codes with user-facing messages
+        switch closeCode {
+        case 4001:
+            // Unauthorized - Invalid or missing token
+            websocketError = "Connection failed: Your session has expired. Please sign in again."
+            #if DEBUG
+            print("[Presence] WebSocket auth failed (4001): \(reason ?? "No reason")")
+            #endif
+            // Don't retry on auth failure - user needs to re-authenticate
+            disconnectWebSocket()
+            
+        case 4003:
+            // Forbidden - User ID mismatch
+            websocketError = "Connection failed: Authentication error. Please sign out and sign in again."
+            #if DEBUG
+            print("[Presence] WebSocket forbidden (4003): \(reason ?? "No reason")")
+            #endif
+            disconnectWebSocket()
+            
+        case 1011:
+            // Server error - likely routing or backend issue
+            websocketError = "Connection failed: Server error. Please check your connection and try again."
+            #if DEBUG
+            print("[Presence] WebSocket server error (1011): \(reason ?? "No reason")")
+            print("[Presence] This may indicate nginx routing issue or backend problem")
+            #endif
+            // Will retry automatically via WebSocketManager's retry logic
+            
+        case 1006:
+            // Abnormal closure - connection lost
+            #if DEBUG
+            print("[Presence] WebSocket connection lost (1006): \(reason ?? "No reason")")
+            #endif
+            // Will retry automatically
+            
+        default:
+            if closeCode >= 4000 && closeCode < 5000 {
+                // Application-defined error
+                websocketError = "Connection failed: \(reason ?? "Unknown error"). Please try again."
+                #if DEBUG
+                print("[Presence] WebSocket application error (\(closeCode)): \(reason ?? "No reason")")
+                #endif
+            } else {
+                #if DEBUG
+                print("[Presence] WebSocket closed with code \(closeCode): \(reason ?? "No reason")")
+                #endif
+            }
         }
     }
     
