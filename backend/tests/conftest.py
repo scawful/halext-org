@@ -12,6 +12,7 @@ from sqlalchemy.pool import StaticPool
 os.environ.setdefault("AI_OFFLINE", "1")
 
 from app.database import Base, get_db
+from app import dependencies as app_dependencies
 from app.models import User, AIClientNode
 from app import crud, schemas, auth
 from main import app
@@ -50,6 +51,7 @@ def client(db_session):
             pass
 
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[app_dependencies.get_db] = override_get_db
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()

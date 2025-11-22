@@ -14,7 +14,7 @@ enum APIEnvironment {
     var baseURL: String {
         switch self {
         case .development:
-            return "http://127.0.0.1:8000"
+            return "http://127.0.0.1:8000/api"
         case .production:
             return "https://org.halext.org/api"
         }

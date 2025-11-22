@@ -6,5 +6,9 @@
 	<array>
 		<string>$(AppIdentifierPrefix)org.halext.Cafe</string>
 	</array>
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.org.halext.cafe</string>
+	</array>
 </dict>
 </plist>
