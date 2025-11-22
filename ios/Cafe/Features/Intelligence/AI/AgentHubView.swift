@@ -444,49 +444,7 @@ struct AgentHubView: View {
             // Active AI Agents
             if chatSettings.enableAIResponses {
                 Section {
-                    ForEach(AIAgent.allAgents) { agent in
-                        HStack {
-                            Image(systemName: agent.avatar)
-                                .font(.title3)
-                                .foregroundColor(colorFromString(agent.color))
-                                .frame(width: 32)
-                                .accessibilityHidden(true)
-
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(agent.name)
-                                    .font(.body)
-
-                                Text(agent.description)
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-
-                                HStack(spacing: 4) {
-                                    ForEach(agent.capabilities.prefix(3), id: \.self) { capability in
-                                        Text(capability.rawValue)
-                                            .font(.caption2)
-                                            .padding(.horizontal, 6)
-                                            .padding(.vertical, 2)
-                                            .background(Color.secondary.opacity(0.2))
-                                            .cornerRadius(4)
-                                    }
-                                }
-                                .accessibilityElement(children: .combine)
-                                .accessibilityLabel("Capabilities: \(agent.capabilities.prefix(3).map { $0.rawValue }.joined(separator: ", "))")
-                            }
-
-                            Spacer()
-
-                            Toggle("", isOn: Binding(
-                                get: { chatSettings.isAgentActive(agent.id) },
-                                set: { _ in chatSettings.toggleAgent(agent.id) }
-                            ))
-                            .labelsHidden()
-                            .accessibilityLabel("\(agent.name) agent")
-                            .accessibilityHint("Double tap to \(chatSettings.isAgentActive(agent.id) ? "disable" : "enable") this agent")
-                        }
-                        .padding(.vertical, 4)
-                        .accessibilityElement(children: .contain)
-                    }
+                    AgentListSection(chatSettings: chatSettings)
                 } header: {
                     Text("Available AI Agents")
                 } footer: {
@@ -509,7 +467,141 @@ struct AgentHubView: View {
         default: return .blue
         }
     }
+}
 
+// MARK: - Agent List Section
+
+private struct AgentListSection: View {
+    @State private var isExpanded = false
+    let chatSettings: ChatSettingsManager
+    
+    // Show only 3 most common agents initially
+    private let initialAgents = ["assistant", "productivity", "creative"]
+    private var displayedAgents: [AIAgent] {
+        if isExpanded {
+            return AIAgent.allAgents
+        } else {
+            return AIAgent.allAgents.filter { initialAgents.contains($0.id) }
+        }
+    }
+    
+    var body: some View {
+        ForEach(displayedAgents) { agent in
+            AgentRow(agent: agent, chatSettings: chatSettings)
+        }
+        
+        if !isExpanded && AIAgent.allAgents.count > initialAgents.count {
+            Button {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                    isExpanded = true
+                }
+            } label: {
+                HStack {
+                    Text("Show \(AIAgent.allAgents.count - initialAgents.count) more agents")
+                        .font(.subheadline)
+                        .foregroundColor(.blue)
+                    Spacer()
+                    Image(systemName: "chevron.down")
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                }
+                .padding(.vertical, 8)
+            }
+            .buttonStyle(.plain)
+        } else if isExpanded {
+            Button {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                    isExpanded = false
+                }
+            } label: {
+                HStack {
+                    Text("Show less")
+                        .font(.subheadline)
+                        .foregroundColor(.blue)
+                    Spacer()
+                    Image(systemName: "chevron.up")
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                }
+                .padding(.vertical, 8)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+}
+
+private struct AgentRow: View {
+    let agent: AIAgent
+    let chatSettings: ChatSettingsManager
+    
+    private func colorFromString(_ colorName: String) -> Color {
+        switch colorName {
+        case "purple": return .purple
+        case "blue": return .blue
+        case "green": return .green
+        case "pink": return .pink
+        case "orange": return .orange
+        case "red": return .red
+        case "cyan": return .cyan
+        case "mint": return .mint
+        default: return .blue
+        }
+    }
+    
+    var body: some View {
+        HStack {
+            Image(systemName: agent.avatar)
+                .font(.title3)
+                .foregroundColor(colorFromString(agent.color))
+                .frame(width: 32)
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(agent.name)
+                    .font(.body)
+
+                Text(agent.description)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+
+                HStack(spacing: 4) {
+                    ForEach(agent.capabilities.prefix(2), id: \.self) { capability in
+                        Text(capability.rawValue)
+                            .font(.caption2)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.secondary.opacity(0.2))
+                            .cornerRadius(4)
+                    }
+                    if agent.capabilities.count > 2 {
+                        Text("+\(agent.capabilities.count - 2)")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("Capabilities: \(agent.capabilities.prefix(2).map { $0.rawValue }.joined(separator: ", "))")
+            }
+
+            Spacer()
+
+            Toggle("", isOn: Binding(
+                get: { chatSettings.isAgentActive(agent.id) },
+                set: { _ in chatSettings.toggleAgent(agent.id) }
+            ))
+            .labelsHidden()
+            .accessibilityLabel("\(agent.name) agent")
+            .accessibilityHint("Double tap to \(chatSettings.isAgentActive(agent.id) ? "disable" : "enable") this agent")
+        }
+        .padding(.vertical, 4)
+        .accessibilityElement(children: .contain)
+    }
+}
+
+// MARK: - AgentHubView Extensions
+
+extension AgentHubView {
+    @ViewBuilder
     private var controlsSection: some View {
         Section {
             Button {

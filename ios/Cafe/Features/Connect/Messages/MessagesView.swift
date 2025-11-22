@@ -10,7 +10,7 @@ import SwiftUI
 struct MessagesView: View {
     @Environment(ThemeManager.self) private var themeManager
     @StateObject private var viewModel = ConversationsViewModel()
-    @State private var presenceManager = SocialPresenceManager.shared
+    @State private var presenceManager = PresenceManager.shared
     @State private var showingNewMessage = false
     @State private var activeConversation: Conversation?
     @State private var preferredContactUsername: String = "magicalgirl"
@@ -18,6 +18,7 @@ struct MessagesView: View {
     @State private var isLoadingChris = false
     @State private var chrisPresence: SocialPresenceStatus?
     @State private var showRetry = false
+    @State private var conversationPresences: [Int: UserPresence] = [:] // conversationId -> presence
 
     var body: some View {
         NavigationStack {
@@ -27,116 +28,7 @@ struct MessagesView: View {
                 } else if viewModel.conversations.isEmpty {
                     EmptyConversationsView(onNewMessage: { showingNewMessage = true })
                 } else {
-                    List {
-                        // Featured: AI Chat (prominent entry)
-                        Section {
-                            Button {
-                                _Concurrency.Task {
-                                    await startAIConversation(modelId: nil)
-                                }
-                            } label: {
-                                HStack(spacing: 16) {
-                                    ZStack {
-                                        LinearGradient(
-                                            colors: [.blue, .purple, .pink],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        )
-                                        .frame(width: 60, height: 60)
-                                        .clipShape(RoundedRectangle(cornerRadius: 16))
-
-                                        Image(systemName: "sparkles")
-                                            .font(.system(size: 28, weight: .bold))
-                                            .foregroundStyle(.white)
-                                            .accessibilityHidden(true)
-                                    }
-                                    .accessibilityHidden(true)
-
-                                    VStack(alignment: .leading, spacing: 6) {
-                                        HStack(spacing: 6) {
-                                            Text("AI Chat")
-                                                .font(.title3)
-                                                .fontWeight(.bold)
-
-                                            Image(systemName: "wand.and.stars")
-                                                .foregroundColor(.purple)
-                                                .font(.caption)
-                                                .accessibilityHidden(true)
-                                        }
-
-                                        Text("Start a conversation with AI • Get instant help")
-                                            .font(.subheadline)
-                                            .foregroundColor(.secondary)
-                                            .lineLimit(2)
-                                    }
-
-                                    Spacer()
-                                }
-                                .padding(.vertical, 8)
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityElement(children: .combine)
-                            .accessibilityLabel("AI Chat")
-                            .accessibilityHint("Start a new conversation with an AI assistant for instant help")
-                            .accessibilityAddTraits(.isButton)
-                            
-                            Divider()
-                            
-                            NavigationLink {
-                                AgentHubView(onStartChat: { modelId in
-                                    _Concurrency.Task {
-                                        await startAIConversation(modelId: modelId)
-                                    }
-                                })
-                            } label: {
-                                HStack {
-                                    Image(systemName: "cpu.fill")
-                                        .font(.title3)
-                                        .foregroundStyle(.white)
-                                        .frame(width: 40, height: 40)
-                                        .background(Color.purple.opacity(0.8))
-                                        .clipShape(Circle())
-                                        .accessibilityHidden(true)
-
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text("Agent Hub")
-                                            .font(.headline)
-                                        Text("Choose your AI model and customize")
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                    }
-
-                                    Spacer()
-
-                                    Image(systemName: "chevron.right")
-                                        .foregroundColor(.secondary)
-                                        .font(.caption)
-                                        .accessibilityHidden(true)
-                                }
-                                .padding(.vertical, 4)
-                            }
-                            .accessibilityElement(children: .combine)
-                            .accessibilityLabel("Agent Hub")
-                            .accessibilityHint("Choose your AI model and customize settings")
-                        }
-                        .listRowBackground(themeManager.cardBackgroundColor)
-
-                        ForEach(viewModel.conversations) { conversation in
-                            NavigationLink(destination: destinationView(for: conversation)) {
-                                ConversationRowView(
-                                    conversation: conversation,
-                                    presence: nil
-                                )
-                            }
-                        }
-                        .onDelete(perform: deleteConversations)
-                    }
-                    .listStyle(.plain)
-                    .scrollContentBackground(.hidden)
-                    .background(themeManager.backgroundColor.ignoresSafeArea())
-                    .refreshable {
-                        await viewModel.load()
-                    }
+                    conversationsList
                 }
             }
             .background(themeManager.backgroundColor.ignoresSafeArea())
@@ -167,10 +59,14 @@ struct MessagesView: View {
                 })
             }
             .task {
-                presenceManager.startTrackingPresence()
-                presenceManager.startMonitoringPartnerPresence()
+                presenceManager.startPresenceUpdates()
                 await viewModel.load()
-                await loadChrisPresence()
+                await loadPresencesForConversations()
+            }
+            .onChange(of: viewModel.conversations) { _, _ in
+                _Concurrency.Task {
+                    await loadPresencesForConversations()
+                }
             }
             .alert("Error", isPresented: Binding(get: { viewModel.error != nil }, set: { _ in 
                 viewModel.error = nil
@@ -204,6 +100,120 @@ struct MessagesView: View {
                     showRetry = false
                 }
             }
+        }
+    }
+    
+    @ViewBuilder
+    private var conversationsList: some View {
+        List {
+            // Featured: AI Chat (prominent entry)
+            Section {
+                Button {
+                    _Concurrency.Task {
+                        await startAIConversation(modelId: nil)
+                    }
+                } label: {
+                    HStack(spacing: 16) {
+                        ZStack {
+                            LinearGradient(
+                                colors: [.blue, .purple, .pink],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                            .frame(width: 60, height: 60)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+
+                            Image(systemName: "sparkles")
+                                .font(.system(size: 28, weight: .bold))
+                                .foregroundStyle(.white)
+                                .accessibilityHidden(true)
+                        }
+                        .accessibilityHidden(true)
+
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack(spacing: 6) {
+                                Text("AI Chat")
+                                    .font(.title3)
+                                    .fontWeight(.bold)
+
+                                Image(systemName: "wand.and.stars")
+                                    .foregroundColor(.purple)
+                                    .font(.caption)
+                                    .accessibilityHidden(true)
+                            }
+
+                            Text("Start a conversation with AI • Get instant help")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                                .lineLimit(2)
+                        }
+
+                        Spacer()
+                    }
+                    .padding(.vertical, 8)
+                }
+                .buttonStyle(.plain)
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("AI Chat")
+                .accessibilityHint("Start a new conversation with an AI assistant for instant help")
+                .accessibilityAddTraits(.isButton)
+                
+                Divider()
+                
+                NavigationLink {
+                    AgentHubView(onStartChat: { modelId in
+                        _Concurrency.Task {
+                            await startAIConversation(modelId: modelId)
+                        }
+                    })
+                } label: {
+                    HStack {
+                        Image(systemName: "cpu.fill")
+                            .font(.title3)
+                            .foregroundStyle(.white)
+                            .frame(width: 40, height: 40)
+                            .background(Color.purple.opacity(0.8))
+                            .clipShape(Circle())
+                            .accessibilityHidden(true)
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Agent Hub")
+                                .font(.headline)
+                            Text("Choose your AI model and customize")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+
+                        Spacer()
+
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(.secondary)
+                            .font(.caption)
+                            .accessibilityHidden(true)
+                    }
+                    .padding(.vertical, 4)
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("Agent Hub")
+                .accessibilityHint("Choose your AI model and customize settings")
+            }
+            .listRowBackground(themeManager.cardBackgroundColor)
+
+            ForEach(viewModel.conversations) { conversation in
+                NavigationLink(destination: destinationView(for: conversation)) {
+                    ConversationRowView(
+                        conversation: conversation,
+                        presence: presenceForConversation(conversation)
+                    )
+                }
+            }
+            .onDelete(perform: deleteConversations)
+        }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .background(themeManager.backgroundColor.ignoresSafeArea())
+        .refreshable {
+            await viewModel.load()
         }
     }
 
@@ -284,26 +294,61 @@ struct MessagesView: View {
     }
     
     private func loadChrisPresence() async {
-        // Try to get Chris's presence status
-        // This will be enhanced when we add presence API
+        // Try to get Chris's presence status via backend API
         do {
-            let users = try await APIClient.shared.searchUsers(query: preferredContactUsername)
-            if let chrisUser = users.first(where: { $0.username.lowercased() == preferredContactUsername.lowercased() }) {
-                // For now, we'll use a placeholder presence
-                // This will be replaced with actual presence API call
-                await MainActor.run {
-                    chrisPresence = SocialPresenceStatus(
-                        profileId: "\(chrisUser.id)",
-                        isOnline: false,
-                        currentActivity: nil,
-                        statusMessage: nil,
-                        lastUpdated: Date()
-                    )
-                }
+            let presence = try await APIClient.shared.getPartnerPresence(username: preferredContactUsername)
+            await MainActor.run {
+                chrisPresence = SocialPresenceStatus(
+                    profileId: preferredContactUsername,
+                    isOnline: presence.isOnline,
+                    currentActivity: presence.currentActivity,
+                    statusMessage: presence.statusMessage,
+                    lastUpdated: presence.lastSeen ?? Date()
+                )
             }
         } catch {
             // Silently fail - presence is optional
         }
+    }
+    
+    private func loadPresencesForConversations() async {
+        // Load presence for all conversation participants
+        for conversation in viewModel.conversations {
+            if let otherUsername = conversation.otherParticipantUsername {
+                do {
+                    let presence = try await APIClient.shared.getPartnerPresence(username: otherUsername)
+                    // Convert to UserPresence format for PresenceManager compatibility
+                    if let otherUser = conversation.participants.first(where: { $0.username == otherUsername }) {
+                        let userPresence = UserPresence(
+                            id: otherUser.id,
+                            status: PresenceStatus(rawValue: presence.status ?? "offline") ?? .offline,
+                            lastSeen: presence.lastSeen ?? Date(),
+                            isTyping: false
+                        )
+                        await MainActor.run {
+                            conversationPresences[conversation.id] = userPresence
+                        }
+                    }
+                } catch {
+                    // Silently fail - presence is optional
+                }
+            }
+        }
+    }
+    
+    private func presenceForConversation(_ conversation: Conversation) -> SocialPresenceStatus? {
+        guard let userPresence = conversationPresences[conversation.id],
+              let otherUsername = conversation.otherParticipantUsername else {
+            return nil
+        }
+        
+        return SocialPresenceStatus(
+            profileId: otherUsername,
+            isOnline: userPresence.isOnline,
+            currentActivity: nil,
+            statusMessage: nil,
+            lastUpdated: userPresence.lastSeen
+        )
     }
 }
 

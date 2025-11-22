@@ -19,6 +19,12 @@ struct SocialCirclesView: View {
     @State private var pressedCircleId: Int?
     @State private var isSendButtonPressed = false
     @State private var isJoinButtonPressed = false
+    @State private var showingCreateCircle = false
+    @State private var newCircleName = ""
+    @State private var newCircleDescription = ""
+    @State private var selectedEmoji = "✨"
+    @State private var selectedThemeColor = "#A855F7"
+    @State private var isCreatingCircle = false
 
     var body: some View {
         ScrollView {
@@ -46,19 +52,42 @@ struct SocialCirclesView: View {
         }
         .background(themeManager.backgroundColor.ignoresSafeArea())
         .navigationTitle("Social Circles")
-        .task {
+            .task {
             await refreshCircles()
+        }
+        .sheet(isPresented: $showingCreateCircle) {
+            CreateCircleView(
+                name: $newCircleName,
+                description: $newCircleDescription,
+                emoji: $selectedEmoji,
+                themeColor: $selectedThemeColor,
+                isCreating: $isCreatingCircle,
+                onCreate: { name, description, emoji, color in
+                    await createCircle(name: name, description: description, emoji: emoji, themeColor: color)
+                }
+            )
         }
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Halext Social")
-                .font(.title2.bold())
-                .foregroundColor(themeManager.textColor)
-            Text("Keep circles updated without leaving the app. Perfect for group chats, crews, or fan clubs.")
-                .font(.callout)
-                .foregroundColor(themeManager.secondaryTextColor)
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Halext Social")
+                    .font(.title2.bold())
+                    .foregroundColor(themeManager.textColor)
+                Text("Keep circles updated without leaving the app. Perfect for group chats, crews, or fan clubs.")
+                    .font(.callout)
+                    .foregroundColor(themeManager.secondaryTextColor)
+            }
+            Spacer()
+            Button(action: {
+                showingCreateCircle = true
+            }) {
+                Image(systemName: "plus.circle.fill")
+                    .font(.title2)
+                    .foregroundColor(themeManager.accentColor)
+            }
+            .accessibilityLabel("Create new circle")
         }
     }
 
@@ -118,13 +147,23 @@ struct SocialCirclesView: View {
                 Text("\(circle.memberCount) members")
                     .font(.caption)
                     .foregroundColor(themeManager.secondaryTextColor)
-                Text(circle.inviteCode)
-                    .font(.caption2.monospaced())
+                Button(action: {
+                    UIPasteboard.general.string = circle.inviteCode
+                    HapticManager.success()
+                }) {
+                    HStack(spacing: 4) {
+                        Text(circle.inviteCode)
+                            .font(.caption2.monospaced())
+                        Image(systemName: "doc.on.doc")
+                            .font(.caption2)
+                    }
                     .padding(.vertical, 4)
                     .padding(.horizontal, 8)
                     .background(Color.white.opacity(0.2))
                     .clipShape(Capsule())
                     .foregroundColor(themeManager.textColor)
+                }
+                .buttonStyle(.plain)
             }
             .padding()
             .frame(width: 180, alignment: .leading)
@@ -296,6 +335,201 @@ struct SocialCirclesView: View {
             await loadPulses(for: circle)
         } catch {
             await MainActor.run { errorMessage = error.localizedDescription }
+        }
+    }
+    
+    private func createCircle(name: String, description: String, emoji: String, themeColor: String) async {
+        await MainActor.run {
+            isCreatingCircle = true
+        }
+        
+        do {
+            let payload = BackendCircleCreate(
+                name: name,
+                description: description.isEmpty ? nil : description,
+                emoji: emoji,
+                themeColor: themeColor
+            )
+            let newCircle = try await APIClient.shared.createBackendCircle(payload: payload)
+            await MainActor.run {
+                showingCreateCircle = false
+                newCircleName = ""
+                newCircleDescription = ""
+                selectedEmoji = "✨"
+                selectedThemeColor = "#A855F7"
+            }
+            await refreshCircles()
+            await MainActor.run {
+                selectedCircle = newCircle
+            }
+        } catch {
+            await MainActor.run {
+                errorMessage = error.localizedDescription
+                isCreatingCircle = false
+            }
+        }
+    }
+}
+
+// MARK: - Create Circle View
+
+struct CreateCircleView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(ThemeManager.self) var themeManager
+    @Binding var name: String
+    @Binding var description: String
+    @Binding var emoji: String
+    @Binding var themeColor: String
+    @Binding var isCreating: Bool
+    let onCreate: (String, String, String, String) async -> Void
+    
+    @State private var showingEmojiPicker = false
+    @State private var showingColorPicker = false
+    
+    private let emojiOptions = ["✨", "🌟", "💫", "🎉", "🔥", "💜", "🌈", "🎨", "🍕", "☕", "🎵", "📚", "🎮", "🏃", "🧘", "🌍"]
+    private let colorOptions = ["#A855F7", "#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#EC4899", "#8B5CF6", "#06B6D4"]
+    
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("Circle Name", text: $name)
+                        .textInputAutocapitalization(.words)
+                    
+                    TextField("Description (Optional)", text: $description, axis: .vertical)
+                        .lineLimit(3...6)
+                } header: {
+                    Text("Details")
+                }
+                
+                Section {
+                    Button(action: {
+                        showingEmojiPicker = true
+                    }) {
+                        HStack {
+                            Text("Emoji")
+                            Spacer()
+                            Text(emoji)
+                                .font(.title2)
+                        }
+                    }
+                    
+                    Button(action: {
+                        showingColorPicker = true
+                    }) {
+                        HStack {
+                            Text("Theme Color")
+                            Spacer()
+                            Circle()
+                                .fill(Color(hex: themeColor))
+                                .frame(width: 24, height: 24)
+                        }
+                    }
+                } header: {
+                    Text("Appearance")
+                }
+            }
+            .navigationTitle("Create Circle")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Create") {
+                        _Concurrency.Task {
+                            await onCreate(name, description, emoji, themeColor)
+                        }
+                    }
+                    .disabled(name.isEmpty || isCreating)
+                    .fontWeight(.semibold)
+                }
+            }
+            .sheet(isPresented: $showingEmojiPicker) {
+                EmojiPickerView(selectedEmoji: $emoji)
+            }
+            .sheet(isPresented: $showingColorPicker) {
+                ColorPickerView(selectedColor: $themeColor, colors: colorOptions)
+            }
+        }
+    }
+}
+
+struct EmojiPickerView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Binding var selectedEmoji: String
+    
+    private let emojiOptions = ["✨", "🌟", "💫", "🎉", "🔥", "💜", "🌈", "🎨", "🍕", "☕", "🎵", "📚", "🎮", "🏃", "🧘", "🌍"]
+    
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 60))], spacing: 16) {
+                    ForEach(emojiOptions, id: \.self) { emoji in
+                        Button(action: {
+                            selectedEmoji = emoji
+                            dismiss()
+                        }) {
+                            Text(emoji)
+                                .font(.system(size: 40))
+                                .frame(width: 60, height: 60)
+                                .background(selectedEmoji == emoji ? Color.blue.opacity(0.2) : Color.clear)
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                        }
+                    }
+                }
+                .padding()
+            }
+            .navigationTitle("Choose Emoji")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+}
+
+struct ColorPickerView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Binding var selectedColor: String
+    let colors: [String]
+    
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 60))], spacing: 16) {
+                    ForEach(colors, id: \.self) { color in
+                        Button(action: {
+                            selectedColor = color
+                            dismiss()
+                        }) {
+                            Circle()
+                                .fill(Color(hex: color))
+                                .frame(width: 60, height: 60)
+                                .overlay(
+                                    Circle()
+                                        .stroke(selectedColor == color ? Color.primary : Color.clear, lineWidth: 3)
+                                )
+                        }
+                    }
+                }
+                .padding()
+            }
+            .navigationTitle("Choose Color")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+            }
         }
     }
 }

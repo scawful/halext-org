@@ -92,6 +92,19 @@ extension APIClient {
         request.httpBody = try JSONEncoder().encode(body)
         return try await performRequest(request)
     }
+    
+    func suggestTaskEnhancements(title: String, description: String?, model: String? = nil) async throws -> AITaskSuggestionsResponse {
+        struct SuggestionsRequest: Codable {
+            let title: String
+            let description: String?
+            let model: String?
+        }
+        
+        var request = try authorizedRequest(path: "/ai/tasks/suggest", method: "POST")
+        let body = SuggestionsRequest(title: title, description: description, model: model)
+        request.httpBody = try JSONEncoder().encode(body)
+        return try await performRequest(request)
+    }
 
     // MARK: - Event AI Features
 
@@ -554,6 +567,20 @@ struct AIPrioritySuggestion: Codable {
         case medium
         case high
         case urgent
+    }
+}
+
+struct AITaskSuggestionsResponse: Codable {
+    let subtasks: [String]
+    let labels: [String]
+    let estimatedHours: Double
+    let priority: String
+    let priorityReasoning: String
+    
+    enum CodingKeys: String, CodingKey {
+        case subtasks, labels, priority
+        case estimatedHours = "estimated_hours"
+        case priorityReasoning = "priority_reasoning"
     }
 }
 

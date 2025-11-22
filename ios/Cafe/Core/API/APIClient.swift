@@ -456,7 +456,43 @@ class APIClient {
         }
         
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        // Custom date decoding that handles both with and without 'Z' suffix
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let container = try decoder.singleValueContainer()
+            let dateString = try container.decode(String.self)
+            
+            // Try ISO8601 formatters first
+            let isoFormatter1 = ISO8601DateFormatter()
+            if let date = isoFormatter1.date(from: dateString) {
+                return date
+            }
+            
+            let isoFormatter2 = ISO8601DateFormatter()
+            isoFormatter2.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            if let date = isoFormatter2.date(from: dateString) {
+                return date
+            }
+            
+            // Try DateFormatter for dates without 'Z'
+            let dateFormatter1 = DateFormatter()
+            dateFormatter1.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSSSS"
+            dateFormatter1.timeZone = TimeZone(secondsFromGMT: 0)
+            if let date = dateFormatter1.date(from: dateString) {
+                return date
+            }
+            
+            let dateFormatter2 = DateFormatter()
+            dateFormatter2.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+            dateFormatter2.timeZone = TimeZone(secondsFromGMT: 0)
+            if let date = dateFormatter2.date(from: dateString) {
+                return date
+            }
+            
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Expected date string to be ISO8601-formatted."
+            )
+        }
 
         do {
             return try decoder.decode(T.self, from: data)

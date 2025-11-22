@@ -2,7 +2,8 @@
 //  PartnerStatusCard.swift
 //  Cafe
 //
-//  Dashboard widget showing partner (Chris) status and quick actions
+//  Dashboard widget showing user status (DEPRECATED - use Social Circles instead)
+//  This card is kept for backward compatibility but should be replaced with Social Circles
 //
 
 import SwiftUI
@@ -237,24 +238,21 @@ struct PartnerStatusCard: View {
         .task {
             await loadPresence()
         }
-        .background(
-            // NavigationLink that activates when conversation is set
-            // Using NavigationLink with value for modern NavigationStack compatibility
-            Group {
-                if let conversation = chrisConversation {
-                    NavigationLink(
-                        value: conversation
-                    ) {
-                        EmptyView()
+        .sheet(item: $chrisConversation) { conversation in
+            NavigationStack {
+                UnifiedConversationView(conversation: conversation) { updated in
+                    chrisConversation = updated
+                }
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Close") {
+                            chrisConversation = nil
+                        }
                     }
                 }
             }
-        )
-        .navigationDestination(for: Conversation.self) { conversation in
-            UnifiedConversationView(conversation: conversation) { updated in
-                // Update conversation if needed
-                chrisConversation = updated
-            }
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
         }
         .alert("Error", isPresented: Binding(get: { errorMessage != nil }, set: { _ in errorMessage = nil })) {
             Button("OK", role: .cancel) { errorMessage = nil }
@@ -324,10 +322,11 @@ struct PartnerStatusCard: View {
                 )
                 await MainActor.run {
                     chrisConversation = convo
+                    errorMessage = nil
                 }
             } else {
                 await MainActor.run {
-                    errorMessage = "Could not find user. Please make sure the username is correct."
+                    errorMessage = "Could not find user '\(preferredContactUsername)'. Please make sure the username is correct."
                 }
             }
         } catch {

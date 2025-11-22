@@ -2,7 +2,7 @@
 //  SocialPresenceManager.swift
 //  Cafe
 //
-//  Enhanced presence manager for social features with CloudKit integration
+//  Enhanced presence manager for social features with backend API integration
 //
 
 import Foundation
@@ -39,14 +39,9 @@ class SocialPresenceManager {
             return
         }
         
-        // Only start tracking if CloudKit is available and profile exists
-        guard socialManager.isCloudKitAvailable, socialManager.currentProfile != nil else {
-            print("⚠️ Presence tracking not started: CloudKit unavailable or no profile")
-            return
-        }
-
+        // Use backend API for presence tracking (CloudKit not available with AltStore/Sidestore)
         isTrackingPresence = true
-        print("Starting presence tracking...")
+        print("Starting presence tracking (backend API)...")
 
         // Initial presence update
         _Concurrency.Task {
@@ -56,11 +51,7 @@ class SocialPresenceManager {
         // Schedule periodic updates
         updateTimer = Timer.scheduledTimer(withTimeInterval: updateInterval, repeats: true) { [weak self] _ in
             _Concurrency.Task { @MainActor [weak self] in
-                guard let self = self,
-                      self.socialManager.isCloudKitAvailable,
-                      self.socialManager.currentProfile != nil else {
-                    // Stop tracking if conditions are no longer met
-                    self?.stopTrackingPresence()
+                guard let self = self else {
                     return
                 }
                 await self.updatePresence(isOnline: true)
@@ -88,82 +79,51 @@ class SocialPresenceManager {
     }
 
     func updatePresence(isOnline: Bool, currentActivity: String? = nil, statusMessage: String? = nil) async {
-        // Check if CloudKit is available and profile exists before attempting update
-        guard socialManager.isCloudKitAvailable else {
-            // CloudKit not available - presence features disabled
-            return
-        }
-        
-        guard socialManager.currentProfile != nil else {
-            // No profile yet - presence features require a profile
-            // This is expected on first launch before profile is created
-            return
-        }
-        
+        // Use backend API for presence updates
         do {
-            try await socialManager.updatePresence(
+            let status = isOnline ? "online" : "offline"
+            let _ = try await APIClient.shared.updatePresence(
                 isOnline: isOnline,
+                status: status,
                 currentActivity: currentActivity,
                 statusMessage: statusMessage
             )
-
+            
             lastPresenceUpdate = Date()
-            print("Updated presence: online=\(isOnline)")
+            print("Updated presence via backend API: online=\(isOnline)")
         } catch {
-            // Only log errors that aren't expected (like noProfile or cloudKitUnavailable)
-            if let socialError = error as? SocialError {
-                switch socialError {
-                case .noProfile, .cloudKitUnavailable:
-                    // These are expected when CloudKit/profile isn't set up
-                    return
-                default:
-                    print("Failed to update presence: \(error)")
-                }
-            } else {
-                print("Failed to update presence: \(error)")
-            }
+            // Silently handle errors - presence is non-critical
+            print("⚠️ Failed to update presence: \(error.localizedDescription)")
         }
     }
 
     func updateCurrentActivity(_ activity: String?) async {
-        guard let profile = socialManager.currentProfile else {
-            return
-        }
-
-        await updatePresence(
-            isOnline: profile.isOnline,
-            currentActivity: activity,
-            statusMessage: profile.statusMessage
-        )
+        // Update presence with current activity via backend API
+        await updatePresence(isOnline: true, currentActivity: activity, statusMessage: nil)
     }
 
     func updateStatusMessage(_ message: String?) async {
-        guard let profile = socialManager.currentProfile else {
-            return
-        }
-
-        await updatePresence(
-            isOnline: profile.isOnline,
-            currentActivity: profile.currentActivity,
-            statusMessage: message
-        )
+        // Update presence with status message via backend API
+        await updatePresence(isOnline: true, currentActivity: nil, statusMessage: message)
     }
 
     // MARK: - Partner Presence
 
-    func startMonitoringPartnerPresence() {
-        // Start background task to periodically fetch partner presence
+    func startMonitoringPartnerPresence(usernames: [String] = []) {
+        // Start background task to periodically fetch partner presence via backend API
         backgroundTask?.cancel()
         backgroundTask = _Concurrency.Task {
             while !_Concurrency.Task.isCancelled {
-                await fetchPartnerPresence()
+                for username in usernames {
+                    _ = await fetchPartnerPresence(username: username)
+                }
 
                 // Wait before next check
                 try? await _Concurrency.Task.sleep(nanoseconds: UInt64(updateInterval * 1_000_000_000))
             }
         }
 
-        print("Started monitoring partner presence")
+        print("Started monitoring partner presence for \(usernames.count) users")
     }
 
     func stopMonitoringPartnerPresence() {
@@ -173,26 +133,15 @@ class SocialPresenceManager {
         print("Stopped monitoring partner presence")
     }
 
-    func fetchPartnerPresence() async {
-        // Only fetch if CloudKit is available
-        guard socialManager.isCloudKitAvailable else {
-            return
-        }
-        
+    func fetchPartnerPresence(username: String) async -> PartnerPresence? {
+        // Fetch partner presence via backend API
         do {
-            try await socialManager.fetchPartnerPresence()
+            let presence = try await APIClient.shared.getPartnerPresence(username: username)
+            return presence
         } catch {
-            // Only log unexpected errors
-            if let socialError = error as? SocialError {
-                switch socialError {
-                case .cloudKitUnavailable:
-                    return
-                default:
-                    print("Failed to fetch partner presence: \(error)")
-                }
-            } else {
-                print("Failed to fetch partner presence: \(error)")
-            }
+            // Silently handle errors - presence is non-critical
+            print("⚠️ Failed to fetch partner presence for \(username): \(error.localizedDescription)")
+            return nil
         }
     }
 

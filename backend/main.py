@@ -5,6 +5,7 @@ from sqlalchemy import text
 import platform
 import json
 from datetime import datetime
+from typing import Optional
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -16,6 +17,8 @@ from app.dependencies import get_db, ai_gateway, ENV_CHECK
 from app.websockets import manager
 from app.presence_websocket import presence_manager
 from app import auth
+from jose import JWTError, jwt
+import os
 
 # Import original routers (to be refactored later)
 from app.admin_routes import router as admin_router
@@ -100,11 +103,46 @@ async def websocket_endpoint(websocket: WebSocket, conversation_id: str):
         manager.disconnect(websocket, conversation_id)
         await manager.broadcast(f"Client left the chat", conversation_id)
 
+async def verify_websocket_token(websocket: WebSocket, db: Session) -> Optional[models.User]:
+    """
+    Verify JWT token from WebSocket headers and return authenticated user.
+    Returns None if token is invalid or missing.
+    """
+    # Get token from Authorization header
+    auth_header = websocket.headers.get("Authorization") or websocket.headers.get("authorization")
+    if not auth_header:
+        return None
+    
+    # Extract token from "Bearer <token>" format
+    if not auth_header.startswith("Bearer "):
+        return None
+    
+    token = auth_header[7:]  # Remove "Bearer " prefix
+    
+    try:
+        # Verify and decode token
+        SECRET_KEY = os.getenv("SECRET_KEY", "a_very_secret_key_that_should_be_in_env")
+        ALGORITHM = "HS256"
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            return None
+        
+        # Get user from database
+        user = crud.get_user_by_username(db, username=username)
+        return user
+    except JWTError:
+        return None
+
+
 @app.websocket("/ws/presence/{user_id}")
 async def presence_websocket_endpoint(websocket: WebSocket, user_id: int, db: Session = Depends(get_db)):
     """
     WebSocket endpoint for real-time presence updates.
     Connect: ws://localhost:8000/ws/presence/{user_id}
+    
+    Requires Authorization header with Bearer token.
+    The user_id in the path must match the authenticated user from the token.
 
     Message format:
     - Client to Server:
@@ -117,12 +155,23 @@ async def presence_websocket_endpoint(websocket: WebSocket, user_id: int, db: Se
       {"type": "typing_indicator", "data": {"user_id": 1, "conversation_id": 1, "is_typing": true}}
       {"type": "initial_presences", "data": [{"user_id": 1, "status": "online", ...}, ...]}
     """
-    # Verify user exists
-    user = crud.get_user(db, user_id)
+    # Verify authentication token before accepting connection
+    # We can read headers before accepting
+    user = await verify_websocket_token(websocket, db)
     if not user:
-        await websocket.close(code=4004, reason="User not found")
+        # Accept connection first so we can close it properly
+        await websocket.accept()
+        await websocket.close(code=4001, reason="Unauthorized - Invalid or missing token")
+        return
+    
+    # Verify user_id from path matches authenticated user
+    if user.id != user_id:
+        # Accept connection first so we can close it properly
+        await websocket.accept()
+        await websocket.close(code=4003, reason="Forbidden - User ID mismatch")
         return
 
+    # Accept WebSocket connection and register with presence manager
     await presence_manager.connect(websocket, user_id)
 
     # Update database presence

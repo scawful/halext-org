@@ -2,7 +2,8 @@
 //  SharedTasksView.swift
 //  Cafe
 //
-//  View for managing shared tasks with partner
+//  View for managing shared tasks (DEPRECATED - CloudKit-only feature)
+//  Use regular tasks with Social Circles for backend-powered collaboration
 //
 
 import SwiftUI

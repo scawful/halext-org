@@ -175,7 +175,16 @@ def finance_summary(
     current_user: models.User = Depends(auth.get_current_active_user),
     db: Session = Depends(get_db),
 ):
-    return crud.get_finance_summary(db, current_user.id)
+    try:
+        return crud.get_finance_summary(db, current_user.id)
+    except Exception as e:
+        from fastapi import HTTPException, status
+        import logging
+        logging.error(f"Error in finance_summary endpoint for user {current_user.id}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve finance summary. Please try again later."
+        )
 
 
 # Budget Progress Endpoints

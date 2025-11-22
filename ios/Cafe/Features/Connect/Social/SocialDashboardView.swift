@@ -98,23 +98,11 @@ struct SocialDashboardView: View {
     }
 
     private func initializeSocial() async {
-        // Start presence tracking (only if CloudKit is available)
-        if socialManager.isCloudKitAvailable {
-            presenceManager.startTrackingPresence()
-            presenceManager.startMonitoringPartnerPresence()
-        }
-
-        // Load initial data (only if CloudKit is available)
-        if socialManager.isCloudKitAvailable {
-            try? await socialManager.fetchConnections()
-
-            do {
-                try await socialManager.fetchSharedTasks()
-                try await socialManager.fetchActivities()
-            } catch {
-                print("⚠️ Failed to load social data: \(error.localizedDescription)")
-            }
-        }
+        // Use backend API for presence tracking (CloudKit not available with AltStore/Sidestore)
+        presenceManager.startTrackingPresence()
+        
+        // Note: Shared tasks and connections are CloudKit-only features
+        // Use Social Circles for backend-powered social features instead
     }
 }
 

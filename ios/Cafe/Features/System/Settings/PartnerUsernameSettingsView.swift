@@ -2,7 +2,8 @@
 //  PartnerUsernameSettingsView.swift
 //  Cafe
 //
-//  Configure preferred contact/partner username
+//  Configure preferred contact username (DEPRECATED - use Social Circles instead)
+//  This view is kept for backward compatibility but Social Circles should be used for user connections
 //
 
 import SwiftUI

@@ -22,14 +22,29 @@ struct PresenceStatusUpdate: Codable {
     }
 }
 
+/// Full presence update request model
+struct PresenceUpdateRequest: Codable {
+    let isOnline: Bool?
+    let status: String? // "online", "away", "busy", "offline"
+    let currentActivity: String?
+    let statusMessage: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case isOnline = "is_online"
+        case status
+        case currentActivity = "current_activity"
+        case statusMessage = "status_message"
+    }
+}
+
 /// Response model for presence status update
 struct PresenceStatusResponse: Codable {
-    let userId: Int
+    let username: String
     let status: String
     let lastSeen: Date
 
     enum CodingKeys: String, CodingKey {
-        case userId = "user_id"
+        case username
         case status
         case lastSeen = "last_seen"
     }
@@ -79,7 +94,7 @@ extension APIClient {
     /// **Response:**
     /// ```json
     /// {
-    ///     "user_id": 1,
+    ///     "username": "scawful",
     ///     "status": "online",
     ///     "last_seen": "2024-01-01T12:00:00Z"
     /// }
@@ -99,12 +114,30 @@ extension APIClient {
         request.httpBody = try JSONEncoder().encode(body)
         return try await performRequest(request)
     }
+    
+    /// Updates presence with full details (status, activity, message)
+    func updatePresence(
+        isOnline: Bool? = nil,
+        status: String? = nil,
+        currentActivity: String? = nil,
+        statusMessage: String? = nil
+    ) async throws -> PartnerPresence {
+        let body = PresenceUpdateRequest(
+            isOnline: isOnline,
+            status: status,
+            currentActivity: currentActivity,
+            statusMessage: statusMessage
+        )
+        var request = try authorizedRequest(path: "/users/me/presence", method: "POST")
+        request.httpBody = try JSONEncoder().encode(body)
+        return try await performRequest(request)
+    }
 
     // MARK: - Fetch User Presences
 
     /// Fetches presence information for specified users
     ///
-    /// **Backend Endpoint:** `GET /api/presence/users`
+    /// **Backend Endpoint:** `GET /api/users/presence`
     ///
     /// **Query Parameters:**
     /// - `user_ids` (optional): Comma-separated list of user IDs. If not provided, returns presence for all connected users.
@@ -125,7 +158,7 @@ extension APIClient {
     /// - Returns: Array of user presence responses
     /// - Throws: APIError if the request fails
     func getPresences(userIds: [Int]? = nil) async throws -> [UserPresenceResponse] {
-        var path = "/presence/users"
+        var path = "/users/presence"
         if let userIds = userIds, !userIds.isEmpty {
             let idsString = userIds.map { String($0) }.joined(separator: ",")
             path += "?user_ids=\(idsString)"

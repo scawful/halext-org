@@ -69,7 +69,8 @@
       "Bash(swift -parse:*)",
       "Bash(source:*)",
       "Bash(bash -n:*)",
-      "Bash(/Users/scawful/Code/halext-org/scripts/ios-version-bump.sh:*)"
+      "Bash(/Users/scawful/Code/halext-org/scripts/ios-version-bump.sh:*)",
+      "Bash(git remote add:*)"
     ],
     "deny": [],
     "ask": []

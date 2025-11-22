@@ -581,19 +581,57 @@ async def generate_smart_tasks(
     db: Session = Depends(get_db)
 ):
     """Generate tasks, events, and smart lists from natural language prompt"""
-    helper = AiSmartGenerator(ai_gateway, user_id=current_user.id)
+    import time
+    from fastapi import HTTPException, status
+    
+    start_time = time.time()
+    try:
+        helper = AiSmartGenerator(ai_gateway, user_id=current_user.id)
 
-    result = await helper.generate_from_prompt(
-        prompt=request.prompt,
-        timezone=request.context.timezone,
-        current_date=request.context.current_date,
-        existing_task_titles=request.context.existing_task_titles,
-        upcoming_event_dates=request.context.upcoming_event_dates,
-        model_identifier=request.model,
-        db=db,
-    )
+        result = await helper.generate_from_prompt(
+            prompt=request.prompt,
+            timezone=request.context.timezone,
+            current_date=request.context.current_date,
+            existing_task_titles=request.context.existing_task_titles,
+            upcoming_event_dates=request.context.upcoming_event_dates,
+            model_identifier=request.model,
+            db=db,
+        )
 
-    return schemas.AiGenerateTasksResponse(**result)
+        # Log AI usage
+        latency_ms = int((time.time() - start_time) * 1000)
+        try:
+            log_ai_usage(
+                db=db,
+                user_id=current_user.id,
+                model_identifier=request.model or "default",
+                endpoint="/ai/generate-tasks",
+                prompt_tokens=estimate_token_count(request.prompt),
+                response_tokens=estimate_token_count(str(result)),
+                latency_ms=latency_ms,
+            )
+        except Exception as e:
+            print(f"⚠️ Warning: Failed to log AI usage for task generation: {e}")
+
+        return schemas.AiGenerateTasksResponse(**result)
+    except TimeoutError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="AI provider timed out while generating tasks. Please try again."
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Failed to generate tasks: {str(e)}"
+        )
+    except Exception as exc:
+        print(f"❌ Error generating tasks: {exc}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate tasks: {str(exc)}"
+        )
 
 # Recipe AI
 @router.post("/ai/recipes/generate", response_model=schemas.RecipeGenerationResponse)
@@ -603,21 +641,64 @@ async def generate_recipes(
     db: Session = Depends(get_db),
 ):
     """Generate recipes from available ingredients"""
-    helper = AiRecipeGenerator(ai_gateway, user_id=current_user.id)
+    import time
+    from fastapi import HTTPException, status
+    
+    start_time = time.time()
+    try:
+        helper = AiRecipeGenerator(ai_gateway, user_id=current_user.id)
 
-    result = await helper.generate_recipes(
-        ingredients=request.ingredients,
-        dietary_restrictions=request.dietary_restrictions,
-        cuisine_preferences=request.cuisine_preferences,
-        difficulty_level=request.difficulty_level,
-        time_limit_minutes=request.time_limit_minutes,
-        servings=request.servings,
-        meal_type=request.meal_type,
-        model_identifier=request.model,
-        db=db,
-    )
+        result = await helper.generate_recipes(
+            ingredients=request.ingredients,
+            dietary_restrictions=request.dietary_restrictions,
+            cuisine_preferences=request.cuisine_preferences,
+            difficulty_level=request.difficulty_level,
+            time_limit_minutes=request.time_limit_minutes,
+            servings=request.servings,
+            meal_type=request.meal_type,
+            model_identifier=request.model,
+            db=db,
+        )
 
-    return schemas.RecipeGenerationResponse(**result)
+        # Log AI usage
+        latency_ms = int((time.time() - start_time) * 1000)
+        try:
+            from app.ai_usage_logger import log_ai_usage
+            from app.ai_features import estimate_token_count
+            prompt_text = f"Generate recipes with ingredients: {', '.join(request.ingredients)}"
+            response_text = str(result)
+            log_ai_usage(
+                db=db,
+                user_id=current_user.id,
+                model_identifier=request.model or "default",
+                endpoint="/ai/recipes/generate",
+                prompt_tokens=estimate_token_count(prompt_text),
+                response_tokens=estimate_token_count(response_text),
+                latency_ms=latency_ms,
+            )
+        except Exception as e:
+            print(f"⚠️ Warning: Failed to log AI usage for recipe generation: {e}")
+
+        return schemas.RecipeGenerationResponse(**result)
+    except TimeoutError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="AI provider timed out while generating recipes. Please try again."
+        )
+    except ValueError as e:
+        # Handle parsing errors or validation errors
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Failed to generate recipes: {str(e)}"
+        )
+    except Exception as exc:
+        print(f"❌ Error generating recipes: {exc}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate recipes: {str(exc)}"
+        )
 
 @router.post("/ai/recipes/meal-plan", response_model=schemas.MealPlanResponse)
 async def generate_meal_plan(
@@ -626,19 +707,56 @@ async def generate_meal_plan(
     db: Session = Depends(get_db),
 ):
     """Generate a meal plan for multiple days"""
-    helper = AiRecipeGenerator(ai_gateway, user_id=current_user.id)
+    start_time = time.time()
+    try:
+        helper = AiRecipeGenerator(ai_gateway, user_id=current_user.id)
 
-    result = await helper.generate_meal_plan(
-        ingredients=request.ingredients,
-        days=request.days,
-        dietary_restrictions=request.dietary_restrictions,
-        budget=request.budget,
-        meals_per_day=request.meals_per_day,
-        model_identifier=request.model,
-        db=db,
-    )
+        result = await helper.generate_meal_plan(
+            ingredients=request.ingredients,
+            days=request.days,
+            dietary_restrictions=request.dietary_restrictions,
+            budget=request.budget,
+            meals_per_day=request.meals_per_day,
+            model_identifier=request.model,
+            db=db,
+        )
 
-    return schemas.MealPlanResponse(**result)
+        # Log AI usage
+        latency_ms = int((time.time() - start_time) * 1000)
+        try:
+            prompt_text = f"Generate meal plan for {request.days} days with ingredients: {', '.join(request.ingredients)}"
+            response_text = str(result)
+            log_ai_usage(
+                db=db,
+                user_id=current_user.id,
+                model_identifier=request.model or "default",
+                endpoint="/ai/recipes/meal-plan",
+                prompt_tokens=estimate_token_count(prompt_text),
+                response_tokens=estimate_token_count(response_text),
+                latency_ms=latency_ms,
+            )
+        except Exception as e:
+            print(f"⚠️ Warning: Failed to log AI usage for meal plan generation: {e}")
+
+        return schemas.MealPlanResponse(**result)
+    except TimeoutError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="AI provider timed out while generating meal plan. Please try again."
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Failed to generate meal plan: {str(e)}"
+        )
+    except Exception as exc:
+        print(f"❌ Error generating meal plan: {exc}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate meal plan: {str(exc)}"
+        )
 
 @router.post("/ai/recipes/suggest-substitutions", response_model=schemas.RecipeGenerationResponse)
 async def suggest_ingredient_substitutions(

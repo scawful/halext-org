@@ -1140,26 +1140,57 @@ def sync_all_budget_spent_amounts(db: Session, owner_id: int) -> List[models.Fin
 
 
 def get_finance_summary(db: Session, owner_id: int):
-    accounts = get_finance_accounts(db, owner_id)
-    budgets = get_finance_budgets(db, owner_id)
-    transactions = list_finance_transactions(db, owner_id, limit=10)
+    try:
+        # Get accounts, budgets, and transactions with error handling
+        accounts = get_finance_accounts(db, owner_id) or []
+        budgets = get_finance_budgets(db, owner_id) or []
+        transactions = list_finance_transactions(db, owner_id, limit=10) or []
 
-    total_balance = sum(account.balance or 0.0 for account in accounts)
-    monthly_spending = sum(
-        tx.amount or 0.0 for tx in transactions if tx.transaction_type == "debit"
-    )
-    monthly_income = sum(
-        tx.amount or 0.0 for tx in transactions if tx.transaction_type == "credit"
-    )
+        # Calculate total balance with null checks
+        total_balance = 0.0
+        if accounts:
+            total_balance = sum(
+                float(account.balance) if account.balance is not None else 0.0
+                for account in accounts
+            )
 
-    return schemas.FinanceSummary(
-        total_balance=total_balance,
-        active_accounts=len(accounts),
-        monthly_spending=monthly_spending,
-        monthly_income=monthly_income,
-        budget_progress=budgets,
-        recent_transactions=transactions,
-    )
+        # Calculate monthly spending with null checks
+        monthly_spending = 0.0
+        if transactions:
+            monthly_spending = sum(
+                float(tx.amount) if tx.amount is not None and tx.transaction_type == "debit" else 0.0
+                for tx in transactions
+            )
+
+        # Calculate monthly income with null checks
+        monthly_income = 0.0
+        if transactions:
+            monthly_income = sum(
+                float(tx.amount) if tx.amount is not None and tx.transaction_type == "credit" else 0.0
+                for tx in transactions
+            )
+
+        return schemas.FinanceSummary(
+            total_balance=total_balance,
+            active_accounts=len(accounts),
+            monthly_spending=monthly_spending,
+            monthly_income=monthly_income,
+            budget_progress=budgets,
+            recent_transactions=transactions,
+        )
+    except Exception as e:
+        # Log error and return default summary
+        import logging
+        logging.error(f"Error getting finance summary for user {owner_id}: {str(e)}")
+        # Return empty summary instead of raising exception
+        return schemas.FinanceSummary(
+            total_balance=0.0,
+            active_accounts=0,
+            monthly_spending=0.0,
+            monthly_income=0.0,
+            budget_progress=[],
+            recent_transactions=[],
+        )
 
 
 def _generate_invite_code() -> str:

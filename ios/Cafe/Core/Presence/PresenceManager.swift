@@ -224,11 +224,122 @@ class PresenceManager {
 
     private func connectWebSocket() {
         guard isAuthenticated else { return }
-        PresenceWebSocketManager.shared.connect()
+        
+        // Get user ID from Keychain or AppState
+        guard let userId = KeychainManager.shared.getUserId() else {
+            #if DEBUG
+            print("[Presence] Cannot connect WebSocket - no user ID")
+            #endif
+            return
+        }
+        
+        let environment = APIClient.shared.environment
+        let wsScheme = environment == .development ? "ws" : "wss"
+        let host = environment == .development ? "127.0.0.1:8000" : "org.halext.org"
+        
+        guard let url = URL(string: "\(wsScheme)://\(host)/ws/presence/\(userId)") else {
+            #if DEBUG
+            print("[Presence] Invalid WebSocket URL")
+            #endif
+            return
+        }
+        
+        let token = KeychainManager.shared.getToken()
+        
+        _Concurrency.Task { @MainActor in
+            let manager = WebSocketManager.shared
+            manager.onMessage = { [weak self] message in
+                self?.handleWebSocketMessage(message)
+            }
+            manager.onConnect = { [weak self] in
+                self?.isWebSocketConnected = true
+            }
+            manager.onDisconnect = { [weak self] _ in
+                self?.isWebSocketConnected = false
+            }
+            
+            await manager.connect(url: url, authToken: token)
+        }
     }
 
     private func disconnectWebSocket() {
-        PresenceWebSocketManager.shared.disconnect()
+        _Concurrency.Task { @MainActor in
+            await WebSocketManager.shared.disconnect()
+            isWebSocketConnected = false
+        }
+    }
+    
+    private func handleWebSocketMessage(_ message: String) {
+        guard let data = message.data(using: .utf8) else { return }
+        
+        do {
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            
+            // Parse WebSocket message format from backend
+            struct WebSocketMessage: Decodable {
+                let type: String
+                let data: PresenceUpdateData?
+            }
+            
+            struct PresenceUpdateData: Decodable {
+                let userId: Int?
+                let status: String?
+                let lastSeen: Date?
+                let conversationId: Int?
+                let isTyping: Bool?
+                
+                enum CodingKeys: String, CodingKey {
+                    case userId = "user_id"
+                    case status
+                    case lastSeen = "last_seen"
+                    case conversationId = "conversation_id"
+                    case isTyping = "is_typing"
+                }
+            }
+            
+            let wsMessage = try decoder.decode(WebSocketMessage.self, from: data)
+            
+            switch wsMessage.type {
+            case "presence_update":
+                if let data = wsMessage.data,
+                   let userId = data.userId,
+                   let statusString = data.status,
+                   let status = PresenceStatus(rawValue: statusString),
+                   let lastSeen = data.lastSeen {
+                    handlePresenceUpdate(userId: userId, status: status, lastSeen: lastSeen)
+                }
+            case "typing_indicator":
+                if let data = wsMessage.data,
+                   let userId = data.userId,
+                   let conversationId = data.conversationId,
+                   let isTyping = data.isTyping {
+                    handleTypingUpdate(userId: userId, conversationId: conversationId, isTyping: isTyping)
+                }
+            case "initial_presences":
+                // Parse array of presences
+                if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let dataArray = json["data"] as? [[String: Any]] {
+                    for item in dataArray {
+                        if let userId = item["user_id"] as? Int,
+                           let statusString = item["status"] as? String,
+                           let status = PresenceStatus(rawValue: statusString),
+                           let lastSeenString = item["last_seen"] as? String,
+                           let lastSeen = ISO8601DateFormatter().date(from: lastSeenString) {
+                            handlePresenceUpdate(userId: userId, status: status, lastSeen: lastSeen)
+                        }
+                    }
+                }
+            default:
+                #if DEBUG
+                print("[Presence] Unknown WebSocket message type: \(wsMessage.type)")
+                #endif
+            }
+        } catch {
+            #if DEBUG
+            print("[Presence] Failed to parse WebSocket message: \(error)")
+            #endif
+        }
     }
 
     // MARK: - API Integration

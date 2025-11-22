@@ -65,7 +65,7 @@ struct AIModelPickerView: View {
                 Section {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {
-                            FilterChip(
+                            ModelFilterChip(
                                 title: "All",
                                 isSelected: selectedProvider == nil,
                                 count: modelsResponse.models.count
@@ -74,7 +74,7 @@ struct AIModelPickerView: View {
                             }
                             
                             ForEach(providers.prefix(8), id: \.self) { provider in
-                                FilterChip(
+                                ModelFilterChip(
                                     title: provider,
                                     isSelected: selectedProvider == provider,
                                     count: grouped.first(where: { $0.key == provider })?.value.count ?? 0
@@ -484,7 +484,7 @@ struct DetailedModelRow: View {
 
 // MARK: - Filter Chip
 
-struct FilterChip: View {
+private struct ModelFilterChip: View {
     let title: String
     let isSelected: Bool
     let count: Int
