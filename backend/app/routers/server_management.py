@@ -79,6 +79,17 @@ def get_server_stats(
         "ai_provider_available": ai_provider_available,
     }
 
+
+@router.get("/admin/stats")
+def admin_stats_alias(
+    current_user: models.User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Alias for /admin/server/stats to match iOS client expectations.
+    """
+    return get_server_stats(current_user, db)
+
 @router.post("/admin/server/restart")
 def restart_api_server(
     current_user: models.User = Depends(get_current_admin_user)
@@ -198,6 +209,25 @@ def rebuild_frontend(
             "message": f"Failed to trigger rebuild: {str(e)}"
         }
 
+
+# Aliases expected by iOS admin client
+@router.post("/admin/rebuild-frontend")
+def rebuild_frontend_alias(current_user: models.User = Depends(get_current_admin_user)):
+    return rebuild_frontend(current_user)
+
+
+@router.post("/admin/rebuild-indexes")
+def rebuild_indexes(
+    current_user: models.User = Depends(get_current_admin_user)
+):
+    """
+    Placeholder for search/index rebuilds.
+    """
+    return {
+        "success": True,
+        "message": "Rebuild indexes request accepted (no-op placeholder)",
+    }
+
 @router.get("/admin/logs")
 def get_server_logs(
     current_user: models.User = Depends(get_current_admin_user),
@@ -242,8 +272,30 @@ def get_server_logs(
         }
     except Exception as e:
         return {
-            "logs": [f"Error reading logs: {str(e)}"],
-            "count": 1,
-            "level": level
-        }
+        "logs": [f"Error reading logs: {str(e)}"],
+        "count": 1,
+        "level": level
+    }
 
+
+@router.get("/admin/health")
+def get_server_health(
+    current_user: models.User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Lightweight health summary expected by iOS admin client.
+    """
+    system_stats = get_system_stats()
+    db_status = True
+    try:
+        db.execute("SELECT 1")
+    except Exception:
+        db_status = False
+
+    return {
+        "status": "healthy" if db_status else "degraded",
+        "database_connected": db_status,
+        "api_server_running": True,
+        "system": system_stats,
+    }

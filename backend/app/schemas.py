@@ -43,11 +43,93 @@ class EventBase(BaseModel):
     recurrence_end_date: Optional[datetime] = None
 
 class EventCreate(EventBase):
-    pass
+    shared_with: Optional[List[str]] = Field(default_factory=list)
 
 class Event(EventBase):
     id: int
     owner_id: int
+    shared_with: List[str] = Field(default_factory=list)
+
+    class Config:
+        from_attributes = True
+
+
+class EventShareUpdate(BaseModel):
+    shared_with: List[str] = Field(default_factory=list)
+
+
+# Memories
+class MemoryBase(BaseModel):
+    title: str
+    content: Optional[str] = None
+    photos: List[str] = Field(default_factory=list)
+    location: Optional[str] = None
+
+
+class MemoryCreate(MemoryBase):
+    shared_with: List[str] = Field(default_factory=list)
+
+
+class MemoryUpdate(BaseModel):
+    title: Optional[str] = None
+    content: Optional[str] = None
+    photos: Optional[List[str]] = None
+    location: Optional[str] = None
+    shared_with: Optional[List[str]] = None
+
+
+class Memory(MemoryBase):
+    id: int
+    created_by: int
+    shared_with: List[str] = Field(default_factory=list)
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# Goals and milestones
+class MilestoneBase(BaseModel):
+    title: str
+    description: Optional[str] = None
+
+
+class MilestoneCreate(MilestoneBase):
+    pass
+
+
+class Milestone(MilestoneBase):
+    id: int
+    goal_id: int
+    completed: bool
+    completed_at: Optional[datetime] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class GoalCreate(BaseModel):
+    title: str
+    description: Optional[str] = None
+    shared_with: List[str] = Field(default_factory=list)
+
+
+class GoalProgressUpdate(BaseModel):
+    progress: float
+
+
+class Goal(BaseModel):
+    id: int
+    title: str
+    description: Optional[str] = None
+    progress: float = 0.0
+    shared_with: List[str] = Field(default_factory=list)
+    milestones: List[Milestone] = Field(default_factory=list)
+    created_at: datetime
+    updated_at: datetime
+    created_by: int
 
     class Config:
         from_attributes = True
@@ -161,6 +243,12 @@ class PartnerPresence(BaseModel):
     last_seen: Optional[datetime] = None
 
 
+class PresenceUpdate(BaseModel):
+    is_online: bool = True
+    current_activity: Optional[str] = None
+    status_message: Optional[str] = None
+
+
 class ConversationSummary(Conversation):
     participants: List[str] = Field(default_factory=list)
     participant_details: List[UserSummary] = Field(default_factory=list)
@@ -172,6 +260,11 @@ class ChatMessageBase(BaseModel):
 
 class ChatMessageCreate(ChatMessageBase):
     model: Optional[str] = None  # Optional model override for this message
+
+
+class QuickMessageCreate(ChatMessageBase):
+    username: str
+    model: Optional[str] = None
 
 class ChatMessage(ChatMessageBase):
     id: int

@@ -78,6 +78,37 @@ def sync_finance_account(
     return account
 
 
+@router.post("/finance/plaid/link-token")
+def create_plaid_link_token(
+    current_user: models.User = Depends(auth.get_current_active_user),
+):
+    """
+    Placeholder Plaid link token endpoint to satisfy iOS client.
+    Returns a mock link_token and expiration.
+    """
+    return {
+        "link_token": f"mock-link-token-{current_user.id}",
+        "expiration": datetime.utcnow().isoformat() + "Z",
+    }
+
+
+@router.post("/finance/plaid/exchange-token")
+def exchange_plaid_public_token(
+    public_token: str = "",
+    current_user: models.User = Depends(auth.get_current_active_user),
+):
+    """
+    Placeholder exchange endpoint; in production this would create an access token.
+    """
+    if not public_token:
+        raise HTTPException(status_code=400, detail="public_token is required")
+    return {
+        "status": "linked",
+        "public_token": public_token,
+        "message": "Plaid integration is mocked in this environment.",
+    }
+
+
 @router.get("/finance/transactions", response_model=List[schemas.FinanceTransaction])
 def list_finance_transactions(
     account_id: Optional[int] = None,

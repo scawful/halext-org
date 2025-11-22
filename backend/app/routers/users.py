@@ -2,13 +2,33 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
-from typing import List
+from typing import List, Optional
 from datetime import timedelta, datetime
 
 from app import crud, models, schemas, auth
 from app.dependencies import get_db, verify_access_code
 
 router = APIRouter()
+
+def _build_partner_presence(user: models.User, presence: Optional[models.UserPresence]) -> schemas.PartnerPresence:
+    """
+    Convert stored presence (or fallback) into API schema.
+    """
+    if presence:
+        return schemas.PartnerPresence(
+            username=user.username,
+            is_online=presence.is_online,
+            current_activity=presence.current_activity,
+            status_message=presence.status_message,
+            last_seen=presence.last_seen or datetime.utcnow(),
+        )
+    return schemas.PartnerPresence(
+        username=user.username,
+        is_online=True,
+        current_activity=None,
+        status_message=None,
+        last_seen=datetime.utcnow(),
+    )
 
 @router.post("/token", response_model=schemas.Token)
 async def login_for_access_token(
@@ -85,6 +105,16 @@ def search_users(
     return [schemas.UserSummary.from_orm(user) for user in results]
 
 
+@router.post("/users/me/presence", response_model=schemas.PartnerPresence)
+def update_presence(
+    payload: schemas.PresenceUpdate,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    presence = crud.upsert_user_presence(db, current_user.id, payload)
+    return _build_partner_presence(current_user, presence)
+
+
 @router.get("/users/{username}/presence", response_model=schemas.PartnerPresence)
 def get_user_presence(
     username: str,
@@ -100,12 +130,5 @@ def get_user_presence(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # TODO: Implement actual presence tracking
-    # For now, return mock data (always online, no activity)
-    return schemas.PartnerPresence(
-        username=user.username,
-        is_online=True,
-        current_activity=None,
-        status_message=None,
-        last_seen=datetime.utcnow()
-    )
+    presence = crud.get_user_presence(db, user.id)
+    return _build_partner_presence(user, presence)

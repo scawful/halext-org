@@ -397,3 +397,58 @@ async def send_typing_indicator(
         # Continue - typing indicators are not critical
     
     return
+
+
+@router.post("/messages/quick", response_model=schemas.ChatMessage)
+def send_quick_message(
+    payload: schemas.QuickMessageCreate,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Quickly send a message to a username by reusing or creating a 1:1 conversation.
+    """
+    username = payload.username.strip()
+    if not username:
+        raise HTTPException(status_code=400, detail="username is required")
+
+    target = crud.get_user_by_username(db, username=username)
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    if target.id == current_user.id:
+        raise HTTPException(status_code=400, detail="Cannot quick message yourself")
+
+    conversations = crud.get_conversations_for_user(db=db, user_id=current_user.id)
+    direct_conv = next(
+        (
+            c
+            for c in conversations
+            if len(c.participants) == 2
+            and {p.user_id for p in c.participants} == {current_user.id, target.id}
+        ),
+        None,
+    )
+    if not direct_conv:
+        conv_payload = schemas.ConversationCreate(
+            title=f"Chat with {target.username}",
+            mode="partner",
+            with_ai=False,
+            default_model_id=None,
+            participant_usernames=[target.username],
+        )
+        direct_conv = crud.create_conversation(
+            db=db,
+            payload=conv_payload,
+            owner_id=current_user.id,
+            participant_ids=[target.id],
+        )
+
+    message = crud.add_message_to_conversation(
+        db=db,
+        conversation_id=direct_conv.id,
+        content=payload.content,
+        author_id=current_user.id,
+        author_type="user",
+        model_used=payload.model,
+    )
+    return schemas.ChatMessage.from_orm(message)

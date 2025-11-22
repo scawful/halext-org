@@ -23,11 +23,13 @@ class User(Base):
 
     tasks = relationship("Task", back_populates="owner")
     events = relationship("Event", back_populates="owner")
+    shared_events = relationship("EventShare", back_populates="user")
     pages = relationship("Page", back_populates="owner")
     shared_pages = relationship("PageShare", back_populates="user")
     conversations = relationship("ConversationParticipant", back_populates="user")
     labels = relationship("Label", back_populates="owner")
     api_keys = relationship("APIKey", back_populates="owner", cascade="all, delete-orphan")
+    presence = relationship("UserPresence", back_populates="user", uselist=False, cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<User(username='{self.username}', email='{self.email}')>"
@@ -136,6 +138,89 @@ class Event(Base):
     recurrence_end_date = Column(DateTime(timezone=True), nullable=True)
 
     owner = relationship("User", back_populates="events")
+    shares = relationship("EventShare", back_populates="event", cascade="all, delete-orphan")
+
+
+class EventShare(Base):
+    """
+    Event sharing links participants to events they can view (or edit in future).
+    """
+    __tablename__ = "event_shares"
+
+    event_id = Column(Integer, ForeignKey("events.id"), primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
+    can_edit = Column(Boolean, default=False)
+
+    event = relationship("Event", back_populates="shares")
+    user = relationship("User", back_populates="shared_events")
+
+
+class Memory(Base):
+    __tablename__ = "memories"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=False)
+    content = Column(Text, nullable=True)
+    photos = Column(JSON, default=list)
+    location = Column(String, nullable=True)
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    owner = relationship("User")
+    shares = relationship("MemoryShare", back_populates="memory", cascade="all, delete-orphan")
+
+
+class MemoryShare(Base):
+    __tablename__ = "memory_shares"
+
+    memory_id = Column(Integer, ForeignKey("memories.id"), primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
+    can_edit = Column(Boolean, default=False)
+
+    memory = relationship("Memory", back_populates="shares")
+    user = relationship("User")
+
+
+class Goal(Base):
+    __tablename__ = "goals"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    progress = Column(Float, default=0.0)
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    owner = relationship("User")
+    milestones = relationship("Milestone", back_populates="goal", cascade="all, delete-orphan")
+    shares = relationship("GoalShare", back_populates="goal", cascade="all, delete-orphan")
+
+
+class GoalShare(Base):
+    __tablename__ = "goal_shares"
+
+    goal_id = Column(Integer, ForeignKey("goals.id"), primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
+    can_edit = Column(Boolean, default=False)
+
+    goal = relationship("Goal", back_populates="shares")
+    user = relationship("User")
+
+
+class Milestone(Base):
+    __tablename__ = "milestones"
+
+    id = Column(Integer, primary_key=True, index=True)
+    goal_id = Column(Integer, ForeignKey("goals.id"), nullable=False)
+    title = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    completed = Column(Boolean, default=False)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    goal = relationship("Goal", back_populates="milestones")
 
 class Label(Base):
     __tablename__ = "labels"
@@ -229,6 +314,21 @@ class ChatMessage(Base):
 
     conversation = relationship("Conversation", back_populates="messages")
     author = relationship("User")
+
+
+class UserPresence(Base):
+    """
+    Lightweight presence tracking for users (online/offline + activity).
+    """
+    __tablename__ = "user_presences"
+
+    user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
+    is_online = Column(Boolean, default=True)
+    current_activity = Column(String, nullable=True)
+    status_message = Column(String, nullable=True)
+    last_seen = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    user = relationship("User", back_populates="presence")
 
 
 class SitePage(Base):

@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_
 from sqlalchemy.sql import func
+from datetime import datetime
 from typing import Optional, List
 import secrets
 from . import models, schemas
@@ -100,14 +101,79 @@ def delete_task(db: Session, task_id: int):
     return db_task
 
 def get_events_by_user(db: Session, user_id: int, skip: int = 0, limit: int = 100):
-    return db.query(models.Event).filter(models.Event.owner_id == user_id).offset(skip).limit(limit).all()
+    return (
+        db.query(models.Event)
+        .options(joinedload(models.Event.shares).joinedload(models.EventShare.user))
+        .filter(models.Event.owner_id == user_id)
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+def get_event(db: Session, event_id: int) -> Optional[models.Event]:
+    return (
+        db.query(models.Event)
+        .options(joinedload(models.Event.shares).joinedload(models.EventShare.user))
+        .filter(models.Event.id == event_id)
+        .first()
+    )
 
 def create_user_event(db: Session, event: schemas.EventCreate, user_id: int):
-    db_event = models.Event(**event.dict(), owner_id=user_id)
+    payload = event.dict(exclude={"shared_with"})
+    db_event = models.Event(**payload, owner_id=user_id)
     db.add(db_event)
+    db.flush()
+
+    # Sync shares if provided
+    shared_with = getattr(event, "shared_with", []) or []
+    if shared_with:
+        sync_event_shares(db, db_event, shared_with)
+
     db.commit()
     db.refresh(db_event)
     return db_event
+
+def sync_event_shares(db: Session, event: models.Event, shared_usernames: List[str]):
+    """
+    Sync event shares to match the provided username list.
+    Raises ValueError if any username is unknown.
+    """
+    normalized = [u.strip() for u in shared_usernames if u and u.strip()]
+    if normalized:
+        users = db.query(models.User).filter(models.User.username.in_(normalized)).all()
+        found = {u.username for u in users}
+        missing = sorted(set(normalized) - found)
+        if missing:
+            raise ValueError(f"Unknown users: {', '.join(missing)}")
+    else:
+        users = []
+
+    current = {share.user.username for share in event.shares}
+    target = {u.username for u in users}
+
+    # Remove stale shares
+    for share in list(event.shares):
+        if share.user.username not in target:
+            db.delete(share)
+
+    # Add new shares
+    for user in users:
+        if user.username not in current:
+            event.shares.append(models.EventShare(user=user))
+
+    db.flush()
+    return event
+
+def get_shared_events_for_user(db: Session, user_id: int, skip: int = 0, limit: int = 100):
+    return (
+        db.query(models.Event)
+        .join(models.EventShare, models.EventShare.event_id == models.Event.id)
+        .options(joinedload(models.Event.shares).joinedload(models.EventShare.user))
+        .filter(models.EventShare.user_id == user_id)
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
 def get_page(db: Session, page_id: int):
     return db.query(models.Page).filter(models.Page.id == page_id).first()
@@ -173,6 +239,175 @@ def remove_page_share(db: Session, page_id: int, user_id: int):
         models.PageShare.user_id == user_id,
     ).delete()
     db.commit()
+
+
+# Memories
+def _load_memory(db: Session, memory_id: int) -> Optional[models.Memory]:
+    return (
+        db.query(models.Memory)
+        .options(joinedload(models.Memory.shares).joinedload(models.MemoryShare.user))
+        .filter(models.Memory.id == memory_id)
+        .first()
+    )
+
+def list_memories(db: Session, user_id: int, shared_with: Optional[str] = None):
+    """
+    Return memories owned by user or shared with user. Optional filter for a specific username in shared_with.
+    """
+    query = (
+        db.query(models.Memory)
+        .options(joinedload(models.Memory.shares).joinedload(models.MemoryShare.user))
+        .outerjoin(models.MemoryShare, models.MemoryShare.memory_id == models.Memory.id)
+        .filter(
+            or_(
+                models.Memory.owner_id == user_id,
+                models.MemoryShare.user_id == user_id,
+            )
+        )
+    )
+    if shared_with:
+        query = query.join(models.User, models.User.id == models.MemoryShare.user_id).filter(
+            models.User.username == shared_with
+        )
+    return query.order_by(models.Memory.created_at.desc()).all()
+
+def create_memory(db: Session, owner_id: int, payload: schemas.MemoryCreate):
+    data = payload.dict(exclude={"shared_with"})
+    memory = models.Memory(owner_id=owner_id, **data)
+    db.add(memory)
+    db.flush()
+    sync_memory_shares(db, memory, payload.shared_with)
+    db.commit()
+    db.refresh(memory)
+    return memory
+
+def update_memory(db: Session, memory: models.Memory, payload: schemas.MemoryUpdate):
+    update_data = payload.dict(exclude_unset=True, exclude={"shared_with"})
+    for key, value in update_data.items():
+        setattr(memory, key, value)
+    if payload.shared_with is not None:
+        sync_memory_shares(db, memory, payload.shared_with)
+    db.add(memory)
+    db.commit()
+    db.refresh(memory)
+    return memory
+
+def delete_memory(db: Session, memory: models.Memory):
+    db.delete(memory)
+    db.commit()
+
+def sync_memory_shares(db: Session, memory: models.Memory, shared_usernames: List[str]):
+    normalized = [u.strip() for u in shared_usernames if u and u.strip()]
+    if normalized:
+        users = db.query(models.User).filter(models.User.username.in_(normalized)).all()
+        found = {u.username for u in users}
+        missing = sorted(set(normalized) - found)
+        if missing:
+            raise ValueError(f"Unknown users: {', '.join(missing)}")
+    else:
+        users = []
+
+    current = {share.user.username for share in memory.shares}
+    target = {u.username for u in users}
+
+    for share in list(memory.shares):
+        if share.user.username not in target:
+            db.delete(share)
+    for user in users:
+        if user.username not in current:
+            memory.shares.append(models.MemoryShare(user=user))
+    db.flush()
+    return memory
+
+
+# Goals
+def _load_goal(db: Session, goal_id: int) -> Optional[models.Goal]:
+    return (
+        db.query(models.Goal)
+        .options(
+            joinedload(models.Goal.shares).joinedload(models.GoalShare.user),
+            joinedload(models.Goal.milestones),
+        )
+        .filter(models.Goal.id == goal_id)
+        .first()
+    )
+
+def list_goals(db: Session, user_id: int, shared_with: Optional[str] = None):
+    query = (
+        db.query(models.Goal)
+        .options(
+            joinedload(models.Goal.shares).joinedload(models.GoalShare.user),
+            joinedload(models.Goal.milestones),
+        )
+        .outerjoin(models.GoalShare, models.GoalShare.goal_id == models.Goal.id)
+        .filter(
+            or_(
+                models.Goal.owner_id == user_id,
+                models.GoalShare.user_id == user_id,
+            )
+        )
+    )
+    if shared_with:
+        query = query.join(models.User, models.User.id == models.GoalShare.user_id).filter(
+            models.User.username == shared_with
+        )
+    return query.order_by(models.Goal.created_at.desc()).all()
+
+def create_goal(db: Session, owner_id: int, payload: schemas.GoalCreate):
+    goal = models.Goal(
+        title=payload.title,
+        description=payload.description,
+        owner_id=owner_id,
+        progress=0.0,
+    )
+    db.add(goal)
+    db.flush()
+    sync_goal_shares(db, goal, payload.shared_with)
+    db.commit()
+    db.refresh(goal)
+    return goal
+
+def update_goal_progress(db: Session, goal: models.Goal, progress: float):
+    goal.progress = max(0.0, min(progress, 1.0))
+    db.add(goal)
+    db.commit()
+    db.refresh(goal)
+    return goal
+
+def add_milestone(db: Session, goal: models.Goal, payload: schemas.MilestoneCreate):
+    milestone = models.Milestone(
+        goal_id=goal.id,
+        title=payload.title,
+        description=payload.description,
+        completed=False,
+    )
+    db.add(milestone)
+    db.commit()
+    db.refresh(milestone)
+    return milestone
+
+def sync_goal_shares(db: Session, goal: models.Goal, shared_usernames: List[str]):
+    normalized = [u.strip() for u in shared_usernames if u and u.strip()]
+    if normalized:
+        users = db.query(models.User).filter(models.User.username.in_(normalized)).all()
+        found = {u.username for u in users}
+        missing = sorted(set(normalized) - found)
+        if missing:
+            raise ValueError(f"Unknown users: {', '.join(missing)}")
+    else:
+        users = []
+
+    current = {share.user.username for share in goal.shares}
+    target = {u.username for u in users}
+
+    for share in list(goal.shares):
+        if share.user.username not in target:
+            db.delete(share)
+    for user in users:
+        if user.username not in current:
+            goal.shares.append(models.GoalShare(user=user))
+    db.flush()
+    return goal
 
 def get_page_shares(db: Session, page_id: int):
     return (
@@ -817,3 +1052,24 @@ def create_social_pulse(
     db.refresh(db_pulse)
     db_pulse.author_name = db_pulse.author.full_name or db_pulse.author.username
     return db_pulse
+
+
+# Presence helpers
+def upsert_user_presence(db: Session, user_id: int, update: schemas.PresenceUpdate) -> models.UserPresence:
+    presence = db.query(models.UserPresence).filter(models.UserPresence.user_id == user_id).first()
+    if not presence:
+        presence = models.UserPresence(user_id=user_id)
+
+    presence.is_online = update.is_online
+    presence.current_activity = update.current_activity
+    presence.status_message = update.status_message
+    presence.last_seen = datetime.utcnow()
+
+    db.add(presence)
+    db.commit()
+    db.refresh(presence)
+    return presence
+
+
+def get_user_presence(db: Session, user_id: int) -> Optional[models.UserPresence]:
+    return db.query(models.UserPresence).filter(models.UserPresence.user_id == user_id).first()
