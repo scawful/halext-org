@@ -89,6 +89,20 @@ struct AdminView: View {
 
     private var managementSection: some View {
         Section("System Management") {
+            NavigationLink(destination: ServerManagementView()) {
+                Label {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Server Management")
+                        Text("Monitor and control the backend server")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                } icon: {
+                    Image(systemName: "server.rack")
+                        .foregroundColor(.red)
+                }
+            }
+            
             NavigationLink(destination: AdminStatsView()) {
                 Label {
                     VStack(alignment: .leading, spacing: 2) {

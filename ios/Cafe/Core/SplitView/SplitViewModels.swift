@@ -95,7 +95,7 @@ struct SplitViewPair: Identifiable, Hashable {
     static let commonPairs: [SplitViewPair] = [
         SplitViewPair(primary: .dashboard, secondary: .tasks),
         SplitViewPair(primary: .tasks, secondary: .calendar),
-        SplitViewPair(primary: .messages, secondary: .chat),
+        SplitViewPair(primary: .messages, secondary: .pages), // Messages + Pages for AI context
         SplitViewPair(primary: .dashboard, secondary: .calendar),
         SplitViewPair(primary: .tasks, secondary: .finance)
     ]

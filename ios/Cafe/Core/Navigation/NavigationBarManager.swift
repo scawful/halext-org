@@ -160,7 +160,7 @@ struct NavigationPreset: Identifiable {
         NavigationPreset(
             name: "Communication",
             description: "Messages and AI conversations",
-            tabs: [.dashboard, .messages, .chat, .calendar, .more],
+            tabs: [.dashboard, .messages, .calendar, .pages, .more],
             icon: "bubble.left.and.bubble.right.fill"
         ),
         NavigationPreset(
@@ -206,13 +206,13 @@ enum NavigationTab: String, Codable, CaseIterable, Identifiable {
     case dashboard = "Dashboard"
     case tasks = "Tasks"
     case calendar = "Calendar"
-    case chat = "AI Chat"
+    case messages = "Messages" // Unified: AI + Human conversations
     case finance = "Finance"
+    case pages = "Pages" // For AI context and notes
+    case admin = "Admin" // Server management
     case settings = "Settings"
     case templates = "Templates"
     case smartLists = "Smart Lists"
-    case pages = "Pages"
-    case messages = "Messages"
     case more = "More"
 
     var id: String { rawValue }
@@ -222,13 +222,13 @@ enum NavigationTab: String, Codable, CaseIterable, Identifiable {
         case .dashboard: return "square.grid.2x2"
         case .tasks: return "checkmark.circle"
         case .calendar: return "calendar"
-        case .chat: return "bubble.left.and.bubble.right"
+        case .messages: return "message"
         case .finance: return "dollarsign.circle"
+        case .pages: return "doc.on.doc"
+        case .admin: return "server.rack"
         case .settings: return "gear"
         case .templates: return "doc.text"
         case .smartLists: return "line.3.horizontal.decrease.circle"
-        case .pages: return "doc.on.doc"
-        case .messages: return "message"
         case .more: return "ellipsis.circle"
         }
     }
@@ -238,13 +238,13 @@ enum NavigationTab: String, Codable, CaseIterable, Identifiable {
         case .dashboard: return "square.grid.2x2.fill"
         case .tasks: return "checkmark.circle.fill"
         case .calendar: return "calendar"
-        case .chat: return "bubble.left.and.bubble.right.fill"
+        case .messages: return "message.fill"
         case .finance: return "dollarsign.circle.fill"
+        case .pages: return "doc.on.doc.fill"
+        case .admin: return "server.rack"
         case .settings: return "gear"
         case .templates: return "doc.text.fill"
         case .smartLists: return "line.3.horizontal.decrease.circle.fill"
-        case .pages: return "doc.on.doc.fill"
-        case .messages: return "message.fill"
         case .more: return "ellipsis.circle.fill"
         }
     }
@@ -254,13 +254,13 @@ enum NavigationTab: String, Codable, CaseIterable, Identifiable {
         case .dashboard: return .blue
         case .tasks: return .green
         case .calendar: return .orange
-        case .chat: return .purple
+        case .messages: return .purple
         case .finance: return .mint
+        case .pages: return .pink
+        case .admin: return .red
         case .settings: return .gray
         case .templates: return .indigo
         case .smartLists: return .teal
-        case .pages: return .pink
-        case .messages: return .cyan
         case .more: return .secondary
         }
     }
@@ -270,18 +270,28 @@ enum NavigationTab: String, Codable, CaseIterable, Identifiable {
         case .dashboard: return "Overview of tasks and events"
         case .tasks: return "Manage your tasks"
         case .calendar: return "View and schedule events"
-        case .chat: return "AI assistant for productivity"
+        case .messages: return "AI chat and conversations"
         case .finance: return "Financial management and budgets"
+        case .pages: return "Notes, documents and AI context"
+        case .admin: return "Server and system management"
         case .settings: return "App settings and preferences"
         case .templates: return "Task templates library"
         case .smartLists: return "Custom filtered views"
-        case .pages: return "Notes and documents"
-        case .messages: return "Messages and conversations"
         case .more: return "All features and options"
         }
     }
 
     static var defaultTabs: [NavigationTab] {
-        [.dashboard, .tasks, .calendar, .chat, .more]
+        [.dashboard, .tasks, .calendar, .messages, .more]
+    }
+    
+    // Essential tabs that should always be available
+    static var essentialTabs: [NavigationTab] {
+        [.dashboard, .tasks, .calendar, .messages, .finance, .pages, .settings, .more]
+    }
+    
+    // Admin-only tabs
+    static var adminOnlyTabs: [NavigationTab] {
+        [.admin]
     }
 }

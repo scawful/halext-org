@@ -1042,12 +1042,12 @@ struct AllAppsWidget: View {
             ], spacing: 16) {
                 DashboardAppButton(tab: .tasks)
                 DashboardAppButton(tab: .calendar)
-                DashboardAppButton(tab: .chat)
-                DashboardAppButton(tab: .messages)
+                DashboardAppButton(tab: .messages) // Unified: AI + Human
                 DashboardAppButton(tab: .finance)
+                DashboardAppButton(tab: .pages)
                 DashboardAppButton(tab: .templates)
                 DashboardAppButton(tab: .smartLists)
-                DashboardAppButton(tab: .pages)
+                DashboardAppButton(tab: .admin)
             }
 
             // Helper text
@@ -1111,10 +1111,8 @@ struct DashboardAppButton: View {
             TaskListView()
         case .calendar:
             CalendarView()
-        case .chat:
-            ChatView()
         case .messages:
-            MessagesView()
+            MessagesView() // Unified: AI + Human
         case .finance:
             FinanceView()
         case .templates:
@@ -1122,7 +1120,9 @@ struct DashboardAppButton: View {
         case .smartLists:
             SmartListsView()
         case .pages:
-            EmptyView() // Pages not currently used
+            PagesView() // Now implemented for AI context
+        case .admin:
+            AdminView()
         case .dashboard, .settings, .more:
             EmptyView()
         }

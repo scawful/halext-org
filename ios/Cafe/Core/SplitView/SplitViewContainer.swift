@@ -121,20 +121,25 @@ struct SplitViewContainer: View {
             TaskListView()
         case .calendar:
             CalendarView()
-        case .chat:
-            ChatView()
+        case .messages:
+            MessagesView() // Unified: AI + Human conversations
         case .finance:
             FinanceView()
+        case .pages:
+            PagesView()
+        case .admin:
+            if appState.isAdmin {
+                AdminView()
+            } else {
+                Text("Admin access required")
+                    .foregroundColor(.secondary)
+            }
         case .settings:
             SettingsView()
         case .templates:
             TaskTemplatesView()
         case .smartLists:
             SmartListsView()
-        case .pages:
-            EmptyView()
-        case .messages:
-            MessagesView()
         case .more:
             MoreView()
         }

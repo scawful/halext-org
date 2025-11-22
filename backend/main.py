@@ -29,7 +29,8 @@ from app.routers import (
     finance,
     social,
     ai,
-    integrations
+    integrations,
+    server_management
 )
 
 models.Base.metadata.create_all(bind=engine)
@@ -65,6 +66,7 @@ for prefix in ("/api", ""):
     app.include_router(social.router, prefix=prefix)
     app.include_router(ai.router, prefix=prefix)
     app.include_router(integrations.router, prefix=prefix)
+    app.include_router(server_management.router, prefix=prefix)
 
 # Legacy AI image routes keep their /v1 prefix plus a root fallback for old nginx setups
 app.include_router(ai_router_legacy, prefix="/api/v1", tags=["AI"])

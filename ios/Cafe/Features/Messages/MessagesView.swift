@@ -189,16 +189,9 @@ struct MessagesView: View {
     }
 
     private func destinationView(for conversation: Conversation) -> some View {
-        Group {
-            if conversation.participants.count > 2 {
-                GroupConversationView(conversation: conversation) { updated in
-                    viewModel.insertOrUpdate(updated)
-                }
-            } else {
-                ConversationView(conversation: conversation) { updated in
-                    viewModel.insertOrUpdate(updated)
-                }
-            }
+        // Use unified conversation view for all conversations (supports both AI and human chat)
+        UnifiedConversationView(conversation: conversation) { updated in
+            viewModel.insertOrUpdate(updated)
         }
     }
 

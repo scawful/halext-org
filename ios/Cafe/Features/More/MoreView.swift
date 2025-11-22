@@ -14,7 +14,9 @@ enum FeatureDestination: Hashable {
     case messages
     case finance
     case calendar
-    case chat
+    case pages
+    case admin
+    case chat // Legacy - redirects to messages
     case settings
     case social
 }
@@ -138,13 +140,17 @@ struct MoreView: View {
         case .smartLists:
             SmartListsView()
         case .messages:
-            MessagesView()
+            MessagesView() // Unified: AI + Human conversations
         case .finance:
             FinanceView()
         case .calendar:
             CalendarView()
+        case .pages:
+            PagesView()
+        case .admin:
+            AdminView()
         case .chat:
-            ChatView()
+            MessagesView() // Redirect to unified messages
         case .settings:
             SettingsView()
         case .social:
