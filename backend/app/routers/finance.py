@@ -176,3 +176,76 @@ def finance_summary(
     db: Session = Depends(get_db),
 ):
     return crud.get_finance_summary(db, current_user.id)
+
+
+# Budget Progress Endpoints
+
+@router.get("/finance/budgets/progress", response_model=List[schemas.BudgetProgress])
+def get_budget_progress(
+    period: Optional[str] = None,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Get budget progress for all active budgets.
+    Calculates spent amounts from transactions within the budget period.
+
+    - **period**: Optional override for budget period (weekly, monthly, quarterly, yearly)
+    """
+    return crud.get_budget_progress(db, current_user.id, period=period)
+
+
+@router.get("/finance/budgets/{budget_id}/progress", response_model=schemas.BudgetProgress)
+def get_single_budget_progress(
+    budget_id: int,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Get progress for a specific budget.
+    """
+    progress_list = crud.get_budget_progress(db, current_user.id, budget_id=budget_id)
+    if not progress_list:
+        raise HTTPException(status_code=404, detail="Budget not found")
+    return progress_list[0]
+
+
+@router.get("/finance/budgets/progress/summary", response_model=schemas.BudgetProgressSummary)
+def get_budget_progress_summary(
+    period: str = "monthly",
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Get aggregated budget progress summary.
+    Includes totals across all budgets and alert counts.
+
+    - **period**: Budget period to summarize (weekly, monthly, quarterly, yearly)
+    """
+    return crud.get_budget_progress_summary(db, current_user.id, period=period)
+
+
+@router.post("/finance/budgets/{budget_id}/sync", response_model=schemas.FinanceBudget)
+def sync_budget_spent(
+    budget_id: int,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Recalculate and sync the spent_amount for a budget from transactions.
+    """
+    budget = crud.update_budget_spent_amount(db, current_user.id, budget_id)
+    if not budget:
+        raise HTTPException(status_code=404, detail="Budget not found")
+    return budget
+
+
+@router.post("/finance/budgets/sync-all", response_model=List[schemas.FinanceBudget])
+def sync_all_budgets_spent(
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Recalculate and sync spent_amount for all active budgets.
+    """
+    return crud.sync_all_budget_spent_amounts(db, current_user.id)

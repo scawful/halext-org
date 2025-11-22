@@ -238,15 +238,27 @@ class UserSummary(BaseModel):
 class PartnerPresence(BaseModel):
     username: str
     is_online: bool
+    status: Optional[str] = "online"  # online, away, busy, offline
     current_activity: Optional[str] = None
     status_message: Optional[str] = None
     last_seen: Optional[datetime] = None
 
 
 class PresenceUpdate(BaseModel):
-    is_online: bool = True
+    is_online: Optional[bool] = True
+    status: Optional[str] = "online"  # online, away, busy, offline
     current_activity: Optional[str] = None
     status_message: Optional[str] = None
+
+
+class UserPresenceResponse(BaseModel):
+    user_id: int
+    status: str
+    last_seen: datetime
+    is_typing: Optional[bool] = False
+
+    class Config:
+        from_attributes = True
 
 
 class ConversationSummary(Conversation):
@@ -886,6 +898,12 @@ class FinanceBudgetBase(BaseModel):
     period: str = "monthly"
     emoji: Optional[str] = None
     color_hex: Optional[str] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    is_active: bool = True
+    goal_amount: Optional[float] = None
+    rollover_enabled: bool = False
+    alert_threshold: float = 0.8
 
 
 class FinanceBudgetCreate(FinanceBudgetBase):
@@ -893,10 +911,18 @@ class FinanceBudgetCreate(FinanceBudgetBase):
 
 
 class FinanceBudgetUpdate(BaseModel):
+    name: Optional[str] = None
+    category: Optional[str] = None
     spent_amount: Optional[float] = None
     limit_amount: Optional[float] = None
     emoji: Optional[str] = None
     color_hex: Optional[str] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    is_active: Optional[bool] = None
+    goal_amount: Optional[float] = None
+    rollover_enabled: Optional[bool] = None
+    alert_threshold: Optional[float] = None
 
 
 class FinanceBudget(FinanceBudgetBase):
@@ -907,6 +933,41 @@ class FinanceBudget(FinanceBudgetBase):
 
     class Config:
         from_attributes = True
+
+
+class BudgetProgress(BaseModel):
+    """Budget progress tracking with calculated fields for iOS compatibility."""
+    id: int
+    budget_id: int
+    name: str
+    category: str
+    limit_amount: float
+    spent: float
+    remaining: float
+    percent_used: float
+    period: str
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    is_over_budget: bool = False
+    is_at_alert_threshold: bool = False
+    goal_amount: Optional[float] = None
+    goal_progress: Optional[float] = None  # Progress toward goal if set
+    emoji: Optional[str] = None
+    color_hex: Optional[str] = None
+    transactions_count: int = 0
+    last_transaction_date: Optional[datetime] = None
+
+
+class BudgetProgressSummary(BaseModel):
+    """Summary of all budget progress for the current period."""
+    budgets: List[BudgetProgress]
+    total_budgeted: float
+    total_spent: float
+    total_remaining: float
+    overall_percent_used: float
+    period: str  # Current period being summarized
+    budgets_over_limit: int
+    budgets_at_alert: int
 
 
 class FinanceSummary(BaseModel):

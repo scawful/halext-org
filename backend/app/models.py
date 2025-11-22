@@ -324,6 +324,7 @@ class UserPresence(Base):
 
     user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
     is_online = Column(Boolean, default=True)
+    status = Column(String, default="online")  # online, away, busy, offline
     current_activity = Column(String, nullable=True)
     status_message = Column(String, nullable=True)
     last_seen = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -494,9 +495,17 @@ class FinanceBudget(Base):
     category = Column(String, default="general")
     limit_amount = Column(Float, nullable=False)
     spent_amount = Column(Float, default=0.0)
-    period = Column(String, default="monthly")
+    period = Column(String, default="monthly")  # weekly, monthly, quarterly, yearly
     emoji = Column(String, default="🍰")
     color_hex = Column(String, default="#F472B6")
+    # Budget period tracking
+    start_date = Column(DateTime(timezone=True), nullable=True)
+    end_date = Column(DateTime(timezone=True), nullable=True)
+    is_active = Column(Boolean, default=True)
+    # Goal tracking
+    goal_amount = Column(Float, nullable=True)  # Optional savings/spending goal
+    rollover_enabled = Column(Boolean, default=False)  # Carry over unused budget
+    alert_threshold = Column(Float, default=0.8)  # Alert when this % is reached
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

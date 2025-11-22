@@ -924,6 +924,221 @@ def delete_finance_budget(db: Session, db_budget: models.FinanceBudget):
     db.commit()
 
 
+def get_budget_period_dates(period: str, reference_date: Optional[datetime] = None):
+    """
+    Calculate start and end dates for a budget period.
+    Returns (start_date, end_date) tuple.
+    """
+    from datetime import timedelta
+    from calendar import monthrange
+
+    if reference_date is None:
+        reference_date = datetime.utcnow()
+
+    if period == "weekly":
+        # Start of current week (Monday)
+        start = reference_date - timedelta(days=reference_date.weekday())
+        start = start.replace(hour=0, minute=0, second=0, microsecond=0)
+        end = start + timedelta(days=6, hours=23, minutes=59, seconds=59)
+    elif period == "monthly":
+        # Start of current month
+        start = reference_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        _, last_day = monthrange(reference_date.year, reference_date.month)
+        end = reference_date.replace(day=last_day, hour=23, minute=59, second=59, microsecond=999999)
+    elif period == "quarterly":
+        # Start of current quarter
+        quarter_month = ((reference_date.month - 1) // 3) * 3 + 1
+        start = reference_date.replace(month=quarter_month, day=1, hour=0, minute=0, second=0, microsecond=0)
+        end_month = quarter_month + 2
+        _, last_day = monthrange(reference_date.year, end_month)
+        end = reference_date.replace(month=end_month, day=last_day, hour=23, minute=59, second=59, microsecond=999999)
+    elif period == "yearly":
+        # Start of current year
+        start = reference_date.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+        end = reference_date.replace(month=12, day=31, hour=23, minute=59, second=59, microsecond=999999)
+    else:
+        # Default to monthly
+        start = reference_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        _, last_day = monthrange(reference_date.year, reference_date.month)
+        end = reference_date.replace(day=last_day, hour=23, minute=59, second=59, microsecond=999999)
+
+    return start, end
+
+
+def calculate_budget_spent(
+    db: Session,
+    owner_id: int,
+    category: str,
+    start_date: datetime,
+    end_date: datetime,
+) -> tuple:
+    """
+    Calculate total spent for a category within a date range.
+    Returns (total_spent, transaction_count, last_transaction_date).
+    """
+    transactions = (
+        db.query(models.FinanceTransaction)
+        .filter(
+            models.FinanceTransaction.owner_id == owner_id,
+            models.FinanceTransaction.category == category,
+            models.FinanceTransaction.transaction_type == "debit",
+            models.FinanceTransaction.transaction_date >= start_date,
+            models.FinanceTransaction.transaction_date <= end_date,
+        )
+        .order_by(models.FinanceTransaction.transaction_date.desc())
+        .all()
+    )
+
+    total_spent = sum(tx.amount or 0.0 for tx in transactions)
+    transaction_count = len(transactions)
+    last_transaction_date = transactions[0].transaction_date if transactions else None
+
+    return total_spent, transaction_count, last_transaction_date
+
+
+def get_budget_progress(
+    db: Session,
+    owner_id: int,
+    budget_id: Optional[int] = None,
+    period: Optional[str] = None,
+) -> List[schemas.BudgetProgress]:
+    """
+    Calculate budget progress for one or all budgets.
+    Calculates spent amount from transactions in the current period.
+    """
+    query = db.query(models.FinanceBudget).filter(
+        models.FinanceBudget.owner_id == owner_id,
+        models.FinanceBudget.is_active == True,
+    )
+
+    if budget_id:
+        query = query.filter(models.FinanceBudget.id == budget_id)
+
+    budgets = query.all()
+    progress_list = []
+
+    for budget in budgets:
+        # Determine date range for budget period
+        budget_period = period or budget.period
+
+        if budget.start_date and budget.end_date:
+            start_date, end_date = budget.start_date, budget.end_date
+        else:
+            start_date, end_date = get_budget_period_dates(budget_period)
+
+        # Calculate spent from transactions
+        spent, tx_count, last_tx_date = calculate_budget_spent(
+            db, owner_id, budget.category, start_date, end_date
+        )
+
+        # Calculate progress metrics
+        limit = budget.limit_amount or 1.0  # Avoid division by zero
+        remaining = max(0.0, limit - spent)
+        percent_used = min((spent / limit) * 100, 100.0) if limit > 0 else 0.0
+
+        # Check alert conditions
+        is_over_budget = spent > limit
+        is_at_alert = percent_used >= (budget.alert_threshold or 0.8) * 100
+
+        # Calculate goal progress if goal is set
+        goal_progress = None
+        if budget.goal_amount and budget.goal_amount > 0:
+            goal_progress = min((spent / budget.goal_amount) * 100, 100.0)
+
+        progress = schemas.BudgetProgress(
+            id=budget.id,
+            budget_id=budget.id,
+            name=budget.name,
+            category=budget.category,
+            limit_amount=budget.limit_amount,
+            spent=spent,
+            remaining=remaining,
+            percent_used=round(percent_used, 2),
+            period=budget_period,
+            start_date=start_date,
+            end_date=end_date,
+            is_over_budget=is_over_budget,
+            is_at_alert_threshold=is_at_alert,
+            goal_amount=budget.goal_amount,
+            goal_progress=round(goal_progress, 2) if goal_progress else None,
+            emoji=budget.emoji,
+            color_hex=budget.color_hex,
+            transactions_count=tx_count,
+            last_transaction_date=last_tx_date,
+        )
+        progress_list.append(progress)
+
+    return progress_list
+
+
+def get_budget_progress_summary(
+    db: Session,
+    owner_id: int,
+    period: str = "monthly",
+) -> schemas.BudgetProgressSummary:
+    """
+    Get aggregated budget progress summary for all budgets.
+    """
+    progress_list = get_budget_progress(db, owner_id, period=period)
+
+    total_budgeted = sum(p.limit_amount for p in progress_list)
+    total_spent = sum(p.spent for p in progress_list)
+    total_remaining = sum(p.remaining for p in progress_list)
+    overall_percent = (total_spent / total_budgeted * 100) if total_budgeted > 0 else 0.0
+
+    budgets_over_limit = sum(1 for p in progress_list if p.is_over_budget)
+    budgets_at_alert = sum(1 for p in progress_list if p.is_at_alert_threshold and not p.is_over_budget)
+
+    return schemas.BudgetProgressSummary(
+        budgets=progress_list,
+        total_budgeted=total_budgeted,
+        total_spent=total_spent,
+        total_remaining=total_remaining,
+        overall_percent_used=round(overall_percent, 2),
+        period=period,
+        budgets_over_limit=budgets_over_limit,
+        budgets_at_alert=budgets_at_alert,
+    )
+
+
+def update_budget_spent_amount(db: Session, owner_id: int, budget_id: int) -> Optional[models.FinanceBudget]:
+    """
+    Recalculate and update the spent_amount field for a budget.
+    This syncs the denormalized spent_amount with actual transactions.
+    """
+    budget = get_finance_budget(db, owner_id, budget_id)
+    if not budget:
+        return None
+
+    if budget.start_date and budget.end_date:
+        start_date, end_date = budget.start_date, budget.end_date
+    else:
+        start_date, end_date = get_budget_period_dates(budget.period)
+
+    spent, _, _ = calculate_budget_spent(db, owner_id, budget.category, start_date, end_date)
+
+    budget.spent_amount = spent
+    db.add(budget)
+    db.commit()
+    db.refresh(budget)
+    return budget
+
+
+def sync_all_budget_spent_amounts(db: Session, owner_id: int) -> List[models.FinanceBudget]:
+    """
+    Sync spent_amount for all active budgets.
+    """
+    budgets = db.query(models.FinanceBudget).filter(
+        models.FinanceBudget.owner_id == owner_id,
+        models.FinanceBudget.is_active == True,
+    ).all()
+
+    for budget in budgets:
+        update_budget_spent_amount(db, owner_id, budget.id)
+
+    return budgets
+
+
 def get_finance_summary(db: Session, owner_id: int):
     accounts = get_finance_accounts(db, owner_id)
     budgets = get_finance_budgets(db, owner_id)
@@ -1060,7 +1275,12 @@ def upsert_user_presence(db: Session, user_id: int, update: schemas.PresenceUpda
     if not presence:
         presence = models.UserPresence(user_id=user_id)
 
-    presence.is_online = update.is_online
+    if update.is_online is not None:
+        presence.is_online = update.is_online
+    if update.status is not None:
+        presence.status = update.status
+        # Update is_online based on status for compatibility
+        presence.is_online = update.status != "offline"
     presence.current_activity = update.current_activity
     presence.status_message = update.status_message
     presence.last_seen = datetime.utcnow()
@@ -1073,3 +1293,8 @@ def upsert_user_presence(db: Session, user_id: int, update: schemas.PresenceUpda
 
 def get_user_presence(db: Session, user_id: int) -> Optional[models.UserPresence]:
     return db.query(models.UserPresence).filter(models.UserPresence.user_id == user_id).first()
+
+
+def get_multiple_user_presences(db: Session, user_ids: List[int]) -> List[models.UserPresence]:
+    """Get presence information for multiple users."""
+    return db.query(models.UserPresence).filter(models.UserPresence.user_id.in_(user_ids)).all()
